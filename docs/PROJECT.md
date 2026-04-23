@@ -262,11 +262,6 @@ Report any issues in the group's Slack channel.
 - [Squishy banana (Amazon.de)](https://www.amazon.de/-/en/gp/product/B0F53JN82R?smid=A2F4BB4XD540GR&th=1)
 - [Coke can 330 ml slim (Migros)](https://www.migros.ch/en/product/120271700000)
 
-### Local files in this repo
-- [`P1-VLA.docx`](P1-VLA.docx) — official project brief (authoritative source)
-- [`Robot_Learning_FS26_Brev_Instruction.pdf`](Robot_Learning_FS26_Brev_Instruction.pdf) — Brev setup instructions (original PDF)
-- [`vla_slide_image.png`](vla_slide_image.png) — course project-overview slide
-
 ---
 
 ## 13. Open Items / TBD
