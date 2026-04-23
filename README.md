@@ -1,4 +1,4 @@
-# LeMonkArm
+# LeMonkey
 
 **Vision-Language-Action manipulation policy** for the ETH Robot Learning FS26 course (Project 1).
 
