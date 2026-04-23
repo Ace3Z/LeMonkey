@@ -1,0 +1,32 @@
+# macOS
+.DS_Store
+
+# IDE / editor
+.vscode/
+.idea/
+*.swp
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+env/
+.env
+.ipynb_checkpoints/
+
+# ML / training artifacts
+checkpoints/
+runs/
+outputs/
+logs/
+wandb/
+*.ckpt
+*.pth
+*.pt
+*.safetensors
+
+# Datasets (typically hosted on HF Hub, not in git)
+data/
+datasets/
