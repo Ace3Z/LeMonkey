@@ -30,8 +30,3 @@ wandb/
 # Datasets (typically hosted on HF Hub, not in git)
 data/
 datasets/
-
-# Course source materials (kept locally under docs/, not published)
-docs/Robot_Learning_FS26_Brev_Instruction.pdf
-docs/vla_slide_image.png
-docs/P1-VLA.docx

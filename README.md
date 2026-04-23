@@ -12,13 +12,13 @@ Pick-and-place on a 6-DOF SO-101 arm, driven by a natural-language prompt and a 
 
 ```
 .
-├── README.md                 # this file
+├── README.md                                        # this file
 ├── .gitignore
 └── docs/
-    └── PROJECT.md            # full brief: eval spec, constraints, workflow, resources
+    ├── PROJECT.md                                   # full brief: eval spec, constraints, workflow, resources
+    ├── Robot_Learning_FS26_Brev_Instruction.pdf     # Brev GPU setup instructions (original PDF)
+    └── vla_slide_image.png                          # course project-overview slide
 ```
-
-Additional course source materials (Brev PDF, project slide) live locally under `docs/` but are gitignored and not published here — external links in `docs/PROJECT.md` cover the same content.
 
 ## Start here
 
