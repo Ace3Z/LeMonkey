@@ -105,6 +105,15 @@ Different models may be used across the three eval setups, or the same model wit
 
 Objects can be picked up early the week after the announcement or in the **TA session on April 30th**. Monitor Slack for current info.
 
+### Cameras (updated project rule)
+
+- **Single camera only.** You may use **only one camera** — the one that came with the SO-101 box. **No additional cameras are allowed.**
+- **Placement is your choice:**
+  - Leave it mounted on the wrist/gripper (default), **or**
+  - **Unmount it** from the wrist and use it as an **agent/shoulder camera** on a **self-built mount** (which you may bring to eval day) if you think that improves your policy.
+- Pick whichever aligns better with your data (e.g. other SO-101 datasets you find online) and the task setup.
+- **Not allowed:** phones, external webcams, depth cameras — the original "only one camera" rule exists to prevent pay-to-win setups.
+
 ---
 
 ## 5. Data
@@ -124,6 +133,8 @@ Objects can be picked up early the week after the announcement or in the **TA se
 ## 6. Compute — NVIDIA Brev
 
 NVIDIA provides compute via **Brev**. Baseline: **$200 credit per team** (not per student).
+
+> **Signup email from Alexey.** Alexey should have sent an email explaining how to sign up for the Compute. **If you haven't received it**, email him or send him a Slack message in the course workspace so he can re-send.
 
 ### 6.1 Setup flow
 
