@@ -67,18 +67,58 @@ Useful for pretraining / augmentation. Almost all use two cameras; action-stats 
 
 ---
 
-## Eval 3 — "Place the coke on [celebrity name]"
+## Eval 3 — "Place object on image of [named person]"
 
-No public VLA demo exists for *"place object on an image of a named person."* A practical recipe to assemble:
+The exact task (object onto a printed photo of a named celebrity, generalising across different photos of the same person) has **no public match**. What matters is the generalisable capability — *"put object X on the image of the named entity Y"* — where the table image is typically a different photo than anything in the training set. Below is the closest public work on that capability, ranked.
 
-1. A **VLM** (SmolVLM, Qwen2.5-VL, PaliGemma) reads the prompt and picks the correct A5 print from the scene.
-2. Output target coordinates → feed into a **generic "place the coke on the paper in front" SmolVLA** fine-tuned from our Eval 1 data.
+### 1. Interleave-VLA — closest on *image-of-image* reasoning
+- **Links:** <https://interleave-vla.github.io/Interleave-VLA-Anonymous/> · <https://arxiv.org/abs/2505.02152> · <https://github.com/Interleave-VLA/Interleave-VLA>
+- Instructions interleave text with reference images (internet photos, crops, sketches); the policy generalises zero-shot to unseen image prompts. ~210k episodes / 13M frames, π0-based.
+- **Why it matches:** image-as-prompt and same-target-different-view matching is the core capability we need. This is the single closest public precedent.
+- **Copyable:** training code, weights, π0 recipe, "unseen image prompt" eval protocol.
+- **Gap:** no faces, people, or named entities — matches on visual similarity, not identity across pose/outfit.
 
-Closest semantic analogs:
-- **VLABench world-knowledge split** — above.
-- **PaliGemma / Qwen2.5-VL zero-shot grounding** on celebrity images (OCR + face recognition live in the pretrained VLM; we do not need to train recognition).
+### 2. MOO — Open-World Object Manipulation (CoRL'23, Google)
+- **Links:** <https://robot-moo.github.io/> · <https://arxiv.org/abs/2303.00905>
+- VLM (OWL-ViT) extracts the target from a language command and emits a mask/point; RT-1 places it. Generalises to novel *categories* by name.
+- **Why it matches:** exactly the two-stage "VLM grounder + manipulation policy" pattern we'd use, with a face-ID module swapped in for OWL-ViT.
+- **Gap:** object classes, not people; no identity reasoning.
 
-No single copy-paste reference. Expect custom work here.
+### 3. ObjectVLA — object generalisation via VLM co-finetuning (2025)
+- **Links:** <https://objectvla.github.io/> · <https://arxiv.org/html/2502.19250v1>
+- Co-finetunes a VLA on vision-language pairs + teleop; generalises to 100 novel objects (~64% pick) with no demos per object.
+- **Why it matches:** template for generalising to OOD named targets without collecting demos per target. Replace object bboxes with face-ID crops.
+- **Gap:** still objects, not faces.
+
+### 4. VIMA / VIMABench (ICML'23)
+- **Links:** <https://vimalabs.github.io/> · <https://github.com/vimalabs/VIMABench> · <https://huggingface.co/datasets/VIMA/VIMA-Data>
+- 17 multimodal-prompt tasks, including *"put the object in `<img1>` on the one in `<img2>`"* — targets specified by images.
+- **Why it matches:** clearest precedent for "target is specified by an image"; drop-in sim for the task formulation.
+- **Gap:** abstract tabletop objects; no person identity; image is in the prompt, not on the table.
+
+### 5. Person Re-ID for robot-following (OCL-RPF, RAL'24)
+- **Links:** <https://arxiv.org/abs/2309.11727> · <https://github.com/MedlarTea/OCL-RPF>
+- Online-continual re-identification — follow the same person across pose/viewpoint changes. Navigation, not manipulation.
+- **Why it matches:** the exact "same person across different photos" signal we need. Usable as a frontend feature extractor.
+- **Gap:** real-person tracking, not printed A5 photos; no manipulation.
+
+### 6. VLABench (ICCV'25)
+- **Links:** <https://vlabench.github.io/> · <https://github.com/OpenMOSS/VLABench> · <https://arxiv.org/abs/2412.18194>
+- 100 task categories. Verified against the project page: no celebrity, poster, face, or named-entity grounding task. "Hang Picture" is lexically close but is hang-on-wall, not place-on-person.
+- **Use as:** evaluation-harness template, not a task match.
+
+### 7. LIBERO
+- **Links:** <https://libero-project.github.io/> · <https://github.com/Lifelong-Robot-Learning/LIBERO>
+- 130 tasks across Spatial / Object / Goal / Long. No printed-image-of-person task; LIBERO-Spatial disambiguates by spatial relation, not visual identity.
+- **Use as:** evaluation plumbing only.
+
+### Recommended recipe (what to build)
+
+This eval appears genuinely novel. Pattern after **MOO / ObjectVLA + face-ID frontend**:
+
+1. **Face-ID frontend.** Face-recognition model (ArcFace / InsightFace) or a CLIP-retrieval head keyed to a small gallery of reference celebrity photos. Consumes the prompt's `[celebrity name]`, the scene image, and the gallery; emits a **bbox / point on the correct A5 print**. The frontend carries the OOD-celebrity generalisation — we do not need to train recognition.
+2. **Manipulation policy.** A SmolVLA (or equivalent) fine-tuned on a generic "*place the coke on the paper in front of you*" task, **conditioned on the point** from step 1. This is the capability Interleave-VLA and MOO already solve.
+3. **Baseline to prove the channel is load-bearing.** A text-only VLA (π0 / SmolVLA / OpenVLA) with the same fine-tune — should fail on OOD celebrities if the face-ID channel is doing real work.
 
 ---
 
