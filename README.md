@@ -17,6 +17,7 @@ Pick-and-place on a 6-DOF SO-101 arm, driven by a natural-language prompt and a 
 └── docs/
     ├── PROJECT.md                                   # full brief: eval spec, constraints, workflow, resources
     ├── RELATED_WORK.md                              # prior work ranked per eval (repos, datasets, checkpoints)
+    ├── VLA_ARCHITECTURES.md                         # VLA × VLM lit review, per-eval recommendation, tunable knobs
     ├── Robot_Learning_FS26_Brev_Instruction.pdf     # Brev GPU setup instructions (original PDF)
     └── vla_slide_image.png                          # course project-overview slide
 ```
@@ -25,7 +26,7 @@ Pick-and-place on a 6-DOF SO-101 arm, driven by a natural-language prompt and a 
 
 **Read [`docs/PROJECT.md`](docs/PROJECT.md) first.** It consolidates everything: the three eval tasks, architecture constraints, hardware list, LeRobot data format, Brev GPU setup, sanity-check tasks, recommended workflow, and all external references.
 
-For concrete starting points (repos, datasets, checkpoints) ranked per eval, see [`docs/RELATED_WORK.md`](docs/RELATED_WORK.md).
+For concrete starting points (repos, datasets, checkpoints) ranked per eval, see [`docs/RELATED_WORK.md`](docs/RELATED_WORK.md). For the VLA / VLM choice itself — backbones, parameter counts, fine-tuning knobs, and the per-eval recommendation — see [`docs/VLA_ARCHITECTURES.md`](docs/VLA_ARCHITECTURES.md).
 
 ## Quick links
 
