@@ -30,3 +30,4 @@ wandb/
 # Datasets (typically hosted on HF Hub, not in git)
 data/
 datasets/
+CLAUDE.md
