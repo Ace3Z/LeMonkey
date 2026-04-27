@@ -1,4 +1,4 @@
-# VLA Architectures, VLM Backbones, and Tunable Knobs — LeMonkArm
+# VLA Architectures, VLM Backbones, and Tunable Knobs — LeMonkey
 
 Companion doc to [`PROJECT.md`](PROJECT.md) (eval definitions) and [`RELATED_WORK.md`](RELATED_WORK.md) (prior work). This file answers two practical questions:
 
