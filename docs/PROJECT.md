@@ -33,29 +33,31 @@ The policy must be a **VLA built on a pretrained vision-language backbone**. The
 
 ## 2. Evaluation — 150 pts main + 50 pts bonus
 
-All evals use the same physical setup: the SO-101 is mounted at the edge of a white table, objects placed in front of it. You choose exact positions on eval day, but all objects must remain movable by **±5 cm** from those positions. The gripper must start **≥15 cm** from the banana, and the camera must see all three bowls and the banana. **Bowls may NOT be taped to the table.**
+All evals use the same physical setup: the SO-101 is mounted at the edge of a white table, objects placed in front of it. You choose exact positions on eval day, but all objects must remain movable by **±5 cm** from those positions. The gripper must start **≥15 cm** from the banana, and the camera must see all three bowls and the banana. **Bowls may NOT be taped to the table.** **No mat / yoga mat / curtains or anything similar may be added to the workspace.**
 
 ### Eval 1 — Direct color-conditioned pick-and-place (50 pts)
 
 - Three bowls placed in a semicircle: **blue, red, green** (left → right).
 - Squishy toy banana placed horizontally (smiley orientation) directly in front of the arm.
-- Prompt: `"Put the banana in the [blue/red/green] colored bowl."`
+- Prompt: `"Put the banana in the [blue/red/green] colored bowl."` *(or a very similar prompt)*.
 - **Success:** banana ends up inside the correct bowl within **20 seconds**.
 - **9 rollouts / team** (3 per color), ~5.55 pts per success.
 
 ### Eval 2 — Compositional instruction following (50 pts)
 
 - Same bowl setup as Eval 1 but **varying colors**.
+- Banana positioned in the **middle of the bowls in a smiley orientation**, same as Eval 1.
 - Prompts require reasoning beyond direct color lookup, e.g.:
   - `"Put the banana into the 2nd bowl from the left."`
-  - `"Put the banana into the bowl colored by mixing red and blue."` (→ purple)
-  - `"Put the banana into the bowl that is not green and not blue."`
-- Exact prompts not disclosed in advance but identical across groups; multiple prompts, mix of easy and hard.
+  - `"Put the banana into the bowl on the right of the red bowl."`
+  - `"Put the banana into the bowl that is not green and not blue."` *(→ the red bowl)*
+- Exact prompts not disclosed in advance but **identical across groups** and very similar to the examples above. Multiple prompts will be used, mix of easy and hard.
 - **20 s / rollout.** Points distributed evenly across rollouts.
 
 ### Eval 3 — Coke can on celebrity image (50 pts)
 
-- DIN A5 color prints of celebrities placed in a semicircle; an **empty 330 ml slim coke can** stands in the middle.
+- DIN A5 **portrait** color prints of celebrities placed in a semicircle; an **empty 330 ml slim coke can** stands in the middle.
+- The coke can **may be crumbled together on the sides** but **must still be able to stand**. You may bring your **exact** coke can to demo day.
 - Prompt: `"Place the coke on [celebrity name]"` — policy must place the can on top of the correct image.
 - **In-distribution celebrities:** Taylor Swift, Barack Obama, Yann LeCun.
 - **OOD celebrities** used in some rollouts (e.g. Roger Federer, Angela Merkel).
@@ -80,8 +82,10 @@ Different models may be used across the three eval setups, or the same model wit
 
 - **Must be a VLA.** Architecture for each task (or combined) must use a **pretrained vision-language backbone**. It does *not* need a continuous action head or other extensions.
 - **Must be learned.** You must demonstrate you trained / fine-tuned the model yourself on the provided compute.
+- **VLA-only policy — no other foundation / pretrained models.** **You may not use any other foundation or pretrained models** (LLMs, orchestration VLMs, YOLO, face-recognition models, etc.) anywhere in the inference pipeline. The policy must consist of your VLA alone. *(This invalidates any two-stage pipeline that uses a face-ID frontend or VLM grounder in front of the VLA — see Eval 3 design implications.)*
 - **Training data**: publicly available datasets, teleoperation, or synthetic generation — all allowed.
 - **Optional extensions allowed**: RL post-training (**not at demo day**), synthetic data generation, etc.
+- **Different models across evals allowed.** You may use different models for Eval 1 / 2 / 3, or the same model across all three (with different weights / checkpoints).
 - **Hardware**: no custom hardware beyond what was provided in the course box. Return it fully functional.
 
 **Recommended starting points for VLAs:** *FlowerVLA*, *SmolVLA*, *Smol-0-VLA*, *TinyVLA*.
@@ -99,7 +103,7 @@ Different models may be used across the three eval setups, or the same model wit
 
 | Object | Quantity | Link |
 |--------|---------:|------|
-| Bowls (one per color) | 6 | [Amazon.de](https://www.amazon.de/-/en/gp/product/B0DWSCZNM1?smid=A31GQFT58NDMJG&psc=1) |
+| Bowls (one of each color) | 3 | [Amazon.de](https://www.amazon.de/-/en/gp/product/B0DWSCZNM1?smid=A31GQFT58NDMJG&psc=1) |
 | Squishy banana | 1 | [Amazon.de](https://www.amazon.de/-/en/gp/product/B0F53JN82R?smid=A2F4BB4XD540GR&th=1) |
 | Coke can (330 ml slim, empty for Eval 3) | 1 | [Migros](https://www.migros.ch/en/product/120271700000) |
 
@@ -111,6 +115,7 @@ Objects can be picked up early the week after the announcement or in the **TA se
 - **Placement is your choice:**
   - Leave it mounted on the wrist/gripper (default), **or**
   - **Unmount it** from the wrist and use it as an **agent/shoulder camera** on a **self-built mount** (which you may bring to eval day) if you think that improves your policy.
+- **Per-eval flexibility.** A *different* camera setting may be chosen for each eval (1 / 2 / 3). E.g. wrist for Eval 1, shoulder for Eval 3.
 - Pick whichever aligns better with your data (e.g. other SO-101 datasets you find online) and the task setup.
 - **Not allowed:** phones, external webcams, depth cameras — the original "only one camera" rule exists to prevent pay-to-win setups.
 
