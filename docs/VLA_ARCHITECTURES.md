@@ -7,6 +7,10 @@ Companion doc to [`PROJECT.md`](PROJECT.md) (eval definitions) and [`RELATED_WOR
 
 Eval definitions are sourced from [`PROJECT.md §2`](PROJECT.md#2-evaluation--150-pts-main--50-pts-bonus) (the consolidated brief built from the course [Google Doc](https://docs.google.com/document/d/1YsQ_Qe4vEwDp1dJdqn3l9vSt7oJBkc6JazjbmWLxAXg/edit?tab=t.0) and the Brev PDF). The 20 s rollout limit, single-camera rule, $200 GPU budget, and smallest-model bonus all flow from there.
 
+> **VLA-only constraint (load-bearing).** [`PROJECT.md §3`](PROJECT.md#3-architecture--procedure-constraints) forbids any other foundation / pretrained model (LLMs, orchestration VLMs, YOLO, face-recognition models, etc.) anywhere in the inference pipeline. **The policy must consist of the VLA alone.** This kills two-stage recipes (face-ID → policy, VLM-grounder → policy, OCR → policy) — every reasoning step must happen inside the VLA itself.
+>
+> **Per-eval flexibility.** [`PROJECT.md §4`](PROJECT.md#cameras-updated-project-rule) now allows a different camera mount per eval and different model checkpoints per eval. We exploit both below.
+
 ---
 
 ## 1. TL;DR — VLA × VLM × per-eval fit
@@ -29,7 +33,7 @@ Eval definitions are sourced from [`PROJECT.md §2`](PROJECT.md#2-evaluation--15
 |---|---|---|---|
 | Eval 1 — colour-named pick | SmolVLA fine-tuned from `smolvla_base` | `SmolVLM2-500M-Video-Instruct` | Pi0 (PaliGemma-3B) only if SmolVLA fails |
 | Eval 2 — compositional | SmolVLA fine-tuned from `lerobot/smolvla_vlabench` | `SmolVLM2-500M-Video-Instruct` | Pi0.5 (PaliGemma-3B) |
-| Eval 3 — celebrity image | Face-ID frontend → SmolVLA "place coke on point" | `SmolVLM2-500M-Video-Instruct` + ArcFace/InsightFace | Pi0.5 (PaliGemma-3B) end-to-end |
+| Eval 3 — celebrity image | **Pi0.5** end-to-end on celebrity-prompt demos (VLA-only) | **PaliGemma-3B** (web-pretrained world knowledge of public figures) | SmolVLA fine-tuned with image-as-prompt format (Interleave-VLA-style, but a single VLA — no extra models) |
 
 ---
 
@@ -104,13 +108,13 @@ Every model spec below is sourced. Where we ship the policy locally in [`third_p
 
 - **Page:** <https://objectvla.github.io/> · **Paper:** <https://arxiv.org/html/2502.19250v1>.
 - Co-fine-tunes a base VLA on vision-language pairs + teleop; generalises to ~100 novel objects with no per-target demos.
-- **Pattern reference for Eval 3:** swap object bboxes for face-ID crops to get a celebrity-grounding analogue.
+- **Pattern reference for Eval 3:** demonstrates that **inside a single VLA** you can pair vision-language data + teleop to teach OOD-target generalisation without per-target demos. Directly relevant to the ~100-celebrity OOD list (see [`PROJECT.md §2 Eval 3`](PROJECT.md#eval-3--coke-can-on-celebrity-image-50-pts)).
 
 ### 2.9 Interleave-VLA
 
 - **Paper:** [arXiv 2505.02152](https://arxiv.org/abs/2505.02152) · **Code:** [`Interleave-VLA/Interleave-VLA`](https://github.com/Interleave-VLA/Interleave-VLA) · **Page:** <https://interleave-vla.github.io/Interleave-VLA-Anonymous/>.
-- π0-based VLA that takes interleaved text+image prompts; closest public precedent for *image-of-image* reasoning.
-- **Use as:** Eval 3 architecture inspiration. Their generalisation comes from visual similarity, not face identity, so a face-ID frontend is still required for the celebrity-naming aspect.
+- π0-based VLA that takes interleaved text+image prompts; closest public precedent for *image-of-image* reasoning **inside a single VLA**.
+- **Use as:** Eval 3 architecture inspiration. We could feed the celebrity prompt + a reference photo of that celebrity (sourced from the ~100-name list TAs will publish) as an interleaved prompt — the VLA does the matching internally. **This stays VLA-only**: no separate face-ID model, no orchestration LLM. The reference photos are training-data assets, not a runtime model.
 
 ---
 
@@ -120,35 +124,77 @@ Each eval below quotes the constraint that drives the choice, the recommended VL
 
 ### Eval 1 — "Put the banana in the [red / green / blue] bowl"
 
-> *"Three bowls placed in a semicircle: blue, red, green. Banana in front. Prompt names the colour. 9 rollouts / team, 20 s each."* — [`PROJECT.md §2 Eval 1`](PROJECT.md#eval-1--direct-color-conditioned-pick-and-place-50-pts).
+> *"Three bowls (blue, red, green) in a semicircle. Banana in smiley orientation in front of the arm. **The banana never rotates** — always smiley, ±5 cm from your teleop position. Prompt names the colour. 9 rollouts / team, 20 s each."* — [`PROJECT.md §2 Eval 1`](PROJECT.md#eval-1--direct-color-conditioned-pick-and-place-50-pts).
 
 - **Why colour-name lookup is easy on a small VLM:** the prompt names a colour that is directly observable in pixels. SmolVLM-style VLMs handle simple referential expressions well; we don't need world knowledge.
-- **Primary VLA:** **SmolVLA** (`lerobot/smolvla_base`), 50–75 demos with intentional colour-position variation.
+- **Banana is a fixed-pose object** (never rotated). Treat it as a near-constant in image space — the variation that matters is *bowl colour position*, not banana pose. Demos should over-sample bowl-colour permutations rather than banana orientations.
+- **Primary VLA:** **SmolVLA** (`lerobot/smolvla_base`), 50–75 demos with intentional bowl colour-position variation.
 - **Primary VLM:** `SmolVLM2-500M-Video-Instruct` (default in [`configuration_smolvla.py:87`](third_party/lerobot/src/lerobot/policies/smolvla/configuration_smolvla.py)). 500 M backbone is sufficient. Maximises the smallest-model bonus.
+- **Camera (per [`PROJECT.md §4`](PROJECT.md#cameras-updated-project-rule)):** wrist mount is fine — three bowls fit in the wrist field of view at the start pose.
 - **Fallback VLA:** Pi0 only if SmolVLA fails on the real robot. PaliGemma-3B inside Pi0 is overkill for direct colour lookup and costs more compute on the $200 Brev budget.
 
-### Eval 2 — Compositional reasoning ("2nd bowl from the left", "mix red + blue")
+### Eval 2 — Compositional reasoning ("2nd bowl from the left", "right of the red bowl", "not green and not blue")
 
-> *"Same bowl setup but varying colours. Prompts require reasoning beyond direct colour lookup."* — [`PROJECT.md §2 Eval 2`](PROJECT.md#eval-2--compositional-instruction-following-50-pts).
+> *"Banana at the **exact same position as Eval 1** (smiley, fixed). The **three colored bowls may switch places** (same colour set as Eval 1, just reshuffled). Prompts require reasoning beyond direct colour lookup."* — [`PROJECT.md §2 Eval 2`](PROJECT.md#eval-2--compositional-instruction-following-50-pts).
 
-- **Why compositional prompts stress the VLM:** the policy must reason about ordinal position ("2nd from left"), colour mixing ("red + blue → purple"), and negation ("not green and not blue"). These are language tasks the VLM has to handle before the action expert ever fires.
+Actual example prompts (per [`PROJECT.md`](PROJECT.md)):
+- *"Put the banana into the 2nd bowl from the left."* (ordinal-position reasoning)
+- *"Put the banana into the bowl on the right of the red bowl."* (relative-position reasoning, requires colour grounding too)
+- *"Put the banana into the bowl that is not green and not blue."* (negation → red bowl)
+
+- **Why compositional prompts stress the VLM:** the policy must combine **colour grounding** (which bowl is red?) with **spatial reasoning** (left of / right of / 2nd from). These are language tasks the VLM has to handle before the action expert ever fires.
+- **Banana position is fixed** (same as Eval 1) — the model only has to vary its target *bowl*, not its grasp. This makes Eval 2 a great candidate for **fine-tuning from the Eval 1 checkpoint** rather than starting from scratch.
 - **Primary VLA:** **SmolVLA fine-tuned from [`lerobot/smolvla_vlabench`](https://huggingface.co/lerobot/smolvla_vlabench)** (not `smolvla_base`). Same 500 M backbone, but the starting checkpoint has already seen 3.11 M frames of VLABench reasoning prompts.
 - **Primary VLM:** `SmolVLM2-500M-Video-Instruct`. Despite the reasoning aspect, the prompt vocabulary is small and the eval is closed-set; we expect SmolVLM2-500M to be sufficient when warm-started from a reasoning-tuned checkpoint.
+- **Demo strategy:** sample all 3! = 6 bowl-position permutations roughly evenly. Within each permutation, hit the three reasoning prompt patterns (ordinal / relative / negation). ≥ 50 demos total per [`smolvla.mdx`](third_party/lerobot/docs/source/smolvla.mdx).
+- **Camera:** same as Eval 1 (wrist or shoulder, but be **consistent** with the Eval 1 setting if you fine-tune from that checkpoint — see [issue #1763](https://github.com/huggingface/lerobot/issues/1763) on camera-order matching).
 - **Fallback VLA:** **Pi0.5** (`lerobot/pi05_base`) with PaliGemma-3B — picked over Pi0 because Pi0.5's `tokenizer_max_length=200` ([`configuration_pi05.py:71`](third_party/lerobot/src/lerobot/policies/pi05/configuration_pi05.py)) tolerates longer reasoning prompts and quantile normalisation is more robust on small fine-tune sets. Costs the size bonus.
 - **Fallback VLM:** PaliGemma-3B (`google/paligemma-3b-pt-224`).
 
 ### Eval 3 — "Place the coke on [Taylor Swift / Obama / LeCun / Federer / Merkel]"
 
-> *"DIN A5 colour prints of celebrities placed in a semicircle; an empty 330 ml slim coke can stands in the middle."* — [`PROJECT.md §2 Eval 3`](PROJECT.md#eval-3--coke-can-on-celebrity-image-50-pts).
+> *"DIN A5 **portrait** colour prints of celebrities in a semicircle; a **normal 330 ml** coke can (no Coke Zero) in the middle, may be crumbled but must stand. Bring your exact can to demo day. In-distribution: Obama / Swift / LeCun. OOD: drawn from a list of ~100 candidates that TAs publish on the weekend of 2026-05-02 / 03."* — [`PROJECT.md §2 Eval 3`](PROJECT.md#eval-3--coke-can-on-celebrity-image-50-pts).
 
-- **Why a single VLA struggles:** the policy must (a) recognise a named celebrity from a photo it has likely never seen at that exact angle, (b) generalise to OOD celebrities (Federer, Merkel) at test time, and (c) execute a place action. Off-the-shelf VLMs are unreliable face recognisers; throwing more VLM params at it (PaliGemma-3B) does not solve the OOD-celebrity problem.
-- **Primary architecture: two-stage pipeline.**
-  1. **Face-ID frontend** — ArcFace / InsightFace (open-source, off-the-shelf, no training cost) keyed to a small gallery of reference celebrity photos. Consumes the prompt's `[celebrity name]` + the scene image + the gallery; emits a bbox / point on the correct A5 print.
-  2. **Manipulation policy** — SmolVLA fine-tuned on a generic *"place the coke on the paper in front of you"* task, conditioned on the point from step 1.
-- **Primary VLM:** `SmolVLM2-500M-Video-Instruct` (in the SmolVLA stage) + an external face-recognition model (not technically a VLM). The face-ID frontend carries the OOD-celebrity generalisation; the VLA only learns "place coke at point".
-- **Fallback VLA (end-to-end):** **Pi0.5** with PaliGemma-3B. PaliGemma is pretrained on WebLI (filtered web image-text); whether it can name-grounded-recognise our specific celebrities zero-shot is **unverified — run a quick zero-shot probe before relying on it**. Even if it can, OOD celebrities (Federer, Merkel) are a separate question. A dedicated face-ID model is likely more reliable.
-- **Smallest-model-bonus accounting (Eval 3).** [`PROJECT.md §2 Bonus`](PROJECT.md#bonus-up-to-50-pts--smallest-model) ranks by *total active parameter count of the model(s) used during inference*. The frontend pipeline is **SmolVLA (~450 M) + face-ID model (e.g. ArcFace ResNet-100 ~65 M) ≈ 515 M total**, still far smaller than Pi0.5 (~3.3 B). Account for the face-ID params explicitly when reporting.
-- **Baseline to prove the face-ID channel is load-bearing:** a text-only SmolVLA / Pi0.5 with the same fine-tune. It should fail on OOD celebrities; if it doesn't, the face-ID frontend isn't doing real work.
+> ⚠️ **VLA-only:** [`PROJECT.md §3`](PROJECT.md#3-architecture--procedure-constraints) bans face-recognition models, OCR models, orchestration LLMs/VLMs, and YOLO. The earlier "ArcFace frontend → SmolVLA" recipe is **not allowed**. Everything below is a single end-to-end VLA.
+
+#### Why this eval is hard with VLA-only
+
+The policy must, inside one VLA pass:
+1. **Recognise the named celebrity** (Obama / Swift / LeCun in-distribution; Federer / Merkel and others from the ~100-name pool out-of-distribution).
+2. **Match the name to one of the A5 prints on the table** — visual identity grounding from a photo it has likely never seen at that exact angle.
+3. **Place the coke can** on top of that print without knocking over the other prints.
+
+The bottleneck is **(1) + (2)** — celebrity world-knowledge and visual face-grounding. SmolVLM-500M's pretraining is too weak for arbitrary celebrities. We need a stronger VLM backbone or we need to feed the celebrity's identity into the prompt as visual context.
+
+#### Primary architecture: Pi0.5 end-to-end on celebrity-prompt demos
+
+- **Primary VLA:** **Pi0.5** ([`lerobot/pi05_base`](https://huggingface.co/lerobot/pi05_base)).
+- **Primary VLM:** **PaliGemma-3B** ([`google/paligemma-3b-pt-224`](https://huggingface.co/google/paligemma-3b-pt-224)). Pretrained on WebLI (filtered web image-text) — has materially more world knowledge of public figures than SmolVLM-500M. Pi0.5's `tokenizer_max_length=200` also fits the prompt template *"Place the coke on Taylor Swift"* + scene description comfortably.
+- **Demo collection (in-distribution).** ≥ 50 demos for the in-distribution set (Obama / Swift / LeCun): cycle through different print images per celebrity (different angles / outfits — buy stock photos or print 3–5 different photos per celebrity), randomise print positions in the semicircle, randomise the can's starting offset (±5 cm), randomise lighting. Each demo's task string is *"Place the coke on `<name>`"*.
+- **OOD strategy.** Once TAs publish the ~100-candidate list this weekend, **add reference prints + demos for as many OOD candidates as compute allows**. The eval will sample some subset — we can't cover all 100 with full demos, so prioritise the most-likely-tested half plus diverse training signal so PaliGemma's pretrained face-association generalises to the rest.
+- **Camera (per-eval choice):** **shoulder mount** is strongly preferred for Eval 3. The wrist camera tilts with the gripper and may lose sight of the prints on the far ends of the semicircle; a fixed shoulder/agent view sees all prints throughout the rollout. [`PROJECT.md §4 Cameras`](PROJECT.md#cameras-updated-project-rule) explicitly allows a different camera setting per eval, so this is fine even if Eval 1 / 2 use wrist.
+- **Why Pi0.5 over Pi0.** Pi0.5's quantile state/action normalisation is more robust on small fine-tune sets, and the longer tokenizer handles the celebrity-name vocabulary without truncation.
+
+#### Fallback architecture: image-as-prompt, single VLA
+
+- **Fallback VLA:** **SmolVLA** trained Interleave-VLA-style — accept the celebrity prompt **plus a reference photo of that celebrity** as part of the input (image-of-image prompting, all inside one VLA forward pass).
+- The reference photos come from the ~100-name candidate list; at runtime we look up the name → reference photo and feed both to the VLA. The VLA does the matching internally — no separate face-ID model.
+- **VLA-only?** Yes. The reference photos are training-data assets / a runtime lookup table, not a separate model. No face-recognition model runs at inference.
+- **Why fallback, not primary:** Interleave-VLA's open-source training pipeline is less mature than SmolVLA / Pi0.5 in LeRobot. We'd be doing more plumbing work for a smaller VLM (SmolVLM-500M) — only worth it if PaliGemma-3B turns out to be too slow on the 20 s rollout cap or fails on OOD celebrities.
+
+#### Smallest-model-bonus accounting
+
+[`PROJECT.md §2 Bonus`](PROJECT.md#bonus-up-to-50-pts--smallest-model) ranks by total active inference params. With VLA-only:
+- Pi0.5 primary: **~3.3 B** total (3 B PaliGemma + 0.3 B action expert) — costs the size bonus, but it's the only path with strong celeb recognition.
+- SmolVLA fallback (image-as-prompt): **~450 M** — far better for the bonus, but uncertain on celeb recognition.
+
+If we can make SmolVLA work via image-as-prompt, that's the size-bonus play; if not, eat the bonus loss for Pi0.5.
+
+#### Baselines to run before eval day
+
+1. **Zero-shot PaliGemma-3B probe.** Before fine-tuning, ask `google/paligemma-3b-pt-224` to identify each in-distribution celebrity from the print images and a sample of OOD celebrities. If it scores < 80 % on in-distribution, Pi0.5 alone won't be enough — pivot to image-as-prompt.
+2. **Pi0.5 fine-tuned without explicit name-prints supervision.** Train on demos with name-only prompts. If OOD success collapses, the name → image association isn't transferring — switch to image-as-prompt.
+3. **Compute budget check.** Pi0.5 fine-tuning on Brev: 3 B-param model means smaller `batch_size` and more steps than SmolVLA. Plan ~10–15 h of A100 time vs ~4 h for SmolVLA.
 
 ---
 
@@ -222,10 +268,10 @@ The space splits into **data**, **training**, and **inference** knobs. The same 
 
 | Knob | Eval 1 | Eval 2 | Eval 3 |
 |---|---|---|---|
-| Number of demos | ≥ 50 (per [`smolvla.mdx:32`](third_party/lerobot/docs/source/smolvla.mdx)) | ≥ 50 with **balanced prompt distribution** across the reasoning patterns | ≥ 50 of "place coke on paper in front" — celebrity identity not in demos (frontend handles it) |
-| Language strings | 3 fixed colours | Mix easy + hard prompts; include negation, ordinal, colour-mixing | Single generic prompt; identity supplied by frontend |
-| Augmentation | colour jitter, light, table | colour jitter; randomise bowl colour positions | randomise paper position; do **not** augment celebrity faces (frontend handles) |
-| Camera placement | wrist or shoulder (single) | wrist or shoulder (single) | **shoulder** likely better — needs to see all A5 prints |
+| Number of demos | ≥ 50 (per [`smolvla.mdx:32`](third_party/lerobot/docs/source/smolvla.mdx)) | ≥ 50, balanced over **3! = 6** bowl-colour permutations × 3 reasoning prompt types | ≥ 50 in-distribution (Obama / Swift / LeCun) + add reference demos for as many of the ~100 OOD candidates as compute allows |
+| Language strings | 3 fixed colours | Ordinal ("2nd from left"), relative ("right of red bowl"), negation ("not green and not blue"). **No** colour-mixing prompts (not in the actual eval) | `"Place the coke on <celebrity name>"` for every in-distribution + OOD-candidate name in demos |
+| Augmentation | colour jitter, light, table | colour jitter; randomise bowl colour positions; **banana stays fixed** | randomise print positions in the semicircle, vary lighting, vary the print images per celebrity (3–5 different photos each) |
+| Camera placement (different per eval allowed, see [PROJECT.md §4](PROJECT.md#cameras-updated-project-rule)) | wrist (close-up of bowl rim helps placement) | same as Eval 1 (consistency for fine-tune-from-Eval-1 path) | **shoulder mount** — fixed view sees all prints on the semicircle, doesn't lose sight when the gripper tilts |
 
 ### 5.2 Training knobs
 
@@ -248,9 +294,10 @@ The space splits into **data**, **training**, and **inference** knobs. The same 
 
 ### 5.4 Eval 3-specific architecture knob
 
-For Eval 3 we have a binary architectural choice:
-- **Frontend pipeline (recommended).** Face-ID model selects a point; SmolVLA places the coke on the point. Generalises to OOD celebrities for free because face-ID never saw the demos.
-- **End-to-end VLA with strong VLM (fallback).** Pi0.5 with PaliGemma-3B. Has to learn celebrity identity from the demos — fragile on OOD names.
+VLA-only constraint forces an end-to-end VLA. The remaining choice is **how the celebrity identity reaches the policy**:
+
+- **Name-only prompt (default Pi0.5 path).** Prompt = `"Place the coke on Taylor Swift"`. The VLM (PaliGemma-3B) must contain the name → face association internally. Best on celebrities the VLM saw a lot of in pretraining (very famous public figures); weaker on OOD niche names.
+- **Image-as-prompt (Interleave-VLA-style fallback path).** Prompt = `"Place the coke on this person"` + a reference photo of the named celebrity, looked up at runtime from the published ~100-name candidate list. The VLA does the photo-to-print matching internally — still a single VLA, no extra models. Better on OOD names but more plumbing to build.
 
 ---
 
@@ -314,7 +361,7 @@ Source: [Issue #2104 thread](https://github.com/huggingface/lerobot/issues/2104)
 
 - **Eval 1.** Stay with SmolVLM2-500M. The reasoning bar is low and the size bonus rewards staying small.
 - **Eval 2.** First try `lerobot/smolvla_vlabench` (still SmolVLM2-500M, no backbone swap). If reasoning fails, switch to **Pi0.5 (PaliGemma-3B)** rather than custom-swapping the SmolVLA backbone — Pi0.5 is already trained, so we avoid the from-scratch cost.
-- **Eval 3.** Backbone swap is the wrong tool. The bottleneck is celebrity identity, not VLM capacity. Use a face-ID frontend instead.
+- **Eval 3.** **Pi0.5 with PaliGemma-3B is the primary play** — it's the only plug-and-play VLA in LeRobot whose VLM has serious world knowledge of public figures. Don't custom-swap a 10 B / 28 B PaliGemma in: maintainer guidance below says it's not real-time-practical. If Pi0.5 falls short on OOD celebrities, fall back to image-as-prompt with SmolVLA (still a single VLA — see §3 Eval 3 fallback).
 
 **Caveats from the thread:**
 - Switching backbones = no checkpoint reuse.
