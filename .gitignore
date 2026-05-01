@@ -31,3 +31,6 @@ wandb/
 data/
 datasets/
 CLAUDE.md
+
+# Local-only setup notes (VM-specific, not for git)
+docs/SETUP.md
