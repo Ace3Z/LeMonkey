@@ -147,9 +147,16 @@ features = {
 
 root = Path(args.dataset_root)
 if root.exists():
-    print(f"WARN: root {root} exists; LeRobotDataset.create requires it not to.")
-    print("       If you want to resume / append, use lerobot-record's --resume flag separately.")
-    raise SystemExit(1)
+    # Distinguish "real dataset already here" (refuse) from "stale empty
+    # directory from a previously crashed init" (safe to remove).
+    has_episodes = any(root.glob("data/**/*.parquet")) or any(root.glob("videos/**/*.mp4"))
+    if has_episodes:
+        print(f"ERROR: {root} already contains episode data. Refusing to overwrite.")
+        print(f"       Move/delete it manually if you really want a fresh dataset.")
+        raise SystemExit(1)
+    import shutil
+    print(f"NOTE: removing stale empty dir from a previously-crashed init at {root}")
+    shutil.rmtree(root)
 
 dataset = LeRobotDataset.create(
     repo_id=args.dataset_repo_id,
