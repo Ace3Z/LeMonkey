@@ -32,6 +32,7 @@ Usage:
 """
 import argparse
 import json
+import logging
 import signal
 import sys
 import time
@@ -41,6 +42,19 @@ from threading import Event
 import numpy as np
 import torch
 from pynput import keyboard
+
+
+# Silence the noisy 'Relative goal position magnitude had to be clamped' warning
+# from lerobot.robots.utils.ensure_safe_goal_position. We're intentionally
+# clamping via max_relative_target — it's expected, not a problem to flag every frame.
+class _DropClampWarning(logging.Filter):
+    def filter(self, record):
+        return "Relative goal position magnitude had to be clamped" not in record.getMessage()
+
+
+logging.getLogger().addFilter(_DropClampWarning())
+for _h in logging.getLogger().handlers:
+    _h.addFilter(_DropClampWarning())
 
 from lerobot.cameras.opencv.configuration_opencv import OpenCVCameraConfig
 from lerobot.cameras.opencv.camera_opencv import OpenCVCamera
