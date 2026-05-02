@@ -55,14 +55,31 @@ Override per script:
 Press ENTER to start recording, ENTER to stop. The transcript is shown for
 confirmation before launching the rollout.
 
-### Memorization-vs-learning offline analysis
+### Memorization-vs-learning offline analyses
 ```bash
-./scripts/analyze_memorization.py
+./scripts/analyze_memorization.py            # static dataset analysis
+./scripts/probe_language_conditioning.py     # actual policy behavior probe
 ```
-Loads the 3 color datasets and reports trajectory diversity within-prompt
-vs across-color, plus a frames/params overparameterization sanity check.
-Flags HIGH/MEDIUM/LOW memorization risk with evidence, then points you at
-the empirical test (`eval_checkpoint.sh`) which is the real verdict.
+
+**`analyze_memorization.py`** — loads the 3 color datasets and reports
+trajectory diversity within-prompt vs across-color, plus a frames/params
+overparameterization sanity check. Cheap, runs in 5 s.
+
+**`probe_language_conditioning.py`** — runs inference on training images
+with deliberately varied prompts (verbatim trained / paraphrased /
+wrong-color / empty / nonsense) and compares predicted action chunks. The
+**wrong-color distance** is the decisive signal: if swapping `blue` ↔ `red`
+in the prompt barely changes the action, the policy isn't really listening
+to the color word. Takes ~3 min on a GTX 1660 SUPER.
+
+Reference numbers from a healthy run:
+- wrong_color distance > 30 (color word strongly steers action)
+- paraphrase distance < 15 (semantically equivalent phrasings produce similar actions)
+- empty/nonsense distance > 30 (language is being read, not ignored)
+
+The current trained checkpoint (020000) shows wrong_color ≈ 15 and high paraphrase
+variance (17–112), indicating partial language conditioning that's brittle to
+phrasing — see the probe output for full details.
 
 ### Structured per-checkpoint evaluation
 ```bash
