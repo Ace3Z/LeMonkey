@@ -85,7 +85,7 @@ echo "============================================================"
 echo
 
 # CSV header
-echo "rollout,color_target,prompt_type,prompt,success,banana_pos_offset_cm,notes,run_path" > "$CSV"
+echo "rollout,color_target,prompt_type,prompt,success,duration_s,duration_min,banana_pos_offset_cm,notes,run_path" > "$CSV"
 
 i=1
 while IFS=$'\t' read -r COLOR KIND PROMPT; do
@@ -107,7 +107,7 @@ while IFS=$'\t' read -r COLOR KIND PROMPT; do
   case "$A" in
     q|Q) echo "aborted by user."; break ;;
     s|S)
-      echo "$i,$COLOR,$KIND,\"${PROMPT//,/;}\",skipped,,," >> "$CSV"
+      echo "$i,$COLOR,$KIND,\"${PROMPT//,/;}\",skipped,,,,," >> "$CSV"
       i=$((i+1)); continue ;;
   esac
 
@@ -117,6 +117,7 @@ while IFS=$'\t' read -r COLOR KIND PROMPT; do
   RUN_NAME="${SESS}_r${i}_${COLOR}"
   RUN_PATH="$ROLL_BASE/$RUN_NAME"
 
+  START_S=$(date +%s)
   set +e
   lerobot-record \
     --robot.type=so101_follower --robot.port=/dev/ttyACM1 --robot.id=my_follower \
@@ -133,10 +134,14 @@ while IFS=$'\t' read -r COLOR KIND PROMPT; do
     --policy.path="$POLICY"
   RC=$?
   set -e
+  END_S=$(date +%s)
+  DUR_S=$((END_S - START_S))
+  DUR_MIN=$(awk "BEGIN {printf \"%.2f\", $DUR_S/60}")
 
   echo
+  echo "  ⏱  rollout duration: ${DUR_S}s (${DUR_MIN} min)"
   if [ $RC -ne 0 ]; then
-    echo "⚠️  rollout exited with code $RC (the run may have completed partially)"
+    echo "  ⚠️  rollout exited with code $RC (the run may have completed partially)"
   fi
 
   # Always ask y/n, validated, no matter what happened above
@@ -156,8 +161,8 @@ while IFS=$'\t' read -r COLOR KIND PROMPT; do
     NOTE="rc=$RC; $NOTE"
   fi
 
-  echo "$i,$COLOR,$KIND,\"${PROMPT//,/;}\",$RES,$POS,\"${NOTE//,/;}\",$RUN_PATH" >> "$CSV"
-  echo "  → recorded: $([ $RES -eq 1 ] && echo SUCCESS || echo FAIL)"
+  echo "$i,$COLOR,$KIND,\"${PROMPT//,/;}\",$RES,$DUR_S,$DUR_MIN,$POS,\"${NOTE//,/;}\",$RUN_PATH" >> "$CSV"
+  echo "  → recorded: $([ $RES -eq 1 ] && echo SUCCESS || echo FAIL)  duration=${DUR_S}s"
   i=$((i+1))
 done <<< "$PROMPT_LIST"
 
@@ -190,6 +195,15 @@ for r in done:
     by_kind[r['prompt_type']][1] += 1
 for k, (s, t) in sorted(by_kind.items()):
     print(f"    {k:9s} {s}/{t}  ({100*s/t if t else 0:.0f}%)")
+print()
+durs = [int(r['duration_s']) for r in done if r.get('duration_s','').isdigit()]
+if durs:
+    total_s = sum(durs)
+    print(f"  Timing:")
+    print(f"    rollouts measured: {len(durs)}")
+    print(f"    avg per rollout :  {sum(durs)/len(durs):.1f} s ({sum(durs)/len(durs)/60:.2f} min)")
+    print(f"    min / max       :  {min(durs)} s / {max(durs)} s")
+    print(f"    total (rollouts):  {total_s} s ({total_s/60:.1f} min)")
 print()
 print(f"  CSV: {sys.argv[1]}")
 PY
