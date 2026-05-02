@@ -73,8 +73,9 @@ args = p.parse_args()
 
 # ─── Keyboard listener for SPACEBAR-as-intervene ─────────────────────────────
 
-intervene = Event()
-quit_flag = Event()
+intervene    = Event()
+quit_flag    = Event()
+rest_request = Event()  # set when user presses 'r' — triggers manual home reset
 
 
 def on_press(key):
@@ -82,6 +83,13 @@ def on_press(key):
         intervene.set()
     elif key == keyboard.Key.esc:
         quit_flag.set()
+    else:
+        # Character keys (e.g. 'r')
+        try:
+            if key.char and key.char.lower() == "r":
+                rest_request.set()
+        except AttributeError:
+            pass
 
 
 def on_release(key):
@@ -152,6 +160,30 @@ def _sigint_handler(signum, frame):
 
 signal.signal(signal.SIGINT, _sigint_handler)
 signal.signal(signal.SIGTERM, _sigint_handler)
+
+
+def rest_arms_interactive():
+    """Release follower torque, wait for user to manually home both arms, re-engage."""
+    rest_request.clear()
+    intervene.clear()
+    print("\n  🛌 REST mode — disabling follower torque ...")
+    try:
+        follower.bus.disable_torque()
+        # Leader torque is already off by design; nothing to do there
+    except Exception as e:
+        print(f"     (could not disable torque: {e})")
+    print("     Move BOTH arms to the rest / home position.")
+    try:
+        input("     Press ENTER when done ... ")
+    except (EOFError, KeyboardInterrupt):
+        pass
+    print("     Re-engaging follower torque at the new pose ...")
+    try:
+        follower.bus.enable_torque()
+    except Exception as e:
+        print(f"     (could not re-enable torque: {e})")
+    rest_request.clear()  # in case more keypresses queued during input()
+    print("     ✓ done — resuming\n")
 
 
 # ─── Load policy + preprocessor ──────────────────────────────────────────────
@@ -264,22 +296,33 @@ print(f"  task     : \"{args.task}\"")
 print(f"  episodes : {args.num_episodes}")
 print(f"  per-ep s : {args.episode_time_s}")
 print()
-print("  HOLD SPACEBAR to take over the leader arm")
-print("  RELEASE     to return to policy control")
-print("  ESC         to quit between episodes")
+print("  HOLD SPACEBAR  take over via the leader arm")
+print("  RELEASE SPACE  return to policy control")
+print("  PRESS 'r'      release torque + manually home both arms (rest mode)")
+print("                   - mid-episode: discards in-progress episode and redoes it")
+print("                   - between episodes: just rests, then continues")
+print("  ESC            quit between episodes")
 print("=" * 60)
 print()
 
 dt = 1.0 / args.fps
 
-for ep_idx in range(args.num_episodes):
+ep_idx = 0
+while ep_idx < args.num_episodes:
     if quit_flag.is_set():
         print("Quit requested; stopping.")
         break
 
+    # If user pressed 'r' while we were between episodes, handle it now
+    if rest_request.is_set():
+        rest_arms_interactive()
+
     print(f"── Episode {ep_idx + 1} / {args.num_episodes} ──")
-    input("Place banana in target failure zone, press ENTER to start the episode ... ")
-    print(f"  recording for {args.episode_time_s}s — hold SPACE to intervene\n")
+    inp = input("Place banana, press ENTER to start  (or type 'r' + ENTER for rest first): ")
+    if inp.strip().lower() == "r":
+        rest_arms_interactive()
+        continue  # redo this episode from the top
+    print(f"  recording for {args.episode_time_s}s — hold SPACE to intervene, press 'r' to rest\n")
 
     policy.reset()
     n_frames = 0
@@ -300,8 +343,16 @@ for ep_idx in range(args.num_episodes):
     # Per-joint alignment tolerance (degrees for joints 0-4, range 0-100 for gripper)
     ALIGN_TOL = np.array([5.0, 5.0, 5.0, 5.0, 5.0, 15.0], dtype=np.float32)
 
+    rest_during_episode = False
+
     while time.time() - t_start < args.episode_time_s:
         loop_start = time.time()
+
+        # ─ Mid-episode rest request: discard partial episode and redo it ─
+        if rest_request.is_set():
+            rest_during_episode = True
+            print("\n  🛌 'r' pressed — discarding in-progress episode and entering rest mode.")
+            break
 
         # ─ Read observation (state + image) ─
         obs = get_obs_for_dataset()
@@ -378,16 +429,31 @@ for ep_idx in range(args.num_episodes):
         if elapsed < dt:
             time.sleep(dt - elapsed)
 
-    # End-of-episode
+    # End-of-episode handling
+    if rest_during_episode:
+        # Discard the partial episode buffer and redo this episode
+        try:
+            dataset.clear_episode_buffer()
+        except Exception as e:
+            print(f"  (clear_episode_buffer failed: {e})")
+        rest_arms_interactive()
+        # Don't increment ep_idx — repeat this episode index
+        continue
+
     pct = 100 * n_interventions / max(n_frames, 1)
     print(f"  episode done: {n_frames} frames, "
           f"{n_interventions} intervention frames ({pct:.0f}%)")
     dataset.save_episode()
+    ep_idx += 1
 
-    # Reset time
-    if ep_idx < args.num_episodes - 1:
-        print(f"  resetting for {args.reset_time_s}s — reposition arm + banana ...")
-        time.sleep(args.reset_time_s)
+    # Reset time (interruptible by 'r')
+    if ep_idx < args.num_episodes:
+        print(f"  resetting for {args.reset_time_s}s — reposition arm + banana ('r' for rest) ...")
+        sleep_until = time.time() + args.reset_time_s
+        while time.time() < sleep_until:
+            if rest_request.is_set() or quit_flag.is_set():
+                break
+            time.sleep(0.1)
 
 
 # ─── Cleanup ─────────────────────────────────────────────────────────────────
