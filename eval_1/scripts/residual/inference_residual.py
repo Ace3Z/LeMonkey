@@ -71,11 +71,24 @@ class ResidualWrapper:
         self._n_steps = 0
         self._n_clipped_steps = 0
 
+        # Image-feature cache: matches base SmolVLA's chunk cadence so we
+        # don't re-run the vision encoder every frame (it's the bottleneck
+        # at ~30-50 ms/frame on a GTX 1660 SUPER, slowing 30 fps control
+        # down to ~20 fps and producing jittery deltas because each
+        # frame's residual computes against a slightly different image
+        # feature on a chunk that was meant to be smooth).
+        # Cache for `cache_frames` calls; default 50 = SmolVLA chunk_size.
+        self._cached_img_feat = None
+        self._frames_since_extract = 0
+        self._cache_frames = 50
+
     def reset(self) -> None:
-        """Clear base policy's internal action queue."""
+        """Clear base policy's internal action queue + image-feature cache."""
         self.base.reset()
         self._n_steps = 0
         self._n_clipped_steps = 0
+        self._cached_img_feat = None
+        self._frames_since_extract = 0
 
     @torch.inference_mode()
     def _extract_image_features(self, image_uint8_HWC_np: np.ndarray) -> torch.Tensor:
@@ -126,8 +139,18 @@ class ResidualWrapper:
         )
         base_a = base_a_t.detach().squeeze().to(self.device)  # (6,)
 
-        # 2. Image features (mean-pooled patches from frozen vision encoder)
-        img_feat = self._extract_image_features(image_uint8_HWC_np)  # (1, 960)
+        # 2. Image features (mean-pooled patches from frozen vision encoder).
+        # CACHED across the chunk: re-extract every self._cache_frames calls,
+        # otherwise reuse the previous features. Matches the base's chunk
+        # cadence so the residual operates on the same temporal slice as
+        # the base — and avoids running the vision encoder every frame
+        # (which was the bottleneck before).
+        if self._cached_img_feat is None or self._frames_since_extract >= self._cache_frames:
+            self._cached_img_feat = self._extract_image_features(image_uint8_HWC_np)
+            self._frames_since_extract = 0
+        else:
+            self._frames_since_extract += 1
+        img_feat = self._cached_img_feat  # (1, 960)
 
         # 3. Residual prediction
         state_t = torch.from_numpy(state_np.astype(np.float32)).unsqueeze(0).to(self.device)
