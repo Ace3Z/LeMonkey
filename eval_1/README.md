@@ -55,6 +55,15 @@ Override per script:
 Press ENTER to start recording, ENTER to stop. The transcript is shown for
 confirmation before launching the rollout.
 
+### Memorization-vs-learning offline analysis
+```bash
+./scripts/analyze_memorization.py
+```
+Loads the 3 color datasets and reports trajectory diversity within-prompt
+vs across-color, plus a frames/params overparameterization sanity check.
+Flags HIGH/MEDIUM/LOW memorization risk with evidence, then points you at
+the empirical test (`eval_checkpoint.sh`) which is the real verdict.
+
 ### Structured per-checkpoint evaluation
 ```bash
 ./scripts/eval_checkpoint.sh                   # 30 rollouts on 020000 (10/color, shuffled)
