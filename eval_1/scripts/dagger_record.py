@@ -38,7 +38,7 @@ from lerobot.cameras.opencv.camera_opencv import OpenCVCamera
 from lerobot.datasets.lerobot_dataset import LeRobotDataset
 from lerobot.policies.factory import make_pre_post_processors
 from lerobot.policies.smolvla.modeling_smolvla import SmolVLAPolicy
-from lerobot.robots.so_follower.config_so_follower import SOFollowerConfig
+from lerobot.robots.so_follower.config_so_follower import SOFollowerRobotConfig
 from lerobot.robots.so_follower.so_follower import SOFollower
 from lerobot.teleoperators.so_leader.config_so_leader import SOLeaderTeleopConfig
 from lerobot.teleoperators.so_leader.so_leader import SOLeader
@@ -100,7 +100,7 @@ cam_cfg = OpenCVCameraConfig(
     height=args.cam_height,
     fps=args.fps,
 )
-follower_cfg = SOFollowerConfig(
+follower_cfg = SOFollowerRobotConfig(
     port=args.follower_port,
     id=args.follower_id,
     cameras={"camera1": cam_cfg},  # match policy's expected camera key
