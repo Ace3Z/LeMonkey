@@ -20,6 +20,20 @@ echo "=== GPU detect ==="
 nvidia-smi --query-gpu=name,memory.total --format=csv,noheader 2>&1 | head -3 || echo "[WARN] no GPUs"
 echo ""
 
+# ─── 0b. ffmpeg (provides libavutil etc. — needed by torchcodec) ─────────────
+# lerobot reads video frames from the LeRobotDataset via torchcodec, which
+# ctypes-loads libavutil.so.X from the system. Ubuntu 22.04 base images don't
+# ship ffmpeg, so torchcodec.decoders.VideoDecoder fails on first dataset access
+# with: 'libavutil.so.60: cannot open shared object file' (and similar for 59..56).
+if ldconfig -p 2>/dev/null | grep -q libavutil; then
+  echo "=== ffmpeg already installed (libavutil found) — skipping ==="
+else
+  echo "=== Installing ffmpeg (provides libavutil for torchcodec) ==="
+  sudo apt-get update -qq
+  sudo apt-get install -y ffmpeg
+fi
+echo ""
+
 # ─── 1. Miniconda ────────────────────────────────────────────────────────────
 CONDA_DIR="$HOME/miniconda3"
 if [ ! -d "$CONDA_DIR" ]; then
