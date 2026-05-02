@@ -420,13 +420,18 @@ while ep_idx < args.num_episodes:
             print(f"\n  ▶  TELEOP ON — leader released, you drive the follower. "
                   f"(press SPACE again to return to policy)")
         elif not space_active and teleop_on:
-            # Toggled off → re-engage leader torque, policy resumes
+            # Toggled off → re-engage leader torque, policy resumes.
+            # CRITICAL: clear the policy's stale action chunk so it doesn't
+            # replay actions queued from before the takeover (those were
+            # generated for the pre-intervention observation and are
+            # garbage now that the scene has changed).
             teleop_on = False
             try:
                 leader.bus.enable_torque()
             except Exception as e:
                 print(f"  (leader torque re-engage failed: {e})")
-            print(f"  ◀  TELEOP OFF — leader back to mirroring, policy resumes.")
+            policy.reset()
+            print(f"  ◀  TELEOP OFF — policy reset, fresh inference from current state.")
 
         # ─ Choose action ─
         if teleop_on:
