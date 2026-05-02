@@ -79,27 +79,37 @@ class ResidualWrapper:
 
     @torch.inference_mode()
     def _extract_image_features(self, image_uint8_HWC_np: np.ndarray) -> torch.Tensor:
-        """Same preprocessing pipeline as train_residual.py — kept in sync."""
-        # HWC uint8 → CHW float [0,1]
+        """Match SmolVLA's resize_with_pad (modeling_smolvla.py:134-153) EXACTLY.
+        Kept identical to train_residual.py's `_pad_to_512` to avoid train/inference drift."""
         img = torch.from_numpy(image_uint8_HWC_np).permute(2, 0, 1).float().unsqueeze(0) / 255.0
         img = img.to(self.device)
-        # Resize+pad to 512x512 (SmolVLA's resize_with_pad)
         B, C, H, W = img.shape
         target = 512
-        scale = min(target / H, target / W)
-        nh, nw = int(round(H * scale)), int(round(W * scale))
-        img = F.interpolate(img, size=(nh, nw), mode="bilinear", align_corners=False)
-        ph = target - nh; pw = target - nw
-        img = F.pad(img, (pw // 2, pw - pw // 2, ph // 2, ph - ph // 2), value=0.0)
-        # SigLIP expects [-1, 1]
-        img = img * 2.0 - 1.0
+        ratio = max(W / target, H / target)
+        new_h = int(H / ratio)
+        new_w = int(W / ratio)
+        img = F.interpolate(img, size=(new_h, new_w), mode="bilinear", align_corners=False)
+        pad_h = max(0, target - new_h)
+        pad_w = max(0, target - new_w)
+        # SmolVLA pads RIGHT and BOTTOM only — not centered. (left, right, top, bottom).
+        img = F.pad(img, (0, pad_w, 0, pad_h), value=0.0)
+        img = img * 2.0 - 1.0  # SigLIP normalization
         feats = self.base.model.vlm_with_expert.embed_image(img)  # (1, num_patches, 960)
         return feats.mean(dim=1)  # (1, 960)
 
     def select_action(self, image_uint8_HWC_np: np.ndarray, state_np: np.ndarray,
                       task_str: str) -> np.ndarray:
-        """Compute the next action: base + clipped residual."""
-        # 1. Base action (uses preprocessor + tokenizer + model internally)
+        """Compute the next action: base + clipped residual.
+
+        CRITICAL: we call self.base.reset() before every predict_action so the
+        base always returns the FIRST action of a fresh chunk. This matches
+        what train_residual.py sees (which also resets per-frame).
+        Without this reset, train sees chunk_idx=0 base actions, inference
+        sees chunk_idx=0..49 base actions — silent generalization failure.
+        Tradeoff: ~50ms/frame extra inference cost on 1660-class GPUs.
+        """
+        # 1. Reset base + run fresh chunk's first action (matches training)
+        self.base.reset()
         obs = {
             "observation.images.front": image_uint8_HWC_np,
             "observation.state": state_np.astype(np.float32),
