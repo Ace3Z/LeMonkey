@@ -247,25 +247,52 @@ for ep_idx in range(args.num_episodes):
     n_interventions = 0
     t_start = time.time()
 
+    # Incremental-teleop state: when SPACEBAR is first pressed, capture the
+    # leader's pose and the follower's pose at that instant. While the
+    # spacebar stays held, the target sent to the follower is
+    #   follower_anchor + (leader_now - leader_anchor)
+    # so the follower starts driving from wherever the policy left it,
+    # not snapping to wherever the leader was sitting.
+    prev_intervene = False
+    leader_anchor = None       # np.ndarray (6,)
+    follower_anchor = None     # np.ndarray (6,)
+
     while time.time() - t_start < args.episode_time_s:
         loop_start = time.time()
 
         # ─ Read observation (state + image) ─
         obs = get_obs_for_dataset()
+        follower_state_arr = obs["observation.state"]  # (6,) current joint pos
 
-        # ─ Compute policy action and read leader's current pose ─
+        # ─ Compute policy action ─
         policy_act_tensor = predict_action(
             obs, policy, torch.device(args.device), preprocessor, postprocessor,
             use_amp=False, task=args.task, robot_type=follower.robot_type,
         )
         policy_act_arr = policy_act_tensor.cpu().numpy().reshape(-1)
 
+        # ─ Read leader's current pose ─
         leader_act_dict = leader.get_action()
         leader_act_arr = action_dict_to_array(leader_act_dict)
 
+        # ─ Detect SPACEBAR press/release transitions and update anchors ─
+        currently_intervening = intervene.is_set()
+        if currently_intervening and not prev_intervene:
+            # Just pressed → capture both anchors at the policy-induced state
+            leader_anchor = leader_act_arr.copy()
+            follower_anchor = follower_state_arr.copy()
+        elif not currently_intervening and prev_intervene:
+            # Just released → clear anchors, policy resumes
+            leader_anchor = None
+            follower_anchor = None
+        prev_intervene = currently_intervening
+
         # ─ Decide which action to send ─
-        if intervene.is_set():
-            chosen_arr = leader_act_arr
+        if currently_intervening and leader_anchor is not None:
+            # Incremental teleop: follower starts at policy-induced pose,
+            # human's leader motion adds to it
+            delta = leader_act_arr - leader_anchor
+            chosen_arr = follower_anchor + delta
             is_int = True
             n_interventions += 1
         else:
