@@ -24,8 +24,10 @@ import sys
 import time
 from datetime import datetime
 from pathlib import Path
+from threading import Event
 
 import numpy as np
+from pynput import keyboard
 
 # Local
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -56,7 +58,21 @@ p.add_argument("--cam-height",    type=int, default=480)
 p.add_argument("--fps",           type=int, default=30)
 p.add_argument("--max-relative-target", type=float, default=8.0)
 p.add_argument("--device",        default="cuda")
+p.add_argument("--home-settle-s", type=float, default=2.0,
+               help="Seconds spent driving the follower back to the saved home "
+                    "pose between rollouts. 0 disables auto-home.")
 args = p.parse_args()
+
+
+# ─── Keyboard listener: 'n' to end the current rollout immediately ──────────
+end_rollout_request = Event()
+def _on_press(key):
+    try:
+        if key.char and key.char.lower() == "n":
+            end_rollout_request.set()
+    except AttributeError:
+        pass
+keyboard.Listener(on_press=_on_press, daemon=True).start()
 
 if args.seed is None:
     args.seed = int(time.time()) & 0xffff
@@ -192,10 +208,14 @@ def array_to_action_dict(arr) -> dict:
 
 print("=" * 60)
 print("  Residual SmolVLA — structured evaluation")
-print(f"  rollouts   : {len(prompts)} (10/color, 5 trained + 5 untrained)")
-print(f"  per-ep s   : {args.episode_time_s}")
-print(f"  seed       : {args.seed}")
-print(f"  csv        : {csv_path}")
+print(f"  rollouts     : {len(prompts)} (10/color, 5 trained + 5 untrained)")
+print(f"  per-ep s     : {args.episode_time_s}")
+print(f"  seed         : {args.seed}")
+print(f"  csv          : {csv_path}")
+print(f"  home settle  : {args.home_settle_s}s after each rollout")
+print("  controls     : 'n'   = end the current rollout immediately")
+print("                 's' / ENTER 's' at the prompt = skip a rollout")
+print("                 'q'   = quit")
 print("=" * 60)
 print()
 
@@ -237,10 +257,24 @@ for i, (color, kind, prompt) in enumerate(prompts, 1):
     run_name = f"{sess}_r{i}_{color}"
     run_path = roll_base / run_name
 
+    # Save the pose the user placed the arm at — we'll auto-drive back to it
+    # after the rollout so the user doesn't have to manually reset every time.
+    home_state, _ = get_obs()
+    if i == 1:
+        print(f"  📍 saved home pose from rollout 1 (used between rollouts): "
+              f"{[round(float(v), 1) for v in home_state]}")
+
     wrapper.reset()
+    end_rollout_request.clear()  # in case it's still set from a prior keypress
+    ended_early = False
     t0 = time.time()
     try:
         while time.time() - t0 < args.episode_time_s:
+            if end_rollout_request.is_set():
+                end_rollout_request.clear()
+                ended_early = True
+                print(f"\n  ⏭   'n' pressed — ending rollout early.")
+                break
             loop_start = time.time()
             state, img = get_obs()
             action_arr = wrapper.select_action(img, state, prompt)
@@ -256,10 +290,26 @@ for i, (color, kind, prompt) in enumerate(prompts, 1):
     dur_s = int(time.time() - t0)
     dur_min = dur_s / 60.0
     summary = wrapper.episode_summary()
-    print(f"\n  ⏱  duration: {dur_s}s ({dur_min:.2f} min)")
+    print(f"\n  ⏱  duration: {dur_s}s ({dur_min:.2f} min)" +
+          (" (ended early)" if ended_early else ""))
     print(f"  ⚙  residual clip rate: {summary['clip_pct']:.1f}% of {summary['n_steps']} steps")
     if rollout_rc != 0:
         print(f"  ⚠️  rollout had error (rc={rollout_rc})")
+
+    # Drive arm back to home pose (matches lerobot-record's reset_time_s pattern).
+    # The motors interpolate from current pose to home_state; sending the same
+    # target each frame for ~home_settle_s gives the arm time to actually arrive.
+    if args.home_settle_s > 0:
+        print(f"  🏠 driving arm back to home pose for {args.home_settle_s:.1f}s ...")
+        home_dict = array_to_action_dict(home_state)
+        t_home = time.time()
+        while time.time() - t_home < args.home_settle_s:
+            try:
+                follower.send_action(home_dict)
+            except Exception as e:
+                print(f"[WARN] send_action during home drive failed: {e}", flush=True)
+                break
+            time.sleep(dt)
 
     print(f"\n▶ Was the banana FULLY INSIDE the {color} bowl at the end?")
     while True:
