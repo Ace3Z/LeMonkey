@@ -84,9 +84,10 @@ args = p.parse_args()
 
 # ─── Keyboard listener for SPACEBAR-as-intervene ─────────────────────────────
 
-intervene    = Event()         # True = teleop active; toggled by SPACE
-quit_flag    = Event()
-rest_request = Event()         # set when user presses 'r' — triggers manual home reset
+intervene        = Event()     # True = teleop active; toggled by SPACE
+quit_flag        = Event()
+rest_request     = Event()     # set when user presses 'r' — triggers manual home reset
+next_ep_request  = Event()     # set when user presses 'n' — end current episode early, save, advance
 
 # Edge-detection state for SPACE so key-repeat doesn't re-toggle every frame
 _space_down = False
@@ -105,10 +106,13 @@ def on_press(key):
     elif key == keyboard.Key.esc:
         quit_flag.set()
     else:
-        # Character keys (e.g. 'r')
+        # Character keys (e.g. 'r', 'n')
         try:
-            if key.char and key.char.lower() == "r":
+            ch = key.char.lower() if key.char else ""
+            if ch == "r":
                 rest_request.set()
+            elif ch == "n":
+                next_ep_request.set()
         except AttributeError:
             pass
 
@@ -347,7 +351,9 @@ print("  PRESS SPACE    toggle teleop ON / OFF")
 print("                   - OFF (default): policy drives follower; leader is")
 print("                     actively driven to mirror the follower (haptic feedback)")
 print("                   - ON: leader torque released; you drive the follower")
-print("                     1:1 by moving the leader by hand (it was already aligned)")
+print("                     anchored from current pose")
+print("  PRESS 'n'      end this episode NOW, save it, advance to the next episode")
+print("                   - use after a successful pick + place to skip the dead time")
 print("  PRESS 'r'      release torque + manually home both arms (rest mode)")
 print("                   - mid-episode: discards in-progress episode and redoes it")
 print("                   - between episodes: just rests, then continues")
@@ -373,12 +379,13 @@ while ep_idx < args.num_episodes:
         rest_arms_interactive()
         continue  # redo this episode from the top
 
-    # Clear any SPACE / 'r' presses that happened during the calibration prompts
-    # or the input() above. Without this, an accidental SPACE press would put us
-    # in TELEOP from frame 0 of the next episode (which is what just bit us).
+    # Clear any SPACE / 'r' / 'n' presses that happened during the calibration
+    # prompts or the input() above. Without this, an accidental SPACE press
+    # would put us in TELEOP from frame 0 of the next episode.
     intervene.clear()
     rest_request.clear()
-    print(f"  recording for {args.episode_time_s}s — press SPACE to toggle teleop, 'r' to rest\n")
+    next_ep_request.clear()
+    print(f"  recording for {args.episode_time_s}s — SPACE=toggle teleop, 'n'=end episode now, 'r'=rest\n")
 
     policy.reset()
     n_frames = 0
@@ -396,6 +403,7 @@ while ep_idx < args.num_episodes:
     leader_anchor = None
     follower_anchor = None
     rest_during_episode = False
+    end_early = False
 
     while time.time() - t_start < args.episode_time_s:
         loop_start = time.time()
@@ -404,6 +412,13 @@ while ep_idx < args.num_episodes:
         if rest_request.is_set():
             rest_during_episode = True
             print("\n  🛌 'r' pressed — discarding in-progress episode and entering rest mode.")
+            break
+
+        # ─ Mid-episode end-now request: save what we have and advance ─
+        if next_ep_request.is_set():
+            next_ep_request.clear()
+            end_early = True
+            print(f"\n  ⏭   'n' pressed — ending episode early, saving and advancing.")
             break
 
         # ─ Read observation (state + image) ─
