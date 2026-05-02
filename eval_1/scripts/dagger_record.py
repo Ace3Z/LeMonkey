@@ -98,10 +98,14 @@ args = p.parse_args()
 
 # ─── Keyboard listener for SPACEBAR-as-intervene ─────────────────────────────
 
-intervene        = Event()     # True = teleop active; toggled by SPACE
-quit_flag        = Event()
-rest_request     = Event()     # set when user presses 'r' — triggers manual home reset
-next_ep_request  = Event()     # set when user presses 'n' — end current episode early, save, advance
+intervene          = Event()   # True = teleop active; toggled by SPACE
+quit_flag          = Event()
+rest_request       = Event()   # 'r' — manual home reset
+next_ep_request    = Event()   # 'n' — end episode early, save, advance
+delete_last_req    = Event()   # 'd' — mark last saved episode for deletion at end of run
+delete_all_req     = Event()   # 'a' — mark ALL saved episodes for deletion at end of run
+
+pending_deletes    = []        # episode indices queued for deletion
 
 # Edge-detection state for SPACE so key-repeat doesn't re-toggle every frame
 _space_down = False
@@ -120,13 +124,17 @@ def on_press(key):
     elif key == keyboard.Key.esc:
         quit_flag.set()
     else:
-        # Character keys (e.g. 'r', 'n')
+        # Character keys (e.g. 'r', 'n', 'd', 'a')
         try:
             ch = key.char.lower() if key.char else ""
             if ch == "r":
                 rest_request.set()
             elif ch == "n":
                 next_ep_request.set()
+            elif ch == "d":
+                delete_last_req.set()
+            elif ch == "a":
+                delete_all_req.set()
         except AttributeError:
             pass
 
@@ -366,11 +374,13 @@ print("                   - OFF (default): policy drives follower; leader is")
 print("                     actively driven to mirror the follower (haptic feedback)")
 print("                   - ON: leader torque released; you drive the follower")
 print("                     anchored from current pose")
-print("  PRESS 'n'      end this episode NOW, save it, advance to the next episode")
-print("                   - use after a successful pick + place to skip the dead time")
+print("  PRESS 'n'      end this episode NOW, save it, advance")
+print("                   - use after a successful pick+place to skip dead time")
 print("  PRESS 'r'      release torque + manually home both arms (rest mode)")
 print("                   - mid-episode: discards in-progress episode and redoes it")
 print("                   - between episodes: just rests, then continues")
+print("  PRESS 'd'      mark the LAST saved episode for deletion (applied at run end)")
+print("  PRESS 'a'      mark ALL saved episodes for deletion (applied at run end)")
 print("  ESC            quit between episodes")
 print("=" * 60)
 print()
@@ -393,13 +403,15 @@ while ep_idx < args.num_episodes:
         rest_arms_interactive()
         continue  # redo this episode from the top
 
-    # Clear any SPACE / 'r' / 'n' presses that happened during the calibration
+    # Clear any stray key events that happened during the calibration
     # prompts or the input() above. Without this, an accidental SPACE press
     # would put us in TELEOP from frame 0 of the next episode.
     intervene.clear()
     rest_request.clear()
     next_ep_request.clear()
-    print(f"  recording for {args.episode_time_s}s — SPACE=toggle teleop, 'n'=end episode now, 'r'=rest\n")
+    delete_last_req.clear()
+    delete_all_req.clear()
+    print(f"  recording for {args.episode_time_s}s — SPACE teleop, 'n' end-now, 'r' rest, 'd'/'a' del-last/del-all\n")
 
     policy.reset()
     n_frames = 0
@@ -439,16 +451,18 @@ while ep_idx < args.num_episodes:
         obs = get_obs_for_dataset()
         follower_state_arr = obs["observation.state"]  # (6,) current joint pos
 
-        # ─ Compute policy action ─
-        policy_act_tensor = predict_action(
-            obs, policy, torch.device(args.device), preprocessor, postprocessor,
-            use_amp=False, task=args.task, robot_type=follower.robot_type,
-        )
-        policy_act_arr = policy_act_tensor.cpu().numpy().reshape(-1)
-
         # ─ Read leader's current pose ─
         leader_act_dict = leader.get_action()
         leader_act_arr = action_dict_to_array(leader_act_dict)
+
+        # ─ Compute policy action ONLY when in policy mode (saves ~50ms / frame in teleop) ─
+        policy_act_arr = None
+        if not intervene.is_set():
+            policy_act_tensor = predict_action(
+                obs, policy, torch.device(args.device), preprocessor, postprocessor,
+                use_amp=False, task=args.task, robot_type=follower.robot_type,
+            )
+            policy_act_arr = policy_act_tensor.cpu().numpy().reshape(-1)
 
         # ─ Toggle transitions ─
         space_active = intervene.is_set()
@@ -539,15 +553,39 @@ while ep_idx < args.num_episodes:
     print(f"  episode done: {n_frames} frames, "
           f"{n_interventions} intervention frames ({pct:.0f}%)")
     dataset.save_episode()
+    saved_idx = ep_idx
     ep_idx += 1
 
-    # Reset time (interruptible by 'r')
+    # Handle deletion requests for the just-saved episode (or all)
+    if delete_all_req.is_set():
+        delete_all_req.clear()
+        pending_deletes.clear()
+        pending_deletes.extend(range(ep_idx))  # mark all 0..ep_idx-1
+        print(f"  📝 'a' pressed — marked ALL {ep_idx} saved episodes for deletion at end of run")
+    elif delete_last_req.is_set():
+        delete_last_req.clear()
+        if saved_idx not in pending_deletes:
+            pending_deletes.append(saved_idx)
+        print(f"  📝 'd' pressed — marked episode {saved_idx} for deletion at end of run "
+              f"(total queued: {len(pending_deletes)})")
+
+    # Reset time (interruptible by 'r' / 'd' / 'a')
     if ep_idx < args.num_episodes:
-        print(f"  resetting for {args.reset_time_s}s — reposition arm + banana ('r' for rest) ...")
+        print(f"  resetting for {args.reset_time_s}s — 'r' rest, 'd' delete-last, 'a' delete-all ...")
         sleep_until = time.time() + args.reset_time_s
         while time.time() < sleep_until:
             if rest_request.is_set() or quit_flag.is_set():
                 break
+            if delete_last_req.is_set():
+                delete_last_req.clear()
+                if saved_idx not in pending_deletes:
+                    pending_deletes.append(saved_idx)
+                print(f"  📝 marked episode {saved_idx} for deletion (queued: {len(pending_deletes)})")
+            if delete_all_req.is_set():
+                delete_all_req.clear()
+                pending_deletes.clear()
+                pending_deletes.extend(range(ep_idx))
+                print(f"  📝 marked ALL {ep_idx} episodes for deletion")
             time.sleep(0.1)
 
 
@@ -556,6 +594,28 @@ while ep_idx < args.num_episodes:
 print("\nFinalizing dataset ...")
 dataset.finalize()
 _shutdown("normal end of recording")
+
+# Apply queued deletions via lerobot-edit-dataset (it expects the dataset to be
+# closed first, which finalize() handled).
+if pending_deletes:
+    import subprocess
+    eps = sorted(set(pending_deletes))
+    print(f"\n=== Deleting {len(eps)} marked episode(s): {eps} ===")
+    cmd = [
+        "lerobot-edit-dataset",
+        f"--repo_id={args.dataset_repo_id}",
+        f"--root={args.dataset_root}",
+        f"--new_repo_id={args.dataset_repo_id}",
+        f"--new_root={args.dataset_root}",
+        "--operation.type=delete_episodes",
+        f"--operation.episode_indices={list(eps)}",
+    ]
+    print("  $ " + " ".join(cmd))
+    rc = subprocess.run(cmd).returncode
+    if rc == 0:
+        print(f"  ✓ deletion complete — {len(eps)} episode(s) removed")
+    else:
+        print(f"  ✗ deletion failed (rc={rc}). Episodes still on disk; you can run the cmd manually.")
 try:
     follower.disconnect()
 except Exception:
