@@ -60,14 +60,18 @@ untrained = [
     "Banana goes in the {} bowl",
 ]
 
+# Group all 10 prompts of one color back-to-back (no color shuffling).
+# Within each color, shuffle the trained/untrained mix so it's not predictable.
 items = []
 for color in ["blue", "red", "green"]:
+    color_block = []
     for t in trained:
-        items.append((color, "trained",   t.format(color)))
+        color_block.append((color, "trained",   t.format(color)))
     for t in untrained:
-        items.append((color, "untrained", t.format(color)))
+        color_block.append((color, "untrained", t.format(color)))
+    random.shuffle(color_block)
+    items.extend(color_block)
 
-random.shuffle(items)
 for color, kind, prompt in items:
     print(f"{color}\t{kind}\t{prompt}")
 EOF
@@ -85,7 +89,7 @@ echo "============================================================"
 echo
 
 # CSV header
-echo "rollout,color_target,prompt_type,prompt,success,duration_s,duration_min,banana_pos_offset_cm,notes,run_path" > "$CSV"
+echo "rollout,color_target,prompt_type,prompt,success,duration_s,duration_min,notes,run_path" > "$CSV"
 
 i=1
 while IFS=$'\t' read -r COLOR KIND PROMPT; do
@@ -107,12 +111,9 @@ while IFS=$'\t' read -r COLOR KIND PROMPT; do
   case "$A" in
     q|Q) echo "aborted by user."; break ;;
     s|S)
-      echo "$i,$COLOR,$KIND,\"${PROMPT//,/;}\",skipped,,,,," >> "$CSV"
+      echo "$i,$COLOR,$KIND,\"${PROMPT//,/;}\",skipped,,,," >> "$CSV"
       i=$((i+1)); continue ;;
   esac
-
-  read -r -p "Banana position offset (e.g. 'home', '+3cm x', '-2cm y'): " POS < /dev/tty
-  POS="${POS:-home}"
 
   RUN_NAME="${SESS}_r${i}_${COLOR}"
   RUN_PATH="$ROLL_BASE/$RUN_NAME"
@@ -161,7 +162,7 @@ while IFS=$'\t' read -r COLOR KIND PROMPT; do
     NOTE="rc=$RC; $NOTE"
   fi
 
-  echo "$i,$COLOR,$KIND,\"${PROMPT//,/;}\",$RES,$DUR_S,$DUR_MIN,$POS,\"${NOTE//,/;}\",$RUN_PATH" >> "$CSV"
+  echo "$i,$COLOR,$KIND,\"${PROMPT//,/;}\",$RES,$DUR_S,$DUR_MIN,\"${NOTE//,/;}\",$RUN_PATH" >> "$CSV"
   echo "  → recorded: $([ $RES -eq 1 ] && echo SUCCESS || echo FAIL)  duration=${DUR_S}s"
   i=$((i+1))
 done <<< "$PROMPT_LIST"
