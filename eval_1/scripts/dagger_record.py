@@ -75,6 +75,10 @@ p.add_argument("--num-episodes",  type=int, default=5)
 p.add_argument("--episode-time-s", type=float, default=30)
 p.add_argument("--reset-time-s",  type=float, default=10)
 p.add_argument("--device",        default="cuda")
+p.add_argument("--max-relative-target", type=float, default=8.0,
+               help="Per-frame joint motion cap (degrees). Smooths sudden "
+                    "policy-output jumps when transitioning back from teleop. "
+                    "Set to 0 (or negative) to disable.")
 args = p.parse_args()
 
 
@@ -128,11 +132,16 @@ cam_cfg = OpenCVCameraConfig(
     height=args.cam_height,
     fps=args.fps,
 )
+_max_rel = args.max_relative_target if args.max_relative_target > 0 else None
 follower_cfg = SOFollowerRobotConfig(
     port=args.follower_port,
     id=args.follower_id,
     cameras={"camera1": cam_cfg},  # match policy's expected camera key
+    max_relative_target=_max_rel,
 )
+if _max_rel is not None:
+    print(f"  follower max_relative_target = {_max_rel}° / frame "
+          f"(clamps sudden policy-output jumps)")
 follower = SOFollower(follower_cfg)
 follower.connect()
 
