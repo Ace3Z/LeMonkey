@@ -121,7 +121,7 @@ while IFS=$'\t' read -r COLOR KIND PROMPT; do
   START_S=$(date +%s)
   set +e
   lerobot-record \
-    --robot.type=so101_follower --robot.port=/dev/ttyACM1 --robot.id=my_follower \
+    --robot.type=so101_follower --robot.port=/dev/so101-follower --robot.id=my_follower \
     --robot.cameras="{ camera1: {type: opencv, index_or_path: /dev/video0, width: 640, height: 480, fps: 30}}" \
     --display_data=true \
     --dataset.repo_id="local/eval_$RUN_NAME" \
