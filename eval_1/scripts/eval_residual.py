@@ -143,8 +143,8 @@ def _shutdown(reason: str = ""):
         print(f"[WARN] follower torque release failed during shutdown: {e}", flush=True)
     try:
         follower.disconnect()
-    except Exception:
-        pass
+    except Exception as e:
+        print(f"[WARN] follower.disconnect() failed: {type(e).__name__}: {e}", flush=True)
 
 def _sigint(_s, _f):
     _shutdown("Ctrl+C")
@@ -276,7 +276,8 @@ for i, (color, kind, prompt) in enumerate(prompts, 1):
         print("  please answer 'y' or 'n'")
     try:
         note = input("  Notes (ENTER to skip): ").strip()
-    except (EOFError, KeyboardInterrupt):
+    except (EOFError, KeyboardInterrupt) as e:
+        print(f"[WARN] note prompt interrupted ({type(e).__name__}); writing empty note", flush=True)
         note = ""
     if rollout_rc != 0:
         note = f"rc={rollout_rc}; {note}"

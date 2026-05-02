@@ -127,18 +127,24 @@ sched = torch.optim.lr_scheduler.CosineAnnealingLR(opt, T_max=args.steps, eta_mi
 # ─── Helpers ─────────────────────────────────────────────────────────────────
 
 def _pad_to_512(img_t: torch.Tensor) -> torch.Tensor:
-    """SmolVLA's resize_with_pad expects 512x512 with letterbox padding."""
+    """Match SmolVLA's resize_with_pad EXACTLY (modeling_smolvla.py:134-153).
+
+    SmolVLA pads on the RIGHT and BOTTOM only (not centered). Mismatching
+    this gave the residual head image features in a different spatial layout
+    than the base policy ever saw — silent generalization failure.
+    """
     # img_t: (B, 3, H, W) float in [0,1]
     B, C, H, W = img_t.shape
     target = 512
-    scale = min(target / H, target / W)
-    new_h, new_w = int(round(H * scale)), int(round(W * scale))
+    # Match SmolVLA's formula: ratio = max(W/target, H/target); resized = orig / ratio
+    ratio = max(W / target, H / target)
+    new_h = int(H / ratio)
+    new_w = int(W / ratio)
     img_t = F.interpolate(img_t, size=(new_h, new_w), mode="bilinear", align_corners=False)
-    pad_h = target - new_h
-    pad_w = target - new_w
-    pad_t = pad_h // 2; pad_b = pad_h - pad_t
-    pad_l = pad_w // 2; pad_r = pad_w - pad_l
-    img_t = F.pad(img_t, (pad_l, pad_r, pad_t, pad_b), value=0.0)
+    pad_h = max(0, target - new_h)
+    pad_w = max(0, target - new_w)
+    # F.pad order: (left, right, top, bottom). SmolVLA pads right+bottom only.
+    img_t = F.pad(img_t, (0, pad_w, 0, pad_h), value=0.0)
     return img_t  # (B, 3, 512, 512)
 
 
@@ -204,7 +210,8 @@ t_start = time.time()
 running_loss = 0.0
 running_int = 0.0
 running_noint = 0.0
-running_count = 0
+running_int_count = 0
+running_noint_count = 0
 
 # Build a flat list of (dataset_idx, frame_idx) for sampling
 all_frames = []
@@ -287,24 +294,31 @@ for step in range(1, args.steps + 1):
     opt.step()
     sched.step()
 
+    n_int_batch = (isint > 0.5).sum().item()
+    n_noint_batch = (isint <= 0.5).sum().item()
+
     running_loss += loss.item()
     running_int += err[isint > 0.5].sum().item()
     running_noint += err[isint <= 0.5].sum().item()
-    running_count += args.batch_size
+    running_int_count   += n_int_batch
+    running_noint_count += n_noint_batch
 
     if step % args.log_every == 0:
         elapsed = time.time() - t_start
         avg_loss = running_loss / args.log_every
-        n_int = (isint > 0.5).sum().item()  # latest batch's count
+        # Per-class MSE: divide by per-class counts, not total. (Reviewer fix.)
+        int_mse   = running_int   / max(running_int_count,   1)
+        noint_mse = running_noint / max(running_noint_count, 1)
         print(f"  step {step:>5d}/{args.steps}  loss={avg_loss:.5f}  "
-              f"int_mse={running_int/max(running_count, 1):.5f} "
-              f"noint_mse={running_noint/max(running_count, 1):.5f}  "
+              f"int_mse={int_mse:.5f} (n={running_int_count}) "
+              f"noint_mse={noint_mse:.5f} (n={running_noint_count})  "
               f"lr={sched.get_last_lr()[0]:.2e}  "
               f"elapsed={elapsed:.0f}s")
         running_loss = 0.0
         running_int = 0.0
         running_noint = 0.0
-        running_count = 0
+        running_int_count = 0
+        running_noint_count = 0
 
     if step % args.save_every == 0 or step == args.steps:
         ckpt_dir = Path(args.out) / f"step_{step:06d}"
