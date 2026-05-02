@@ -342,6 +342,12 @@ while ep_idx < args.num_episodes:
     if inp.strip().lower() == "r":
         rest_arms_interactive()
         continue  # redo this episode from the top
+
+    # Clear any SPACE / 'r' presses that happened during the calibration prompts
+    # or the input() above. Without this, an accidental SPACE press would put us
+    # in TELEOP from frame 0 of the next episode (which is what just bit us).
+    intervene.clear()
+    rest_request.clear()
     print(f"  recording for {args.episode_time_s}s — press SPACE to toggle teleop, 'r' to rest\n")
 
     policy.reset()
