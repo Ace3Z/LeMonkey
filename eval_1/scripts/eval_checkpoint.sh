@@ -134,17 +134,27 @@ while IFS=$'\t' read -r COLOR KIND PROMPT; do
   RC=$?
   set -e
 
+  echo
   if [ $RC -ne 0 ]; then
-    echo "(rollout exited $RC — recording as 0)"
-    echo "$i,$COLOR,$KIND,\"${PROMPT//,/;}\",0,$POS,run-failed,$RUN_PATH" >> "$CSV"
-    i=$((i+1)); continue
+    echo "⚠️  rollout exited with code $RC (the run may have completed partially)"
   fi
 
+  # Always ask y/n, validated, no matter what happened above
   echo
   echo "▶ Was the banana FULLY INSIDE the $COLOR bowl at the end?"
-  read -r -p "  Success? [y/n]: " S
+  RES=""
+  while [ -z "$RES" ]; do
+    read -r -p "  Success? [y/n]: " S
+    case "$S" in
+      y|Y|yes|YES|Yes) RES=1 ;;
+      n|N|no|NO|No)    RES=0 ;;
+      *) echo "  please answer 'y' or 'n'" ;;
+    esac
+  done
   read -r -p "  Notes (ENTER to skip): " NOTE
-  RES=0; case "$S" in y|Y) RES=1 ;; esac
+  if [ $RC -ne 0 ]; then
+    NOTE="rc=$RC; $NOTE"
+  fi
 
   echo "$i,$COLOR,$KIND,\"${PROMPT//,/;}\",$RES,$POS,\"${NOTE//,/;}\",$RUN_PATH" >> "$CSV"
   echo "  → recorded: $([ $RES -eq 1 ] && echo SUCCESS || echo FAIL)"
