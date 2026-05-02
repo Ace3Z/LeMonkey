@@ -57,13 +57,24 @@ confirmation before launching the rollout.
 
 ### Structured per-checkpoint evaluation
 ```bash
-./scripts/eval_checkpoint.sh 020000 9          # 9 rollouts on 20k, typed prompts
-./scripts/eval_checkpoint.sh 020000 9 voice    # 9 rollouts, voice prompts
-./scripts/compare_evals.py                     # aggregate all sessions, print winner
+./scripts/eval_checkpoint.sh                   # 30 rollouts on 020000 (10/color, shuffled)
+./scripts/eval_checkpoint.sh 015000             # same but on a different ckpt
+./scripts/eval_checkpoint.sh 020000 42          # fixed seed (reproducible shuffle)
+./scripts/compare_evals.py                      # aggregate all sessions, print winner
 ```
 
-The eval harness asks `Success? [y/n]` after each rollout and logs everything
-to `evals/ckpt<step>_<timestamp>.csv`.
+Each session runs 30 rollouts: **10 per color**, with **5 in-distribution
+prompts** (verbatim from training data) and **5 out-of-distribution prompts**
+(plausible paraphrases the policy never saw). Order is shuffled.
+
+For each rollout the harness:
+1. Displays the target color, prompt type, and the exact prompt
+2. Waits for ENTER to start
+3. Runs `lerobot-record` for 20 s with that prompt
+4. Asks `Success? [y/n]`
+
+Results land in `evals/ckpt<step>_<timestamp>.csv` with a `prompt_type`
+column so `compare_evals.py` can split in-distribution vs OOD success rates.
 
 ## Hardware assumptions
 
