@@ -55,6 +55,22 @@ Override per script:
 Press ENTER to start recording, ENTER to stop. The transcript is shown for
 confirmation before launching the rollout.
 
+### HG-DAgger correction recording (for compounding-error failures)
+```bash
+./scripts/dagger_record.py \
+  --dataset-root /home/lemonkey/LeMonkey/datasets/eval1_dagger/blue \
+  --dataset-repo-id ${HF_USER}/so101_eval1_dagger_blue \
+  --task "Put the banana in the blue colored bowl." \
+  --num-episodes 5 \
+  --episode-time-s 30
+```
+Runs the policy by default; **hold SPACEBAR** to take over via the leader arm
+(release to return to policy control). Frames are saved with
+`is_intervention=1` on takeover frames so corrective demonstrations can be
+filtered/upweighted during fine-tuning. Implements Human-Gated DAgger
+(Kelly et al. 2019) on top of LeRobot v3 datasets — needed because lerobot's
+own recorder is policy-XOR-teleop, not hybrid.
+
 ### Memorization-vs-learning offline analyses
 ```bash
 ./scripts/analyze_memorization.py            # static dataset analysis
