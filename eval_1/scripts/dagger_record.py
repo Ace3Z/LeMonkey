@@ -25,6 +25,8 @@ Usage:
 """
 import argparse
 import json
+import signal
+import sys
 import time
 from pathlib import Path
 from threading import Event
@@ -113,6 +115,43 @@ leader = SOLeader(leader_cfg)
 leader.connect()
 
 print("OK robot+teleop connected.\n")
+
+
+# ─── Clean shutdown: disable follower torque on Ctrl+C / exit ────────────────
+
+_shutdown_done = False
+def _shutdown(reason: str = ""):
+    """Release follower torque so the arm can be moved by hand back to home."""
+    global _shutdown_done
+    if _shutdown_done:
+        return
+    _shutdown_done = True
+    print(f"\n[shutdown] {reason}")
+    try:
+        # Disable torque so the user can manually move the follower home
+        if follower.is_connected:
+            follower.bus.disable_torque()
+            print("[shutdown] follower torque DISABLED — you can now move the arm by hand.")
+    except Exception as e:
+        print(f"[shutdown] follower torque release failed: {e}")
+    try:
+        if leader.is_connected:
+            leader.bus.disable_torque()  # already disabled in normal use, but be safe
+    except Exception:
+        pass
+    try:
+        listener.stop()
+    except Exception:
+        pass
+
+
+def _sigint_handler(signum, frame):
+    _shutdown("Ctrl+C received")
+    sys.exit(130)
+
+
+signal.signal(signal.SIGINT, _sigint_handler)
+signal.signal(signal.SIGTERM, _sigint_handler)
 
 
 # ─── Load policy + preprocessor ──────────────────────────────────────────────
@@ -247,15 +286,19 @@ for ep_idx in range(args.num_episodes):
     n_interventions = 0
     t_start = time.time()
 
-    # Incremental-teleop state: when SPACEBAR is first pressed, capture the
-    # leader's pose and the follower's pose at that instant. While the
-    # spacebar stays held, the target sent to the follower is
-    #   follower_anchor + (leader_now - leader_anchor)
-    # so the follower starts driving from wherever the policy left it,
-    # not snapping to wherever the leader was sitting.
-    prev_intervene = False
-    leader_anchor = None       # np.ndarray (6,)
-    follower_anchor = None     # np.ndarray (6,)
+    # Three-phase intervention state machine:
+    #   "policy"   — policy drives the follower
+    #   "aligning" — SPACEBAR pressed; follower frozen at current pose; user
+    #                manually moves leader to match follower; engages 1:1 when
+    #                leader is within tolerance of follower per joint
+    #   "teleop"   — leader directly drives follower (after alignment)
+    phase = "policy"
+    follower_freeze = None      # np.ndarray (6,)  — pose to hold during 'aligning'
+    leader_anchor = None        # np.ndarray (6,)
+    follower_anchor = None      # np.ndarray (6,)
+
+    # Per-joint alignment tolerance (degrees for joints 0-4, range 0-100 for gripper)
+    ALIGN_TOL = np.array([5.0, 5.0, 5.0, 5.0, 5.0, 15.0], dtype=np.float32)
 
     while time.time() - t_start < args.episode_time_s:
         loop_start = time.time()
@@ -275,29 +318,46 @@ for ep_idx in range(args.num_episodes):
         leader_act_dict = leader.get_action()
         leader_act_arr = action_dict_to_array(leader_act_dict)
 
-        # ─ Detect SPACEBAR press/release transitions and update anchors ─
-        currently_intervening = intervene.is_set()
-        if currently_intervening and not prev_intervene:
-            # Just pressed → capture both anchors at the policy-induced state
-            leader_anchor = leader_act_arr.copy()
-            follower_anchor = follower_state_arr.copy()
-        elif not currently_intervening and prev_intervene:
-            # Just released → clear anchors, policy resumes
+        # ─ State-machine transitions on SPACEBAR press/release ─
+        space_held = intervene.is_set()
+
+        if phase == "policy" and space_held:
+            # Just pressed → freeze follower at current pose, ask user to align leader
+            phase = "aligning"
+            follower_freeze = follower_state_arr.copy()
+            print(f"\n  ⏸  SPACE held — follower FROZEN. Move LEADER to match it. "
+                  f"1:1 teleop will auto-engage when within tolerance.")
+        elif phase != "policy" and not space_held:
+            # Released → back to policy
+            print(f"  ▶  SPACE released — policy resumes.")
+            phase = "policy"
+            follower_freeze = None
             leader_anchor = None
             follower_anchor = None
-        prev_intervene = currently_intervening
 
-        # ─ Decide which action to send ─
-        if currently_intervening and leader_anchor is not None:
-            # Incremental teleop: follower starts at policy-induced pose,
-            # human's leader motion adds to it
+        # If aligning, check if leader matches follower; if so, engage 1:1
+        if phase == "aligning":
+            diff = np.abs(leader_act_arr - follower_freeze)
+            if np.all(diff < ALIGN_TOL):
+                phase = "teleop"
+                leader_anchor = leader_act_arr.copy()
+                follower_anchor = follower_freeze.copy()
+                print(f"  ✅ leader aligned (max diff {diff.max():.1f}°) — engaging 1:1 teleop")
+
+        # ─ Choose action based on phase ─
+        if phase == "policy":
+            chosen_arr = policy_act_arr
+            is_int = False
+        elif phase == "aligning":
+            # Hold follower at frozen pose; ignore leader motion
+            chosen_arr = follower_freeze
+            is_int = True
+            n_interventions += 1
+        else:  # phase == "teleop"
             delta = leader_act_arr - leader_anchor
             chosen_arr = follower_anchor + delta
             is_int = True
             n_interventions += 1
-        else:
-            chosen_arr = policy_act_arr
-            is_int = False
 
         chosen_dict = array_to_action_dict(chosen_arr)
         follower.send_action(chosen_dict)
@@ -334,7 +394,13 @@ for ep_idx in range(args.num_episodes):
 
 print("\nFinalizing dataset ...")
 dataset.finalize()
-follower.disconnect()
-leader.disconnect()
-listener.stop()
+_shutdown("normal end of recording")
+try:
+    follower.disconnect()
+except Exception:
+    pass
+try:
+    leader.disconnect()
+except Exception:
+    pass
 print("Done.")
