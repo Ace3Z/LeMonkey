@@ -185,17 +185,23 @@ def array_to_action_dict(arr) -> dict:
 def get_obs_for_dataset() -> dict:
     """Return obs dict in the format `predict_action` and the dataset writer expect."""
     obs = follower.get_observation()
-    # follower.get_observation returns a dict with state + images.  Keys depend
-    # on the camera dict — we used "camera1" → key is observation.images.camera1.
-    state_arr = action_dict_to_array(
-        {k.replace(".pos", ".pos"): v for k, v in obs.items() if k in ACTION_KEYS}
-    ) if all(k in obs for k in ACTION_KEYS) else None
-    if state_arr is None:
-        # Some lerobot versions nest state differently; fall back to known keys
-        state_arr = np.array(
-            [float(obs[k]) for k in ACTION_KEYS], dtype=np.float32
-        )
-    img = obs.get("camera1") or obs.get("observation.images.camera1")
+    # follower.get_observation() returns a flat dict with joint positions
+    # (e.g. "shoulder_pan.pos", ...) and one entry per camera (key = the name
+    # we gave it in the cameras dict, here "camera1").
+
+    # State: pack the 6 joint positions into a (6,) float32 array
+    state_arr = np.array(
+        [float(obs[k]) for k in ACTION_KEYS], dtype=np.float32
+    )
+
+    # Image: try the configured camera key first, then the namespaced fallback
+    if "camera1" in obs:
+        img = obs["camera1"]
+    elif "observation.images.camera1" in obs:
+        img = obs["observation.images.camera1"]
+    else:
+        raise KeyError(f"No camera image found. obs keys: {list(obs.keys())}")
+
     return {
         "observation.state": state_arr,
         "observation.images.camera1": img,  # HxWx3 uint8 array
