@@ -60,17 +60,15 @@ untrained = [
     "Banana goes in the {} bowl",
 ]
 
-# Group all 10 prompts of one color back-to-back (no color shuffling).
-# Within each color, shuffle the trained/untrained mix so it's not predictable.
+# Build all 30 prompts (3 colors × 10) and shuffle ALL of them so colors
+# are interleaved — no 10-of-the-same-color streaks.
 items = []
 for color in ["blue", "red", "green"]:
-    color_block = []
     for t in trained:
-        color_block.append((color, "trained",   t.format(color)))
+        items.append((color, "trained",   t.format(color)))
     for t in untrained:
-        color_block.append((color, "untrained", t.format(color)))
-    random.shuffle(color_block)
-    items.extend(color_block)
+        items.append((color, "untrained", t.format(color)))
+random.shuffle(items)
 
 for color, kind, prompt in items:
     print(f"{color}\t{kind}\t{prompt}")

@@ -97,15 +97,15 @@ untrained = [
     "Banana goes in the {} bowl",
 ]
 
+# Build all 30 prompts (3 colors × 10) and shuffle ALL of them so colors
+# are interleaved — no 10-of-the-same-color streaks.
 prompts = []
 for color in ["blue", "red", "green"]:
-    block = []
     for t in trained:
-        block.append((color, "trained", t.format(color)))
+        prompts.append((color, "trained", t.format(color)))
     for t in untrained:
-        block.append((color, "untrained", t.format(color)))
-    random.shuffle(block)
-    prompts.extend(block)
+        prompts.append((color, "untrained", t.format(color)))
+random.shuffle(prompts)
 
 if args.num_episodes != len(prompts):
     print(f"[WARN] --num-episodes={args.num_episodes} != prompt-list length {len(prompts)}; "
