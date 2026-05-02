@@ -140,7 +140,11 @@ leader_cfg = SOLeaderTeleopConfig(port=args.leader_port, id=args.leader_id)
 leader = SOLeader(leader_cfg)
 leader.connect()
 
-print("OK robot+teleop connected.\n")
+# Bilateral teleop: torque the leader so we can drive it to mirror the follower
+# while the policy is in control. Disabled while user takes over (SPACE on).
+leader.bus.enable_torque()
+
+print("OK robot+teleop connected (bilateral mode: leader will mirror follower).\n")
 
 
 # ─── Clean shutdown: disable follower torque on Ctrl+C / exit ────────────────
@@ -264,11 +268,27 @@ print(f"Dataset created at {root}\n")
 
 ACTION_KEYS = ["shoulder_pan.pos", "shoulder_lift.pos", "elbow_flex.pos",
                "wrist_flex.pos", "wrist_roll.pos", "gripper.pos"]
+MOTOR_NAMES = [k.removesuffix(".pos") for k in ACTION_KEYS]
 
 
 def action_dict_to_array(act: dict) -> np.ndarray:
     """Pack a teleop/robot action dict into a (6,) array in canonical SO-101 order."""
     return np.array([float(act[k]) for k in ACTION_KEYS], dtype=np.float32)
+
+
+def drive_leader_to(state_arr: np.ndarray) -> None:
+    """Send Goal_Position to the leader's motors so it tracks the follower.
+
+    Used in bilateral teleop: while the policy drives the follower, we
+    actively command the leader's motors to mirror the follower's joint
+    angles. This gives haptic feedback (you can feel the policy's plan
+    in the leader) and means that when you press SPACE to take over, the
+    leader is already aligned with the follower — no anchored-delta needed.
+
+    `state_arr`: (6,) follower joint positions in canonical order.
+    """
+    target = {motor: float(state_arr[i]) for i, motor in enumerate(MOTOR_NAMES)}
+    leader.bus.sync_write("Goal_Position", target)
 
 
 def array_to_action_dict(arr) -> dict:
@@ -315,9 +335,10 @@ print(f"  episodes : {args.num_episodes}")
 print(f"  per-ep s : {args.episode_time_s}")
 print()
 print("  PRESS SPACE    toggle teleop ON / OFF")
-print("                   - ON  : leader controls follower from current pose")
-print("                           (anchored delta — leader can stay wherever it is)")
-print("                   - OFF : policy resumes from current follower pose")
+print("                   - OFF (default): policy drives follower; leader is")
+print("                     actively driven to mirror the follower (haptic feedback)")
+print("                   - ON: leader torque released; you drive the follower")
+print("                     1:1 by moving the leader by hand (it was already aligned)")
 print("  PRESS 'r'      release torque + manually home both arms (rest mode)")
 print("                   - mid-episode: discards in-progress episode and redoes it")
 print("                   - between episodes: just rests, then continues")
@@ -355,14 +376,10 @@ while ep_idx < args.num_episodes:
     n_interventions = 0
     t_start = time.time()
 
-    # Two-state toggle: SPACE flips between "policy" and "teleop".
-    # When toggling INTO teleop, capture leader+follower anchors so the leader's
-    # subsequent motion adds incrementally to the follower's current pose.
-    # The leader can stay physically wherever it is — only its *delta* matters.
+    # Bilateral teleop: SPACE toggles between "policy + leader-mirroring-follower"
+    # and "user-drives-via-leader". Leader torque is on in policy mode (so it
+    # tracks the follower) and off in teleop mode (so the user can backdrive).
     teleop_on = False
-    leader_anchor = None        # np.ndarray (6,)
-    follower_anchor = None      # np.ndarray (6,)
-
     rest_during_episode = False
 
     while time.time() - t_start < args.episode_time_s:
@@ -392,24 +409,30 @@ while ep_idx < args.num_episodes:
         # ─ Toggle transitions ─
         space_active = intervene.is_set()
         if space_active and not teleop_on:
-            # Just toggled on → snapshot anchors at the policy-induced state
+            # Just toggled on → release leader torque so the human can backdrive it.
+            # Leader was tracking the follower until this instant, so it's already
+            # at the right pose — no anchored delta needed.
             teleop_on = True
-            leader_anchor = leader_act_arr.copy()
-            follower_anchor = follower_state_arr.copy()
-            print(f"\n  ▶  TELEOP ON — leader controls follower from current pose. "
+            try:
+                leader.bus.disable_torque()
+            except Exception as e:
+                print(f"  (leader torque release failed: {e})")
+            print(f"\n  ▶  TELEOP ON — leader released, you drive the follower. "
                   f"(press SPACE again to return to policy)")
         elif not space_active and teleop_on:
-            # Toggled off → policy resumes from current follower pose
+            # Toggled off → re-engage leader torque, policy resumes
             teleop_on = False
-            leader_anchor = None
-            follower_anchor = None
-            print(f"  ◀  TELEOP OFF — policy resumes.")
+            try:
+                leader.bus.enable_torque()
+            except Exception as e:
+                print(f"  (leader torque re-engage failed: {e})")
+            print(f"  ◀  TELEOP OFF — leader back to mirroring, policy resumes.")
 
         # ─ Choose action ─
         if teleop_on:
-            # Anchored delta: target = follower_at_toggle + (leader_now - leader_at_toggle)
-            delta = leader_act_arr - leader_anchor
-            chosen_arr = follower_anchor + delta
+            # User is driving via leader: 1:1 leader → follower (no anchor needed,
+            # leader was already at follower's pose when SPACE was pressed)
+            chosen_arr = leader_act_arr
             is_int = True
             n_interventions += 1
         else:
@@ -418,6 +441,14 @@ while ep_idx < args.num_episodes:
 
         chosen_dict = array_to_action_dict(chosen_arr)
         follower.send_action(chosen_dict)
+
+        # ─ Bilateral feedback: drive leader to follower while in policy mode ─
+        if not teleop_on:
+            try:
+                drive_leader_to(follower_state_arr)
+            except Exception as e:
+                # Don't crash the episode if leader write fails transiently
+                pass
 
         # ─ Save frame ─
         frame = {
