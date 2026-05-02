@@ -55,6 +55,16 @@ Override per script:
 Press ENTER to start recording, ENTER to stop. The transcript is shown for
 confirmation before launching the rollout.
 
+### Reset both arms to rest pose
+```bash
+./scripts/rest_arms.py                 # release torque, ENTER when done
+./scripts/rest_arms.py --hold-after    # re-engage follower torque at new pose
+```
+Connects to follower + leader, disables torque on both so the arms go limp
+and can be moved by hand. Useful before recording sessions, after a Ctrl+C
+that left the follower in an awkward pose, or any time you want a manual
+home reset.
+
 ### HG-DAgger correction recording (for compounding-error failures)
 ```bash
 ./scripts/dagger_record.py \
