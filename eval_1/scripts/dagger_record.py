@@ -376,10 +376,16 @@ while ep_idx < args.num_episodes:
     n_interventions = 0
     t_start = time.time()
 
-    # Bilateral teleop: SPACE toggles between "policy + leader-mirroring-follower"
-    # and "user-drives-via-leader". Leader torque is on in policy mode (so it
-    # tracks the follower) and off in teleop mode (so the user can backdrive).
+    # Bilateral teleop with anchored-delta in teleop mode:
+    #   policy mode: leader torqued, mirrors follower (haptic feedback)
+    #   teleop mode: leader torque off; follower target =
+    #     follower_anchor + (leader_now - leader_anchor)
+    #     This keeps the follower steady at the toggle moment regardless of
+    #     where the user's hand happens to be on the leader; only their
+    #     deliberate motion translates to the follower.
     teleop_on = False
+    leader_anchor = None
+    follower_anchor = None
     rest_during_episode = False
 
     while time.time() - t_start < args.episode_time_s:
@@ -410,15 +416,20 @@ while ep_idx < args.num_episodes:
         space_active = intervene.is_set()
         if space_active and not teleop_on:
             # Just toggled on → release leader torque so the human can backdrive it.
-            # Leader was tracking the follower until this instant, so it's already
-            # at the right pose — no anchored delta needed.
+            # CRITICAL: capture the follower's CURRENT pose as the anchor and
+            # the leader's CURRENT pose as the leader anchor BEFORE we read
+            # any further leader motion. While teleop is on, the follower's
+            # target = follower_anchor + (leader_now - leader_anchor), so the
+            # user's hand-on-leader doesn't immediately yank the follower.
             teleop_on = True
             try:
                 leader.bus.disable_torque()
             except Exception as e:
                 print(f"  (leader torque release failed: {e})")
-            print(f"\n  ▶  TELEOP ON — leader released, you drive the follower. "
-                  f"(press SPACE again to return to policy)")
+            follower_anchor = follower_state_arr.copy()
+            leader_anchor = leader_act_arr.copy()
+            print(f"\n  ▶  TELEOP ON — leader released, follower anchored at current pose. "
+                  f"Move the leader to drive the follower from here.")
         elif not space_active and teleop_on:
             # Toggled off → re-engage leader torque, policy resumes.
             # CRITICAL: clear the policy's stale action chunk so it doesn't
@@ -431,13 +442,17 @@ while ep_idx < args.num_episodes:
             except Exception as e:
                 print(f"  (leader torque re-engage failed: {e})")
             policy.reset()
+            leader_anchor = None
+            follower_anchor = None
             print(f"  ◀  TELEOP OFF — policy reset, fresh inference from current state.")
 
         # ─ Choose action ─
         if teleop_on:
-            # User is driving via leader: 1:1 leader → follower (no anchor needed,
-            # leader was already at follower's pose when SPACE was pressed)
-            chosen_arr = leader_act_arr
+            # Anchored delta: stay at follower_anchor + leader's motion since toggle.
+            # When the user isn't actively moving the leader, leader_now ≈ leader_anchor
+            # so chosen_arr ≈ follower_anchor → follower holds steady.
+            delta = leader_act_arr - leader_anchor
+            chosen_arr = follower_anchor + delta
             is_int = True
             n_interventions += 1
         else:
