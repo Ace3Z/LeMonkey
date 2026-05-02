@@ -1,10 +1,17 @@
 #!/usr/bin/env python3
 """HG-DAgger recorder for SO-101 + SmolVLA.
 
-Hold SPACEBAR to take over via the leader arm; release to return to policy
-control. Frames are logged to a LeRobotDataset with `is_intervention=True`
-on the takeover frames, so during fine-tuning you can either upweight or
-filter for the corrective demonstrations.
+Press SPACE to TOGGLE teleop ON/OFF. While ON, the leader arm controls the
+follower with anchored-delta semantics: when you press SPACE the script
+captures the leader and follower poses at that instant, and from then on
+the follower target is `follower_anchor + (leader_now - leader_anchor)`.
+That means you don't have to physically align the leader with the follower
+first — your hand motion just *adds* to wherever the policy left the
+follower. Press SPACE again to hand control back to the policy.
+
+Frames are logged to a LeRobotDataset with `is_intervention=1` on the
+teleop frames, so during fine-tuning you can either upweight or filter
+for the corrective demonstrations.
 
 This implements Human-Gated DAgger (Kelly et al. 2019, "HG-DAgger: Interactive
 Imitation Learning with Human Experts") on top of LeRobot v3 datasets.
@@ -73,14 +80,24 @@ args = p.parse_args()
 
 # ─── Keyboard listener for SPACEBAR-as-intervene ─────────────────────────────
 
-intervene    = Event()
+intervene    = Event()         # True = teleop active; toggled by SPACE
 quit_flag    = Event()
-rest_request = Event()  # set when user presses 'r' — triggers manual home reset
+rest_request = Event()         # set when user presses 'r' — triggers manual home reset
+
+# Edge-detection state for SPACE so key-repeat doesn't re-toggle every frame
+_space_down = False
 
 
 def on_press(key):
+    global _space_down
     if key == keyboard.Key.space:
-        intervene.set()
+        # Only toggle on the press-down edge, not while holding
+        if not _space_down:
+            if intervene.is_set():
+                intervene.clear()
+            else:
+                intervene.set()
+        _space_down = True
     elif key == keyboard.Key.esc:
         quit_flag.set()
     else:
@@ -93,8 +110,9 @@ def on_press(key):
 
 
 def on_release(key):
+    global _space_down
     if key == keyboard.Key.space:
-        intervene.clear()
+        _space_down = False
 
 
 listener = keyboard.Listener(on_press=on_press, on_release=on_release)
@@ -296,8 +314,10 @@ print(f"  task     : \"{args.task}\"")
 print(f"  episodes : {args.num_episodes}")
 print(f"  per-ep s : {args.episode_time_s}")
 print()
-print("  HOLD SPACEBAR  take over via the leader arm")
-print("  RELEASE SPACE  return to policy control")
+print("  PRESS SPACE    toggle teleop ON / OFF")
+print("                   - ON  : leader controls follower from current pose")
+print("                           (anchored delta — leader can stay wherever it is)")
+print("                   - OFF : policy resumes from current follower pose")
 print("  PRESS 'r'      release torque + manually home both arms (rest mode)")
 print("                   - mid-episode: discards in-progress episode and redoes it")
 print("                   - between episodes: just rests, then continues")
@@ -322,26 +342,20 @@ while ep_idx < args.num_episodes:
     if inp.strip().lower() == "r":
         rest_arms_interactive()
         continue  # redo this episode from the top
-    print(f"  recording for {args.episode_time_s}s — hold SPACE to intervene, press 'r' to rest\n")
+    print(f"  recording for {args.episode_time_s}s — press SPACE to toggle teleop, 'r' to rest\n")
 
     policy.reset()
     n_frames = 0
     n_interventions = 0
     t_start = time.time()
 
-    # Three-phase intervention state machine:
-    #   "policy"   — policy drives the follower
-    #   "aligning" — SPACEBAR pressed; follower frozen at current pose; user
-    #                manually moves leader to match follower; engages 1:1 when
-    #                leader is within tolerance of follower per joint
-    #   "teleop"   — leader directly drives follower (after alignment)
-    phase = "policy"
-    follower_freeze = None      # np.ndarray (6,)  — pose to hold during 'aligning'
+    # Two-state toggle: SPACE flips between "policy" and "teleop".
+    # When toggling INTO teleop, capture leader+follower anchors so the leader's
+    # subsequent motion adds incrementally to the follower's current pose.
+    # The leader can stay physically wherever it is — only its *delta* matters.
+    teleop_on = False
     leader_anchor = None        # np.ndarray (6,)
     follower_anchor = None      # np.ndarray (6,)
-
-    # Per-joint alignment tolerance (degrees for joints 0-4, range 0-100 for gripper)
-    ALIGN_TOL = np.array([5.0, 5.0, 5.0, 5.0, 5.0, 15.0], dtype=np.float32)
 
     rest_during_episode = False
 
@@ -369,46 +383,32 @@ while ep_idx < args.num_episodes:
         leader_act_dict = leader.get_action()
         leader_act_arr = action_dict_to_array(leader_act_dict)
 
-        # ─ State-machine transitions on SPACEBAR press/release ─
-        space_held = intervene.is_set()
-
-        if phase == "policy" and space_held:
-            # Just pressed → freeze follower at current pose, ask user to align leader
-            phase = "aligning"
-            follower_freeze = follower_state_arr.copy()
-            print(f"\n  ⏸  SPACE held — follower FROZEN. Move LEADER to match it. "
-                  f"1:1 teleop will auto-engage when within tolerance.")
-        elif phase != "policy" and not space_held:
-            # Released → back to policy
-            print(f"  ▶  SPACE released — policy resumes.")
-            phase = "policy"
-            follower_freeze = None
+        # ─ Toggle transitions ─
+        space_active = intervene.is_set()
+        if space_active and not teleop_on:
+            # Just toggled on → snapshot anchors at the policy-induced state
+            teleop_on = True
+            leader_anchor = leader_act_arr.copy()
+            follower_anchor = follower_state_arr.copy()
+            print(f"\n  ▶  TELEOP ON — leader controls follower from current pose. "
+                  f"(press SPACE again to return to policy)")
+        elif not space_active and teleop_on:
+            # Toggled off → policy resumes from current follower pose
+            teleop_on = False
             leader_anchor = None
             follower_anchor = None
+            print(f"  ◀  TELEOP OFF — policy resumes.")
 
-        # If aligning, check if leader matches follower; if so, engage 1:1
-        if phase == "aligning":
-            diff = np.abs(leader_act_arr - follower_freeze)
-            if np.all(diff < ALIGN_TOL):
-                phase = "teleop"
-                leader_anchor = leader_act_arr.copy()
-                follower_anchor = follower_freeze.copy()
-                print(f"  ✅ leader aligned (max diff {diff.max():.1f}°) — engaging 1:1 teleop")
-
-        # ─ Choose action based on phase ─
-        if phase == "policy":
-            chosen_arr = policy_act_arr
-            is_int = False
-        elif phase == "aligning":
-            # Hold follower at frozen pose; ignore leader motion
-            chosen_arr = follower_freeze
-            is_int = True
-            n_interventions += 1
-        else:  # phase == "teleop"
+        # ─ Choose action ─
+        if teleop_on:
+            # Anchored delta: target = follower_at_toggle + (leader_now - leader_at_toggle)
             delta = leader_act_arr - leader_anchor
             chosen_arr = follower_anchor + delta
             is_int = True
             n_interventions += 1
+        else:
+            chosen_arr = policy_act_arr
+            is_int = False
 
         chosen_dict = array_to_action_dict(chosen_arr)
         follower.send_action(chosen_dict)
