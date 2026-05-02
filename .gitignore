@@ -34,6 +34,7 @@ CLAUDE.md
 
 # Local-only setup notes (VM-specific, not for git)
 docs/SETUP.md
+docs/report/
 
 # eval_1/: track the scripts, ignore heavy artifacts
 eval_1/train/
