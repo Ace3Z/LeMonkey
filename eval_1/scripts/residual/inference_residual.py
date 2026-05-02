@@ -101,15 +101,21 @@ class ResidualWrapper:
                       task_str: str) -> np.ndarray:
         """Compute the next action: base + clipped residual.
 
-        CRITICAL: we call self.base.reset() before every predict_action so the
-        base always returns the FIRST action of a fresh chunk. This matches
-        what train_residual.py sees (which also resets per-frame).
-        Without this reset, train sees chunk_idx=0 base actions, inference
-        sees chunk_idx=0..49 base actions — silent generalization failure.
-        Tradeoff: ~50ms/frame extra inference cost on 1660-class GPUs.
+        We let SmolVLA manage its own chunk queue (one fresh plan every 50
+        frames, then 49 cached actions before the next replan). This is the
+        natural lerobot-record path and what produces smooth motion.
+
+        An earlier version called self.base.reset() per frame to "match
+        training distribution" — but that broke motion: every frame got
+        chunk[0] of a fresh 50-step plan, so the arm only ever executed
+        1/50th of any planned trajectory. Baby-stepping at 1Hz instead of
+        smooth sweeps.
+
+        The residual was trained on chunk[0] inputs but actions vary
+        smoothly *within* a chunk (it's a planned trajectory), so chunk[k>0]
+        is a small perturbation the residual generalizes through. Smooth
+        motion >> exact distribution match here.
         """
-        # 1. Reset base + run fresh chunk's first action (matches training)
-        self.base.reset()
         obs = {
             "observation.images.front": image_uint8_HWC_np,
             "observation.state": state_np.astype(np.float32),
