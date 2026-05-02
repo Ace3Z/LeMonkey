@@ -103,7 +103,7 @@ while IFS=$'\t' read -r COLOR KIND PROMPT; do
   echo "    \"$PROMPT\""
   echo
 
-  read -r -p "Position banana + bowls, ENTER to RUN / 's' to skip / 'q' to quit: " A
+  read -r -p "Position banana + bowls, ENTER to RUN / 's' to skip / 'q' to quit: " A < /dev/tty
   case "$A" in
     q|Q) echo "aborted by user."; break ;;
     s|S)
@@ -111,7 +111,7 @@ while IFS=$'\t' read -r COLOR KIND PROMPT; do
       i=$((i+1)); continue ;;
   esac
 
-  read -r -p "Banana position offset (e.g. 'home', '+3cm x', '-2cm y'): " POS
+  read -r -p "Banana position offset (e.g. 'home', '+3cm x', '-2cm y'): " POS < /dev/tty
   POS="${POS:-home}"
 
   RUN_NAME="${SESS}_r${i}_${COLOR}"
@@ -149,14 +149,14 @@ while IFS=$'\t' read -r COLOR KIND PROMPT; do
   echo "▶ Was the banana FULLY INSIDE the $COLOR bowl at the end?"
   RES=""
   while [ -z "$RES" ]; do
-    read -r -p "  Success? [y/n]: " S
+    read -r -p "  Success? [y/n]: " S < /dev/tty || { echo; echo "  (no terminal input; aborting)"; exit 130; }
     case "$S" in
       y|Y|yes|YES|Yes) RES=1 ;;
       n|N|no|NO|No)    RES=0 ;;
       *) echo "  please answer 'y' or 'n'" ;;
     esac
   done
-  read -r -p "  Notes (ENTER to skip): " NOTE
+  read -r -p "  Notes (ENTER to skip): " NOTE < /dev/tty
   if [ $RC -ne 0 ]; then
     NOTE="rc=$RC; $NOTE"
   fi
