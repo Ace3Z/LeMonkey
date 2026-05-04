@@ -13,6 +13,14 @@ Per `docs/PROJECT.md` §2:
   - `"Put the banana into the bowl that is not green and not blue."`
 - 20 s per rollout.
 
+## What's on Hugging Face Hub
+
+| Repo | Type | Contents |
+|---|---|---|
+| [`HBOrtiz/so101_eval2_all`](https://huggingface.co/datasets/HBOrtiz/so101_eval2_all) | dataset | 180 teleop episodes, 107,820 frames, 123 distinct compositional prompts, balanced over 6 bowl arrangements × 6 prompt families |
+
+(The trained Eval 2 model will live at `HBOrtiz/smolvla_eval2` once training completes — separate from `HBOrtiz/smolvla_eval1*` to avoid mixing the two tasks' artifacts.)
+
 ## Layout
 
 ```
