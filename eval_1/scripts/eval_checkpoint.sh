@@ -15,15 +15,24 @@
 # compare_evals.py can split in-dist vs OOD performance.
 #
 # Usage:
-#   ./eval_checkpoint.sh              # default ckpt 020000, random seed
-#   ./eval_checkpoint.sh 015000       # different ckpt
-#   ./eval_checkpoint.sh 020000 42    # fixed seed (reproducible shuffle)
+#   ./eval_checkpoint.sh                       # v1 base, ckpt 020000, random seed
+#   ./eval_checkpoint.sh 015000                # v1 base, different ckpt
+#   ./eval_checkpoint.sh 020000 42             # v1 base, fixed seed (reproducible shuffle)
+#   MODEL=v2 ./eval_checkpoint.sh 025000       # v2 base (smolvla_eval1_v2)
+#   MODEL=v2 ./eval_checkpoint.sh 020000 42    # v2 base at intermediate step, fixed seed
 set -euo pipefail
 
 CKPT="${1:-020000}"
 SEED="${2:-$$}"
+MODEL="${MODEL:-v1}"
 
-POLICY="/home/lemonkey/LeMonkey/eval_1/train/smolvla_eval1/checkpoints/${CKPT}/pretrained_model"
+case "$MODEL" in
+  v1) MODEL_DIR="smolvla_eval1" ;;
+  v2) MODEL_DIR="smolvla_eval1_v2" ;;
+  *) echo "ERROR: MODEL must be v1 or v2 (got: $MODEL)" >&2; exit 1 ;;
+esac
+
+POLICY="/home/lemonkey/LeMonkey/eval_1/train/${MODEL_DIR}/checkpoints/${CKPT}/pretrained_model"
 OUT_BASE="/home/lemonkey/LeMonkey/eval_1/evals"
 ROLL_BASE="/home/lemonkey/LeMonkey/eval_1/rollouts"
 PYBIN="/home/lemonkey/miniconda3/envs/lerobot/bin/python"
@@ -33,7 +42,7 @@ if [ ! -d "$POLICY" ]; then
 fi
 
 TS=$(date +%Y%m%d_%H%M%S)
-SESS="ckpt${CKPT}_${TS}"
+SESS="${MODEL}_ckpt${CKPT}_${TS}"
 CSV="$OUT_BASE/$SESS.csv"
 mkdir -p "$OUT_BASE" "$ROLL_BASE"
 
@@ -79,6 +88,7 @@ TOTAL=$(echo "$PROMPT_LIST" | wc -l)
 
 echo "============================================================"
 echo "  SmolVLA checkpoint evaluation"
+echo "  model      : $MODEL  ($MODEL_DIR)"
 echo "  checkpoint : $CKPT"
 echo "  rollouts   : $TOTAL  (10/color, 5 trained + 5 untrained, shuffled)"
 echo "  seed       : $SEED   (pass as 2nd arg to reproduce this order)"

@@ -15,9 +15,11 @@ For each pair, prints the per-step RMS distance between predicted action chunks.
 Larger distance = policy is responding to the language change.
 
 Usage:
-    probe_language_conditioning.py                    # default: 020000 ckpt, 1 sample/color
-    probe_language_conditioning.py 015000             # different ckpt
+    probe_language_conditioning.py                    # default: v2 / 025000
+    probe_language_conditioning.py 020000             # v2 at a different step
+    MODEL=v1 probe_language_conditioning.py 020000    # v1 at step 020000
 """
+import os
 import sys
 from copy import copy
 from pathlib import Path
@@ -30,8 +32,14 @@ from lerobot.policies.factory import make_pre_post_processors
 from lerobot.policies.smolvla.modeling_smolvla import SmolVLAPolicy
 from lerobot.utils.control_utils import predict_action
 
-CKPT_STEP = sys.argv[1] if len(sys.argv) > 1 else "020000"
-CKPT = f"/home/lemonkey/LeMonkey/eval_1/train/smolvla_eval1/checkpoints/{CKPT_STEP}/pretrained_model"
+MODEL = os.environ.get("MODEL", "v2")
+MODEL_DIR = {"v1": "smolvla_eval1", "v2": "smolvla_eval1_v2"}.get(MODEL)
+if MODEL_DIR is None:
+    print(f"ERROR: MODEL must be v1 or v2 (got: {MODEL})", file=sys.stderr)
+    sys.exit(1)
+DEFAULT_STEP = "025000" if MODEL == "v2" else "020000"
+CKPT_STEP = sys.argv[1] if len(sys.argv) > 1 else DEFAULT_STEP
+CKPT = f"/home/lemonkey/LeMonkey/eval_1/train/{MODEL_DIR}/checkpoints/{CKPT_STEP}/pretrained_model"
 DATASETS = {
     "blue":  "/home/lemonkey/LeMonkey/datasets/eval1/blue",
     "red":   "/home/lemonkey/LeMonkey/datasets/eval1/red",
