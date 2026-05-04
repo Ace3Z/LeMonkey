@@ -43,3 +43,10 @@ eval_1/bench/
 eval_1/evals/
 eval_1/SETUP.md
 eval_1/__pycache__/
+
+# eval_2/: track the scripts, ignore heavy artifacts and personal recording state
+eval_2/train/
+eval_2/rollouts/
+eval_2/evals/
+eval_2/state/
+eval_2/__pycache__/
