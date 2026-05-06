@@ -1,74 +1,72 @@
-# eval_1 — SO-101 SmolVLA deployment
+# eval_1 — Direct color-conditioned pick-and-place
 
-Runtime artifacts and scripts for **Eval 1** of the project: color-conditioned
-banana → bowl pick-and-place with a fine-tuned SmolVLA policy + a residual
-correction head trained on HG-DAgger data.
+Runtime artifacts and scripts for **Eval 1** of the project: SmolVLA picks a
+banana and places it in a colored bowl (`blue` / `red` / `green`) on prompt.
 
-## Layout
+The deployed model is **`HBOrtiz/smolvla_eval1_v2`**, step `025000` — fine-tuned
+from `lerobot/smolvla_base` on a merged 153-episode dataset (118 clean BC
+demos + 35 HG-DAgger correction demos) with image augmentation enabled.
 
-```
-eval_1/
-├── README.md                    ← you are here
-├── scripts/                     ← all runnables (tracked in git)
-│   ├── setup / bootstrap
-│   │   └── brev_setup.sh                    idempotent bootstrap for fresh Brev VMs
-│   │
-│   ├── data collection (robot-side, run on the laptop with arm + camera)
-│   │   ├── run_rollout.sh                   single rollout, typed prompt
-│   │   ├── run_rollout_voice.sh             single rollout, Whisper voice prompt
-│   │   ├── voice_transcribe.py              Whisper helper (called by run_rollout_voice.sh)
-│   │   ├── dagger_record.py                 HG-DAgger correction recorder (SPACE toggle, leader bilateral, 'd' delete, 'n' next, 'r' rest)
-│   │   └── rest_arms.py                     release torques, manually home both arms
-│   │
-│   ├── evaluation (robot-side)
-│   │   ├── eval_checkpoint.sh               30-rollout structured eval of the BASE policy
-│   │   └── compare_evals.py                 aggregate eval CSVs across sessions, pick winner
-│   │
-│   ├── analysis (offline, no robot needed)
-│   │   ├── analyze_memorization.py          dataset-level memorization-risk metrics
-│   │   └── probe_language_conditioning.py   probe whether the policy is conditioning on language
-│   │
-│   └── residual/                ← residual policy subsystem (CR-DAgger style)
-│       ├── residual_head.py                 the small MLP module (~384K params)
-│       ├── train_residual.py                trains the residual on DAgger data, frozen base
-│       ├── inference_residual.py            ResidualWrapper: base + residual at deploy time
-│       └── eval_residual.py                 30-rollout evaluator using ResidualWrapper
-│
-├── train/                       ← model checkpoints  (gitignored)
-├── rollouts/                    ← per-rollout dataset dumps  (gitignored)
-├── evals/                       ← per-session eval CSVs  (gitignored)
-├── bench/                       ← Brev batch-size benchmark output  (gitignored)
-└── SETUP.md                     ← Brev VM runbook  (gitignored, local only)
-```
+## Table of contents
 
-## What's on Hugging Face Hub (under `HBOrtiz/`)
+- [What's on Hugging Face Hub](#whats-on-hugging-face-hub)
+- [Default checkpoint](#default-checkpoint)
+- [Quick reference — which script to use](#quick-reference--which-script-to-use)
+- [Hardware assumptions](#hardware-assumptions)
+- [Inference command pattern](#inference-command-pattern)
+- [Layout](#layout)
+- [Known limitations](#known-limitations)
+
+## What's on Hugging Face Hub
 
 | Repo | Type | Contents |
 |---|---|---|
-| [`smolvla_eval1`](https://huggingface.co/HBOrtiz/smolvla_eval1) | model | Fine-tuned base policy (450M params, 20k steps) + model card |
-| [`so101_eval1_blue`](https://huggingface.co/datasets/HBOrtiz/so101_eval1_blue)   | dataset | 39 ep, banana → blue bowl |
-| [`so101_eval1_red`](https://huggingface.co/datasets/HBOrtiz/so101_eval1_red)     | dataset | 39 ep, banana → red bowl |
-| [`so101_eval1_green`](https://huggingface.co/datasets/HBOrtiz/so101_eval1_green) | dataset | 40 ep, banana → green bowl |
-| `so101_eval1_dagger_blue` | dataset | HG-DAgger corrections, blue corner positions |
-| `so101_eval1_dagger_red` | dataset | HG-DAgger corrections, red |
-| `so101_eval1_dagger_green` | dataset | HG-DAgger corrections, green |
+| [`smolvla_eval1_v2`](https://huggingface.co/HBOrtiz/smolvla_eval1_v2) | model | **Deployed policy** — 450M params, 25k steps, image augmentation, 5 intermediate checkpoints |
+| [`so101_eval1_all_v2`](https://huggingface.co/datasets/HBOrtiz/so101_eval1_all_v2) | dataset | Merged BC + DAgger training data, 153 ep, 44.6k frames |
+| [`so101_eval1_blue`](https://huggingface.co/datasets/HBOrtiz/so101_eval1_blue) · [`_red`](https://huggingface.co/datasets/HBOrtiz/so101_eval1_red) · [`_green`](https://huggingface.co/datasets/HBOrtiz/so101_eval1_green) | datasets | Per-color BC demos (39 / 39 / 40 ep) |
+| [`so101_eval1_dagger_blue`](https://huggingface.co/datasets/HBOrtiz/so101_eval1_dagger_blue) · [`_red`](https://huggingface.co/datasets/HBOrtiz/so101_eval1_dagger_red) · [`_green`](https://huggingface.co/datasets/HBOrtiz/so101_eval1_dagger_green) | datasets | Per-color HG-DAgger correction demos |
 
 ## Default checkpoint
 
-All scripts default to **`020000`** — the most-converged step (final
-cosine-decay LR ≈ 2.5% of base, action-expert weight delta from 015000 was
-only ~1.02). Override with the first positional argument or `--ckpt-step`.
+All scripts default to **v2 / `025000`** — the most-converged step from the
+final training run.
 
 ```bash
-./scripts/run_rollout.sh 015000                  # try 15k checkpoint
-./scripts/eval_checkpoint.sh 015000 42           # eval the 15k ckpt with seed 42
+./scripts/run_rollout.sh                          # v2 / 025000
+MODEL=v2 ./scripts/eval_checkpoint.sh 025000 42   # eval the default with seed 42
+MODEL=v2 ./scripts/eval_checkpoint.sh 020000      # try a different intermediate
 ```
 
----
+Pass a different step as the first positional argument to override.
 
 ## Quick reference — which script to use
 
-### "I want to record DAgger correction episodes for the policy"
+### Run a single rollout with a typed or spoken prompt
+
+```bash
+./scripts/run_rollout.sh           # type the prompt
+./scripts/run_rollout_voice.sh     # speak the prompt (Whisper) or 't' to type
+```
+
+Each rollout captures the arm's starting pose, runs the policy for 40 s
+(press right-arrow to end the episode early — built into `lerobot-record`),
+then drives the arm back to the starting pose for the next take.
+
+### Run a 30-rollout structured eval
+
+```bash
+MODEL=v2 ./scripts/eval_checkpoint.sh             # 30 rollouts, v2/025000, random seed
+MODEL=v2 ./scripts/eval_checkpoint.sh 025000 42   # same, fixed prompt-shuffle seed
+./scripts/compare_evals.py                        # aggregate eval CSVs across sessions
+```
+
+The eval shuffles 30 prompts (5 verbatim training phrasings + 5 OOD paraphrases
+per color), asks Y/N after each rollout, and writes
+`evals/v2_ckpt025000_<ts>.csv`. `compare_evals.py` picks up every CSV in
+`evals/` and prints aggregate per-color and per-prompt-type success rates.
+
+### Record DAgger correction episodes
+
 ```bash
 ./scripts/dagger_record.py \
   --dataset-root /home/lemonkey/LeMonkey/datasets/eval1_dagger/blue \
@@ -76,98 +74,38 @@ only ~1.02). Override with the first positional argument or `--ckpt-step`.
   --task "Put the banana in the blue colored bowl." \
   --num-episodes 12 --episode-time-s 30
 ```
-Press SPACE to toggle teleop ON/OFF (anchored delta — no jerk). Press `n`
-to end an episode early after a successful pick. Press `d` to mark the
-last-saved episode for deletion at end-of-run. Press `r` to release
-torques mid-session for manual homing.
 
-### "I want to evaluate the BASE policy"
-```bash
-./scripts/eval_checkpoint.sh                    # 30 rollouts, base 020000, random seed
-./scripts/eval_checkpoint.sh 020000 42          # same, fixed seed
-./scripts/compare_evals.py                      # aggregate all eval CSVs, print winner
-```
+Press `SPACE` to toggle teleop ON / OFF (anchored delta — no jerk).
+`n` ends an episode early after a successful pick. `d` marks the last-saved
+episode for deletion at end-of-run. `r` releases torques mid-session for
+manual homing.
 
-### "I want to evaluate the BASE + RESIDUAL composite policy"
-```bash
-./scripts/residual/eval_residual.py \
-  --base-path     /home/lemonkey/LeMonkey/eval_1/train/smolvla_eval1/checkpoints/020000/pretrained_model \
-  --residual-path /home/lemonkey/LeMonkey/eval_1/train/residual/last \
-  --num-episodes 30
-./scripts/compare_evals.py                      # picks up the residual CSV alongside base CSVs
-```
+### Set up a fresh Brev VM
 
-### "I want to train the residual head on DAgger data" (run on Brev H100)
-```bash
-python scripts/residual/train_residual.py \
-  --dataset-root ~/LeMonkey/datasets/eval1_dagger/blue \
-  --dataset-root ~/LeMonkey/datasets/eval1_dagger/red \
-  --dataset-root ~/LeMonkey/datasets/eval1_dagger/green \
-  --policy-path  ~/LeMonkey/eval_1/train/smolvla_eval1/checkpoints/020000/pretrained_model \
-  --out          ~/outputs/residual \
-  --steps 5000 --batch-size 32 --lr 3e-4 --intervention-weight 2.0
-```
-
-### "I want to set up a fresh Brev VM"
 ```bash
 bash ~/LeMonkey/eval_1/scripts/brev_setup.sh   # idempotent — installs miniconda, lerobot, ffmpeg
 ```
 
-### "I want to release torques and manually home both arms"
+### Release torques and manually home both arms
+
 ```bash
-./scripts/rest_arms.py                  # release torques, ENTER when done
-./scripts/rest_arms.py --hold-after     # re-engage follower torque at new pose
+./scripts/rest_arms.py                  # release torques, ENTER to re-engage
+./scripts/rest_arms.py --hold-after     # re-engage follower torque at the new pose
 ```
 
-### "I want to check whether the policy is memorizing or learning language"
+### Probe whether the policy is conditioning on language
+
 ```bash
 ./scripts/analyze_memorization.py            # static dataset metrics (~5 s)
 ./scripts/probe_language_conditioning.py     # behavioral probe with varied prompts (~3 min)
+./scripts/probe_compositional.py             # compositional-prompt probe (~3 min)
 ```
 
-The probe's **wrong_color distance** is the decisive signal: if swapping
-`blue` ↔ `red` in the prompt barely changes the predicted action chunk,
-the policy isn't really conditioning on the color word. Reference healthy
-range: wrong_color > 30, paraphrase < 15, empty/nonsense > 30.
-
----
-
-## Architecture overview
-
-**Two-component policy at deploy time:**
-
-```
-   observation
-       │
-       ▼
-   ┌────────────────────┐
-   │  base SmolVLA      │   frozen, 450M params, on HF Hub
-   │  (HBOrtiz/smolvla_eval1)
-   └────────────────────┘
-       │ base_action (6,)
-       ▼
-   ┌────────────────────┐
-   │  residual MLP      │   ~384K params, trained on DAgger frames only
-   │  (scripts/residual/)
-   └────────────────────┘
-       │ residual (6,) ←→ clipped to ±5°/joint, ±10 gripper
-       ▼
-   final_action = base_action + clip(residual)
-       │
-       ▼
-   robot
-```
-
-The base learns the bulk of the task from clean teleop demos. The residual
-learns to correct base mistakes on the failure cases captured by HG-DAgger
-(banana in corner positions, etc.) without disturbing the base's correct
-behaviour. Trained on correction data only, with non-intervention frames
-having near-zero target deltas.
-
-Strategy doc with full reasoning: `docs/report/residual_strategy.md`
-(local-only, gitignored).
-
----
+The language-conditioning probe's **`wrong_color`** distance is the decisive
+signal: if swapping `blue` ↔ `red` in the prompt barely changes the predicted
+action chunk, the policy is not really conditioning on the color word.
+Reference healthy range: `wrong_color > 30`, `paraphrase < 15`,
+`empty/nonsense > 30`.
 
 ## Hardware assumptions
 
@@ -175,8 +113,8 @@ Strategy doc with full reasoning: `docs/report/residual_strategy.md`
   calibrated, in home pose. Leader on `/dev/so101-leader` (udev-stable).
 - **Camera**: USB camera at `/dev/video0` (640×480 @ 30 fps), wrist-mounted.
   Same physical mount used during training.
-- **GPU**: any NVIDIA GPU with ≥6 GB VRAM. GTX 1660 SUPER tested for inference
-  (~683 ms/frame for residual+base — slow but functional). H100 for training.
+- **GPU**: any NVIDIA GPU with ≥6 GB VRAM. GTX 1660 SUPER tested for inference.
+  H100 / RTX 6000 used for training.
 - **Microphone**: only for `run_rollout_voice.sh` (defaults to `plughw:1,0`).
 
 The udev symlinks `so101-follower` / `so101-leader` are created by
@@ -184,11 +122,9 @@ The udev symlinks `so101-follower` / `so101-leader` are created by
 Without them, override with `--follower-port /dev/ttyACMx`
 `--leader-port /dev/ttyACMy` on `dagger_record.py` and `rest_arms.py`.
 
----
+## Inference command pattern
 
-## Inference command pattern (for reference)
-
-The scripts wrap this `lerobot-record` invocation:
+The shell scripts wrap this `lerobot-record` invocation:
 
 ```bash
 lerobot-record \
@@ -198,37 +134,61 @@ lerobot-record \
   --dataset.repo_id=local/eval_<name> \
   --dataset.root=/path/to/output \
   --dataset.num_episodes=1 \
-  --dataset.episode_time_s=20 \
+  --dataset.episode_time_s=40 \
   --dataset.single_task="<prompt>" \
   --dataset.streaming_encoding=true --dataset.encoder_threads=2 \
   --dataset.push_to_hub=false \
-  --policy.path=/home/lemonkey/LeMonkey/eval_1/train/smolvla_eval1/checkpoints/020000/pretrained_model
+  --policy.path=/home/lemonkey/LeMonkey/eval_1/train/smolvla_eval1_v2/checkpoints/025000/pretrained_model
 ```
 
-The camera key is `camera1` (not `front`) — the policy expects
-`observation.images.camera1`; using `front` triggers a feature-mismatch
-error because `--dataset.rename_map` is applied after feature validation
-in `lerobot-record`.
+The camera key is `camera1` — the policy expects `observation.images.camera1`.
 
-For residual deployment, `lerobot-record` doesn't know about the residual
-wrapper — use `scripts/residual/eval_residual.py` instead, which loads
-both base + residual and runs the rollout loop directly.
+## Layout
 
----
+```
+eval_1/
+├── README.md                                     ← this file
+├── scripts/                                      ← all runnables (tracked in git)
+│   ├── brev_setup.sh                             idempotent bootstrap for fresh Brev VMs
+│   │
+│   ├── data collection (robot-side)
+│   │   ├── run_rollout.sh                        single rollout, typed prompt
+│   │   ├── run_rollout_voice.sh                  single rollout, Whisper voice prompt
+│   │   ├── voice_transcribe.py                   Whisper helper
+│   │   ├── dagger_record.py                      HG-DAgger correction recorder
+│   │   ├── auto_home.py                          captures + drives back to a saved pose
+│   │   └── rest_arms.py                          release torques, manually home both arms
+│   │
+│   ├── evaluation
+│   │   ├── eval_checkpoint.sh                    30-rollout structured eval (MODEL=v1|v2)
+│   │   └── compare_evals.py                      aggregate eval CSVs across sessions
+│   │
+│   ├── analysis (offline, no robot needed)
+│   │   ├── analyze_memorization.py               dataset-level memorization-risk metrics
+│   │   ├── probe_language_conditioning.py        does the policy listen to the color word?
+│   │   └── probe_compositional.py                does the policy respond to spatial language?
+│   │
+│   ├── normalize_dagger_to_bc_schema.py          one-off used to merge DAgger into BC v3 schema
+│   └── residual/                                 research artifact (CR-DAgger residual head, superseded by v2)
+│
+├── train/                                        ← model checkpoints (gitignored)
+├── rollouts/                                     ← per-rollout dataset dumps (gitignored)
+└── evals/                                        ← per-session eval CSVs (gitignored)
+```
+
+`scripts/residual/` contains the original CR-DAgger residual-head approach we
+explored before v2. The v2 from-scratch retrain (which absorbs the same DAgger
+data) supersedes it for deployment, but the files remain for research notes
+and reproducibility.
 
 ## Known limitations
 
-- **No image augmentation during the original base training** — the base
-  may struggle under different lighting. The residual fine-tunes on
-  augmentation-friendly DAgger data which partially mitigates.
-- **Single camera, `empty_cameras=2` pads** the two missing wrist views
-  with zeros (matches `smolvla_aloha_sim` style).
-- **English-only prompts** — 12 phrasings + 5 OOD paraphrases per color
-  used in eval. Out-of-language behaviour is undefined.
-- **Inference latency**: residual stack ~683 ms/frame on GTX 1660 SUPER
-  because we reset the base per-frame for train/inference parity. Robot
-  motors interpolate smoothly between commands; this works for the 20 s
-  Eval-1 rollouts.
+- **Single camera**: `empty_cameras=2` pads the two missing wrist views with
+  zeros (matches `smolvla_aloha_sim` style).
+- **English-only prompts**: 5 verbatim training phrasings + 5 OOD paraphrases
+  per color used in eval. Out-of-language behaviour is undefined.
+- **Inference latency**: ~150 ms / frame on a GTX 1660 SUPER, well within
+  what the SO-101 control loop tolerates at 30 Hz.
 
-See [`HBOrtiz/smolvla_eval1`](https://huggingface.co/HBOrtiz/smolvla_eval1)
-for the full base-model card.
+See [`HBOrtiz/smolvla_eval1_v2`](https://huggingface.co/HBOrtiz/smolvla_eval1_v2)
+for the full model card.

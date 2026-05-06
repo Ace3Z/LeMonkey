@@ -17,9 +17,11 @@ Per `docs/PROJECT.md` §2:
 
 | Repo | Type | Contents |
 |---|---|---|
+| [`HBOrtiz/smolvla_eval2`](https://huggingface.co/HBOrtiz/smolvla_eval2) | model | **Deployed Eval 2 policy** — 450M params, 25k steps from-scratch from `lerobot/smolvla_base`, image augmentation enabled. Final 25k checkpoint at the repo root for `from_pretrained()`; intermediates under `checkpoints/{005000,010000,015000,020000,025000}/`. |
 | [`HBOrtiz/so101_eval2_all`](https://huggingface.co/datasets/HBOrtiz/so101_eval2_all) | dataset | 180 teleop episodes, 107,820 frames, 123 distinct compositional prompts, balanced over 6 bowl arrangements × 6 prompt families |
 
-(The trained Eval 2 model will live at `HBOrtiz/smolvla_eval2` once training completes — separate from `HBOrtiz/smolvla_eval1*` to avoid mixing the two tasks' artifacts.)
+The Eval 2 model is kept in its own repo (separate from `HBOrtiz/smolvla_eval1*`)
+so the two tasks' artifacts never mix.
 
 ## Layout
 
@@ -138,13 +140,18 @@ Aim for ~30 episodes per session = one arrangement batch. That's roughly
 30 × (20 s record + ~10 s reset + brief positioning) ≈ 25 min. Press `p`
 mid-session to confirm the family/color counters are progressing as expected.
 
-## Training pipeline (after data collection)
+## Training pipeline
 
-The recipe mirrors `eval_1/train/smolvla_eval1_v2/`'s successful run, but
-trains **from `lerobot/smolvla_base` from-scratch** (not warm-started from
-v2/25k) — v2 carries position→color and phrasing-overfit biases that this
-training is specifically trying to avoid (see `docs/PROJECT.md` §3 — different
-models per eval are explicitly allowed).
+The recipe mirrors Eval 1's v2 successful run, but trains
+**from `lerobot/smolvla_base` from-scratch** (not warm-started from Eval 1) —
+the Eval 1 base carries position→color and phrasing-overfit biases that this
+training is specifically trying to avoid. `docs/PROJECT.md` §3 explicitly
+allows different models per eval.
+
+**Status: completed.** Trained on a Brev RTX Pro 6000, 25,000 steps in 9h42m,
+zero `[WARN]` / errors. All five intermediates and the final 25k checkpoint
+are uploaded to [`HBOrtiz/smolvla_eval2`](https://huggingface.co/HBOrtiz/smolvla_eval2).
+The notes below are kept for reproducibility / re-training.
 
 ### Local prep (run before pushing to Brev)
 
@@ -198,13 +205,14 @@ chmod +x ~/run_training.sh ~/start_training.sh ~/follow_training.sh ~/training_s
 | `--save_freq` | 5000 | 5 intermediate checkpoints (5k/10k/15k/20k/25k) |
 | (no `--rename_map`) | – | eval2 dataset already has `observation.images.camera1` natively |
 
-### After training
+### After training (completed)
 
-1. rsync checkpoints back to local: `~/outputs/train/smolvla_eval2/checkpoints/{005000,010000,015000,020000,025000}/`
-2. Push to HF Hub: `hf upload HBOrtiz/smolvla_eval2 ...`
-3. Verify with `probe_language_conditioning.py` (with `MODEL=eval2` or by editing) and
-   `probe_compositional.py` — pairwise distances should rise from 5–11 baseline to
-   ≥20–30 if compositional reasoning was successfully learned.
+1. Push to HF Hub: done — final at root, intermediates under `checkpoints/<step>/`.
+2. Pull back locally for inference / probing: `hf download HBOrtiz/smolvla_eval2 --local-dir ~/LeMonkey/eval_2/train/smolvla_eval2`.
+3. Verify language conditioning with `eval_1/scripts/probe_language_conditioning.py`
+   (point `--model-path` at the Eval 2 checkpoint) and
+   `probe_compositional.py` — pairwise distances should rise from the 5–11 Eval-1
+   baseline to ≥ 20–30 if compositional reasoning was learned.
 4. Run real-robot eval on shuffled bowl arrangements with held-out prompts.
 
 ## Hardware
