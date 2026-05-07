@@ -52,9 +52,10 @@ All evals use the same physical setup: the SO-101 is mounted at the edge of a wh
 - Banana at the **exact same position as Eval 1** (smiley orientation, same teleop offsets ±5 cm). It does **not** move between Eval 1 and Eval 2.
 - The **three colored bowls may switch places** (e.g. blue/red/green reshuffled across left/middle/right). Same colour set as Eval 1, just different positions.
 - Prompts require reasoning beyond direct color lookup, e.g.:
-  - `"Put the banana into the 2nd bowl from the left."`
-  - `"Put the banana into the bowl on the right of the red bowl."`
+  - `"Put the banana into the 2nd bowl from the left."` *(from the robot's perspective)*
+  - `"Put the banana into the bowl on the right of the red bowl."` *(from the robot's perspective)*
   - `"Put the banana into the bowl that is not green and not blue."` *(→ the red bowl)*
+- **Reference frame:** spatial prompts ("left", "right", "2nd from the left") are always **from the robot's perspective**, not the human's.
 - Exact prompts not disclosed in advance but **identical across groups** and very similar to the examples above. Multiple prompts will be used, mix of easy and hard.
 - **20 s / rollout.** Points distributed evenly across rollouts.
 
@@ -88,6 +89,7 @@ Different models may be used across the three eval setups, or the same model wit
 
 - **Must be a VLA.** Architecture for each task (or combined) must use a **pretrained vision-language backbone**. It does *not* need a continuous action head or other extensions.
 - **Must be learned.** You must demonstrate you trained / fine-tuned the model yourself on the provided compute.
+- **Fine-tuning verification (per TA Q&A in the Google Doc).** The fine-tuning *quality* is not directly graded — only the policy's **performance on the eval tasks at demo day** is graded. The TAs will likely **inspect your code** to confirm you actually fine-tuned (and did not just deploy a pretrained checkpoint with no modifications). They note that without fine-tuning the model will almost certainly fail the tasks anyway, so this is mostly a safety check. **Action item:** keep your training script, config files, and checkpoint history in the repo so the fine-tuning trail is reviewable.
 - **VLA-only policy — no other foundation / pretrained models.** **You may not use any other foundation or pretrained models** (LLMs, orchestration VLMs, YOLO, face-recognition models, etc.) anywhere in the inference pipeline. The policy must consist of your VLA alone. *(This invalidates any two-stage pipeline that uses a face-ID frontend or VLM grounder in front of the VLA — see Eval 3 design implications.)*
 - **Training data**: publicly available datasets, teleoperation, or synthetic generation — all allowed.
 - **Optional extensions allowed**: RL post-training (**not at demo day**), synthetic data generation, etc.
@@ -245,6 +247,13 @@ Report any issues in the group's Slack channel.
   - **Per-group (closed) channels:** `project-1-vla-group-XX` — coordination within your team.
 - **Weekly update:** each group sends a short **Slack update before every Thursday session**, describing progress and current issues, so TAs can focus on the hard debugging problems in-session.
 - **TAs:** Zador Pataki (<patakiz@ethz.ch>), Nicole Damblon (<ndamblon@ethz.ch>).
+
+### Demo-day deployment infrastructure (per TA Q&A — still TBD)
+
+- The TAs **plan to provide PCs with strong GPUs** at demo day on which the policy will run during evaluation. You do **not** deploy on your laptop or on Brev cloud during the live eval.
+- These PCs are expected to be **accessible before demo day** so each team can verify that their policy boots and runs end-to-end on the eval hardware.
+- Final details (exact GPU model, OS, driver versions, network access, deadline for the access window) are **TBD** — watch the [`project-1-vla`](https://robot-course-ethz.slack.com/archives/C0AULTPSDHS) Slack channel for the announcement.
+- **Action items now**: pin your CUDA / PyTorch / Transformers versions, document any non-standard system deps (CUDA toolkit, Triton, flash-attn, ffmpeg) so installing on a fresh PC is one command, and keep a checkpoint that loads cleanly with `policy.from_pretrained(...)`.
 
 ---
 
