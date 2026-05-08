@@ -68,9 +68,9 @@ All evals use the same physical setup: the SO-101 is mounted at the edge of a wh
 - Prompt: `"Place the coke on [celebrity name]"` — policy must place the can on top of the correct image.
 - **9 rollouts / team**, **5.55 pts each** (50 / 9). **20 s / rollout.**
 
-**The "TOY" dataset (Taylor / Obama / Yann).** TAs sent on Slack a PDF with **5 Taylor Swift + 5 Barack Obama + 5 Yann LeCun** images. These are the **known in-distribution images** = the **TOY dataset**.
+**The "TOY" dataset (Taylor / Obama / Yann).** TAs sent on Slack a PDF with **5 Taylor Swift + 5 Barack Obama + 5 Yann LeCun** images. These are the **known in-distribution images** = the **TOY dataset**. A local copy is checked into the repo at [`docs/Eval_3_TOY_Celebrity_Images.pdf`](Eval_3_TOY_Celebrity_Images.pdf).
 
-> **Action item:** print the TOY PDF **in color**, **cut the images out so there is no white border**. These cut-outs are the **exact** images used in the first 3 demo-day rollouts.
+> **Action item:** print [`docs/Eval_3_TOY_Celebrity_Images.pdf`](Eval_3_TOY_Celebrity_Images.pdf) **in color**, **cut the images out so there is no white border**. These cut-outs are the **exact** images used in the first 3 demo-day rollouts.
 
 **The 9 rollouts split into three groups of 3:**
 
