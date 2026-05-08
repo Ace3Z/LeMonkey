@@ -50,3 +50,10 @@ eval_2/rollouts/
 eval_2/evals/
 eval_2/state/
 eval_2/__pycache__/
+
+# eval_3/: track the scripts, ignore heavy artifacts and personal recording state
+eval_3/train/
+eval_3/rollouts/
+eval_3/evals/
+eval_3/state/
+eval_3/__pycache__/
