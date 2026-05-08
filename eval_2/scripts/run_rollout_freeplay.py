@@ -78,7 +78,7 @@ def main() -> int:
 
     random.seed(time.time_ns())  # fully random per invocation
 
-    policy = Path(f"/home/lemonkey/LeMonkey/eval_2/train/smolvla_eval2/checkpoints/{args.ckpt_step}/pretrained_model")
+    policy = Path(f"/home/lemonkey/LeMonkey/eval_2/train/smolvla_eval2_v2/checkpoints/{args.ckpt_step}/pretrained_model")
     if not policy.is_dir():
         print(f"ERROR: checkpoint not found: {policy}", file=sys.stderr)
         return 1
@@ -89,10 +89,11 @@ def main() -> int:
     home_pose = "/tmp/run_rollout_freeplay_home.json"
 
     print("=" * 72)
-    print(f"  Eval 2 free-play rollout (you choose the arrangement)")
+    print(f"  Eval 2 free-play rollout (you choose the arrangement, camera-frame v2 model)")
     print(f"  policy      : {policy}")
     print(f"  ood_prob    : {args.ood_prob:.0%}")
     print(f"  rollouts to : {args.rollout_dir}")
+    print(f"  CONVENTION  : positions are CAMERA-FRAME — look at the image feed.")
     print("=" * 72)
     print()
 
@@ -104,18 +105,21 @@ def main() -> int:
         arr = args.arrangement.upper()
     else:
         print("Place the 3 colored bowls in front of the robot wherever you like.")
-        print("Then tell me the left→middle→right colour order using B/R/G:")
-        print("  e.g. BRG = blue (left), red (middle), green (right)")
-        print("       GRB = green (left), red (middle), blue (right)")
+        print("Then tell me the colour order AS THE CAMERA SEES IT (look at the image):")
+        print("  • arr[0] = the bowl on the IMAGE LEFT side")
+        print("  • arr[1] = the bowl in the IMAGE MIDDLE")
+        print("  • arr[2] = the bowl on the IMAGE RIGHT side")
+        print("  e.g. BRG = blue on image-left, red in middle, green on image-right")
+        print("       GRB = green on image-left, red in middle, blue on image-right")
         print()
-        arr = ask_arrangement("Your arrangement (3-letter perm of BRG): ")
+        arr = ask_arrangement("Your arrangement (3-letter perm of BRG, image-frame): ")
         if arr is None:
             print("\nbye.")
             return 0
 
     print()
     print(f"  → arrangement: {arr}    "
-          f"left={COLOR_NAMES[arr[0]]}  middle={COLOR_NAMES[arr[1]]}  right={COLOR_NAMES[arr[2]]}")
+          f"image-left={COLOR_NAMES[arr[0]]}  middle={COLOR_NAMES[arr[1]]}  image-right={COLOR_NAMES[arr[2]]}")
     print()
 
     # 2. Loop
@@ -123,7 +127,7 @@ def main() -> int:
     while True:
         src, fam, ti, prompt = random_pick_for(arr, args.ood_prob)
         target_color = COLOR_NAMES[arr[ti]]
-        target_pos = ["LEFT", "MIDDLE", "RIGHT"][ti]
+        target_pos = ["IMAGE-LEFT", "IMAGE-MIDDLE", "IMAGE-RIGHT"][ti]
 
         print("─" * 72)
         print(f" Rollout #{i}    arrangement={arr}    family={fam}    source={src.upper()}")
@@ -142,12 +146,12 @@ def main() -> int:
         if ans == "s":
             continue
         if ans == "a":
-            new_arr = ask_arrangement("New arrangement (3-letter perm of BRG): ")
+            new_arr = ask_arrangement("New arrangement (3-letter perm of BRG, image-frame): ")
             if new_arr is None:
                 return 0
             arr = new_arr
             print(f"  ✓ arrangement updated → {arr}    "
-                  f"left={COLOR_NAMES[arr[0]]}  middle={COLOR_NAMES[arr[1]]}  right={COLOR_NAMES[arr[2]]}")
+                  f"image-left={COLOR_NAMES[arr[0]]}  middle={COLOR_NAMES[arr[1]]}  image-right={COLOR_NAMES[arr[2]]}")
             continue
 
         # Run a rollout

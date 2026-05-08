@@ -186,7 +186,7 @@ def main() -> int:
     p = argparse.ArgumentParser(description=__doc__,
                                 formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("ckpt_step", nargs="?", default="025000",
-                   help="Eval 2 checkpoint step under train/smolvla_eval2/checkpoints/ (default 025000)")
+                   help="Eval 2 v2 checkpoint step under train/smolvla_eval2_v2/checkpoints/ (default 025000, camera-frame retrain)")
     p.add_argument("--ood-prob", type=float, default=0.5,
                    help="Probability of drawing from OOD phrasings (default 0.5)")
     p.add_argument("--episode-time-s", type=float, default=40.0)
@@ -201,7 +201,7 @@ def main() -> int:
     # No seed: every invocation is fully random.
     random.seed(time.time_ns())
 
-    policy = Path(f"/home/lemonkey/LeMonkey/eval_2/train/smolvla_eval2/checkpoints/{args.ckpt_step}/pretrained_model")
+    policy = Path(f"/home/lemonkey/LeMonkey/eval_2/train/smolvla_eval2_v2/checkpoints/{args.ckpt_step}/pretrained_model")
     if not policy.is_dir():
         print(f"ERROR: checkpoint not found: {policy}", file=sys.stderr)
         return 1
@@ -214,10 +214,12 @@ def main() -> int:
     home_pose = "/tmp/run_rollout_eval2_home.json"
 
     print("=" * 72)
-    print(f"  Eval 2 random-prompt rollout")
+    print(f"  Eval 2 random-prompt rollout (camera-frame v2 model)")
     print(f"  policy      : {policy}")
     print(f"  ood_prob    : {args.ood_prob:.0%}  (trained vs out-of-distribution)")
     print(f"  rollouts to : {args.rollout_dir}")
+    print(f"  CONVENTION  : positions are CAMERA-FRAME (look at the image feed).")
+    print(f"                arr[0] = bowl on the IMAGE LEFT side, arr[2] = IMAGE RIGHT.")
     print(f"  press Ctrl+C any time to quit")
     print("=" * 72)
 
@@ -226,13 +228,13 @@ def main() -> int:
     while True:
         arr, src, fam, ti, prompt = random_pick(args.ood_prob)
         target_color = COLOR_NAMES[arr[ti]]
-        target_pos = ["LEFT", "MIDDLE", "RIGHT"][ti]
+        target_pos = ["IMAGE-LEFT", "IMAGE-MIDDLE", "IMAGE-RIGHT"][ti]
 
         print()
         if arr != last_arr:
             print("╔" + "═" * 70 + "╗")
-            print(f"║  ARRANGEMENT CHANGE → set bowls to: {arr:<31}".ljust(71) + " ║")
-            print(f"║  left={COLOR_NAMES[arr[0]]:<6}  middle={COLOR_NAMES[arr[1]]:<6}  right={COLOR_NAMES[arr[2]]:<6}".ljust(71) + " ║")
+            print(f"║  ARRANGEMENT CHANGE → set bowls (CAMERA view) to: {arr:<17}".ljust(71) + " ║")
+            print(f"║  image-left={COLOR_NAMES[arr[0]]:<6}  image-mid={COLOR_NAMES[arr[1]]:<6}  image-right={COLOR_NAMES[arr[2]]:<6}".ljust(71) + " ║")
             print("╚" + "═" * 70 + "╝")
             last_arr = arr
 
