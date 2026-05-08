@@ -52,10 +52,10 @@ All evals use the same physical setup: the SO-101 is mounted at the edge of a wh
 - Banana at the **exact same position as Eval 1** (smiley orientation, same teleop offsets ±5 cm). It does **not** move between Eval 1 and Eval 2.
 - The **three colored bowls may switch places** (e.g. blue/red/green reshuffled across left/middle/right). Same colour set as Eval 1, just different positions.
 - Prompts require reasoning beyond direct color lookup, e.g.:
-  - `"Put the banana into the 2nd bowl from the left."` *(from the robot's perspective)*
-  - `"Put the banana into the bowl on the right of the red bowl."` *(from the robot's perspective)*
+  - `"Put the banana into the 2nd bowl from the left from the robot perspective"`
+  - `"Put the banana into the bowl on the right of the red bowl from the robot perspective"`
   - `"Put the banana into the bowl that is not green and not blue."` *(→ the red bowl)*
-- **Reference frame:** spatial prompts ("left", "right", "2nd from the left") are always **from the robot's perspective**, not the human's.
+- **Reference frame:** spatial prompts ("left", "right", "2nd from the left") are always **from the robot's perspective** — and the qualifier is now **embedded inline in the prompt string itself**, not as a parenthetical (per the latest Google Doc).
 - Exact prompts not disclosed in advance but **identical across groups** and very similar to the examples above. Multiple prompts will be used, mix of easy and hard.
 - **20 s / rollout.** Points distributed evenly across rollouts.
 
@@ -66,10 +66,23 @@ All evals use the same physical setup: the SO-101 is mounted at the edge of a wh
 - DIN A5 color prints of celebrities placed in a semicircle. **All images are portraits** (head / shoulders) — **not** full-body.
 - A **normal 330 ml coke can** stands in the middle (empty for Eval 3). **No Coke Zero.** The can **may be crumbled together on the sides** to make it easier to grip, but **must still be able to stand on its own**. You may bring your **exact** coke can to demo day so the policy sees the same one it trained on.
 - Prompt: `"Place the coke on [celebrity name]"` — policy must place the can on top of the correct image.
-- **In-distribution celebrities:** Taylor Swift, Barack Obama, Yann LeCun.
-- **OOD celebrities** used in some rollouts (e.g. Roger Federer, Angela Merkel). The TAs will release a list of **~100 candidate celebrities** that the OOD set will be drawn from — expected on the weekend of **2026-05-02 / 03**.
-- Exact images and setups undisclosed but identical across groups.
-- **10 rollouts / team**, 5 pts each. **20 s / rollout.**
+- **9 rollouts / team**, **5.55 pts each** (50 / 9). **20 s / rollout.**
+
+**The "TOY" dataset (Taylor / Obama / Yann).** TAs sent on Slack a PDF with **5 Taylor Swift + 5 Barack Obama + 5 Yann LeCun** images. These are the **known in-distribution images** = the **TOY dataset**.
+
+> **Action item:** print the TOY PDF **in color**, **cut the images out so there is no white border**. These cut-outs are the **exact** images used in the first 3 demo-day rollouts.
+
+**The 9 rollouts split into three groups of 3:**
+
+| Runs | Setup | Image source | Points |
+|---|---|---|---|
+| **1 – 3** (known IID) | 1 Swift + 1 Obama + 1 LeCun image on the table in random order; one rollout per celebrity prompt | **Exact images from the TOY PDF** (you have them) | 3 × 5.55 |
+| **4 – 6** (held-out IID) | Same task, same three celebrities — but with **different photos** of Swift / Obama / LeCun that the TAs did *not* hand out | Held-out IID images | 3 × 5.55 |
+| **7 – 9** (OOD) | Same task, but with **OOD celebrities** — popular public figures **not** in the TOY set | OOD images | 3 × 5.55 |
+
+- Exact image setups (positions, OOD identity) are undisclosed in advance but **identical across groups**.
+- **In-distribution set:** Taylor Swift, Barack Obama, Yann LeCun.
+- **OOD set:** popular celebrities only (e.g. Roger Federer, Angela Merkel) — drawn from a candidate list TAs will publish (see Slack).
 
 ### Bonus (up to 50 pts) — Smallest model
 
@@ -90,7 +103,10 @@ Different models may be used across the three eval setups, or the same model wit
 - **Must be a VLA.** Architecture for each task (or combined) must use a **pretrained vision-language backbone**. It does *not* need a continuous action head or other extensions.
 - **Must be learned.** You must demonstrate you trained / fine-tuned the model yourself on the provided compute.
 - **Fine-tuning verification (per TA Q&A in the Google Doc).** The fine-tuning *quality* is not directly graded — only the policy's **performance on the eval tasks at demo day** is graded. The TAs will likely **inspect your code** to confirm you actually fine-tuned (and did not just deploy a pretrained checkpoint with no modifications). They note that without fine-tuning the model will almost certainly fail the tasks anyway, so this is mostly a safety check. **Action item:** keep your training script, config files, and checkpoint history in the repo so the fine-tuning trail is reviewable.
-- **VLA-only policy — no other foundation / pretrained models.** **You may not use any other foundation or pretrained models** (LLMs, orchestration VLMs, YOLO, face-recognition models, etc.) anywhere in the inference pipeline. The policy must consist of your VLA alone. *(This invalidates any two-stage pipeline that uses a face-ID frontend or VLM grounder in front of the VLA — see Eval 3 design implications.)*
+- **VLA-only at inference time — but other models allowed for training-data creation (updated rule).**
+  - **At inference / demo day:** **NOT allowed** to use YOLO, image-recognition models, API calls to large cloud VLMs, or other foundation models in the policy itself. The deployed policy at demo day must be your VLA alone.
+  - **At training time (before demo day):** **allowed** to use such models to **create annotated training data** for your VLA/VLM (e.g. run a face-recognition model offline to auto-label demos with celebrity bounding boxes, then train your VLA from those labels). The "helper" model must not run at inference — only its outputs end up baked into your VLA's weights.
+  - This loosening invalidates the earlier "no two-stage pipelines anywhere" interpretation: data-labelling pipelines that use foundation models *off-line* are now fine. A live face-ID model on the demo-day machine is still forbidden.
 - **Training data**: publicly available datasets, teleoperation, or synthetic generation — all allowed.
 - **Optional extensions allowed**: RL post-training (**not at demo day**), synthetic data generation, etc.
 - **Different models across evals allowed.** You may use different models for Eval 1 / 2 / 3, or the same model across all three (with different weights / checkpoints).
@@ -236,6 +252,8 @@ Report any issues in the group's Slack channel.
 - **Collect at least some data in HG.** That's where the final evals happen and the tables aren't perfectly white.
 - **Cheaper GPUs can stretch credit.** See §6.4 — a 1×A100 80 GB + gradient accumulation often replaces multi-H100 setups.
 - **Demo-day "fun" generalisation tasks give no extra points.** TAs may invite you to show a more random / fun task at the demo to demonstrate generalisation, but doing this is purely optional — it does not count toward the score.
+- **Downsize camera images to ~256 × 256 for training and inference.** Many teams collect at full sensor resolution, which slows training a lot and gives no real win — most powerful VLAs run at ~256 × 256 and perform just as well. (Per the Google Doc, latest TA tip.)
+- **Add random-illumination augmentation during training.** Lighting at demo day is unpredictable; random brightness / contrast / colour jitter on training frames meaningfully helps lighting generalisation. (Per the Google Doc, latest TA tip.)
 
 ---
 
