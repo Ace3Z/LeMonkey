@@ -1,0 +1,31 @@
+# Eval 3 — SmolVLM2 LoRA fine-tune env (vlm_finetune)
+# Reproducible on Mac (MPS, dataset prep + smoke tests) and AWS A10G (real training).
+# Install: conda create -n vlm_finetune python=3.12 && conda activate vlm_finetune
+#          pip install -r eval_3/requirements.txt
+# On AWS A10G also: pip install bitsandbytes  (skip on Mac — Linux/Windows only)
+
+torch>=2.4
+transformers>=4.50,<6
+peft>=0.13
+trl>=0.12
+accelerate>=1.2
+datasets>=3.0
+safetensors
+pillow
+tqdm
+pandas
+numpy
+
+# data ops
+kaggle
+
+# eval / interactive comparison (reuse the Dash baseline app w/ --lora flag)
+dash
+plotly
+
+# training observability
+wandb
+
+# Stage A smoke-test notebook
+jupyter
+ipykernel
