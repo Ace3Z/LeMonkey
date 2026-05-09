@@ -72,7 +72,7 @@ def main() -> int:
     p.add_argument("--rollout-dir",   default="/home/lemonkey/LeMonkey/eval_2/rollouts")
     p.add_argument("--follower-port", default="/dev/so101-follower")
     p.add_argument("--follower-id",   default="my_follower")
-    p.add_argument("--cam-path",      default="/dev/video0")
+        p.add_argument("--cam-path",      default="/dev/video0")
     p.add_argument("--home-drive-s",  type=float, default=2.0)
     args = p.parse_args()
 
