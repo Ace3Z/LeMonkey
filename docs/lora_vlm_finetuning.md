@@ -36,6 +36,46 @@ Why **not** auto-relabel teleop demos with a face recognizer (rejected approach,
 
 ---
 
+## 2.A How the LoRA interacts with SmolVLA's truncated backbone
+
+A non-obvious architectural detail dictates *where* the LoRA is allowed to live and *how* we train it. From the SmolVLA paper (§3.1, §4.3, Fig. 1) and the lerobot source (`smolvlm_with_expert.py:88-90`):
+
+1. **SmolVLA discards the upper LM layers of the VLM.** Default `num_vlm_layers = 16` — at load time it does `self.vlm.text_model.layers = self.vlm.text_model.layers[:16]`. Layers 16–31 are physically deleted, not just bypassed.
+2. **The VLM is frozen during SmolVLA training.** Only the ~100M-parameter Action Expert (a separate flow-matching transformer) is trained, cross-attending to the truncated VLM's hidden states.
+3. **The vision tower (SigLIP) is kept whole** — only the LM stack is truncated.
+
+Implications for our LoRA:
+
+- **`target_modules` must be restricted to LM layers 0–15 + the full vision tower.** A LoRA placed on layers 16–31 is silently discarded the moment SmolVLA loads the model. This is not a "distribution shift" issue — those weights cease to exist in the deployed model.
+- **The chat-template format used at training time is largely irrelevant** to whether the knowledge transfers. SmolVLA bypasses the chat template entirely (see `processor_smolvla.py` — raw tokenize + concat, no `apply_chat_template`). What survives the format change is the *intermediate-layer encoding* of "this image contains person X" — which is exactly what gets baked into the LoRA's weight delta and what the Action Expert can later attend to.
+- **After our LoRA lands, the Action Expert must be retrained** against the modified backbone (Step 6 below), because it was originally tuned against the *unmodified* layer-15 representations.
+
+### Two training topologies (Approach A is what we ship; B is the documented fallback)
+
+**Approach A — Full VLM + LoRA on layers 0–15 + next-token loss. ✅ Selected.**
+
+- Load the full 32-layer SmolVLM2-500M; attach LoRA only to LM layers 0–15 attention/MLP projections + vision-tower attention projections.
+- Train with standard supervised fine-tuning: `image + prompt → name` next-token prediction loss against the model's normal output head.
+- Layers 16–31 act as **training-time scaffolding**: gradient flows back through them to give layers 0–15 a meaningful learning signal, even though those upper layers will be discarded after training.
+- After training: drop layers 16–31, drop the output head, merge LoRA into layers 0–15 → produces exactly the shape SmolVLA loads.
+- **Why selected:** standard `trl SFTTrainer` + `peft` tooling, easy to monitor (interpretable name outputs at every eval), low risk of subtle bugs, and the loss signal is well-understood. Right tool for the prototype phase.
+- **Cost:** forward + backward through layers 16–31 is "wasted" compute at training time (paid in GPU-hours, not in correctness).
+
+**Approach B — Truncated VLM (16 layers) + LoRA + custom downstream head + custom loss. 🔄 Documented fallback.**
+
+- Truncate the VLM to 16 layers *first* (mirror SmolVLA's exact deployed shape).
+- Attach a small custom head on layer-15's hidden state — e.g., a `Linear(hidden_dim → num_celebs)` classifier with cross-entropy loss, or a contrastive head with InfoNCE.
+- Train LoRA on layers 0–15 + the new head jointly. After training, discard the head; merge LoRA into the truncated backbone.
+- **Why this exists:** the layer-15 hidden states get directly optimized for the downstream task — no scaffolding indirection. Philosophically aligned with how SmolVLA itself uses the truncated VLM (frozen VLM + trainable downstream consumer).
+- **When to switch to B:** if Approach A's TOY-PDF eval (Step 5 below) is weak — i.e., name accuracy is low even though the LoRA training loss converges nicely. That symptom means "the LoRA is encoding face→name in late-layer-friendly representations that don't survive truncation," and Approach B fixes the root cause.
+- **Cost:** custom head + loss to design and validate; less off-the-shelf tooling; harder to debug; need to choose head architecture and loss objective.
+
+### Honorable mention — Approach C (rejected)
+
+Keep the full model + LoRA on *all* 32 layers. Standard out-of-the-box `peft` behavior. **Do not do this** — half of the trained LoRA delta lives in layers 16–31 and is deleted by SmolVLA's truncation, wasting half the compute and producing inconsistent results that depend on which layer the model happened to encode the celebrity knowledge in.
+
+---
+
 ## 3. Dataset plan
 
 ### Primary: VGGFace2 (filtered)
