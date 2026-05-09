@@ -44,6 +44,7 @@ from transformers import (
 )
 
 DEFAULT_DATA_ROOT = Path("/Volumes/externalSSD/datasets/vggface2_hearfool/manifests")
+# --out-dir defaults to <data-root>/../lora_celeb_v0 unless explicitly overridden
 MODEL_ID = "HuggingFaceTB/SmolVLM2-500M-Video-Instruct"
 
 # Regex: text_model layers 0..15 (q/k/v/o + gate/up/down), and ALL vision-tower
@@ -186,9 +187,10 @@ def attach_lora(model, verbose: bool = True):
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--data-root", type=Path, default=DEFAULT_DATA_ROOT)
-    parser.add_argument("--out-dir", type=Path,
-                        default=Path("/Volumes/externalSSD/lemonkey/eval_3/lora_celeb_v0"))
+    parser.add_argument("--data-root", type=Path, default=DEFAULT_DATA_ROOT,
+                        help="Dir containing train.jsonl + val.jsonl (manifest output dir)")
+    parser.add_argument("--out-dir", type=Path, default=None,
+                        help="default: <data-root>/../lora_celeb_v0")
     parser.add_argument("--epochs", type=float, default=3.0)
     parser.add_argument("--batch-size", type=int, default=2)
     parser.add_argument("--grad-accum", type=int, default=8)
@@ -197,6 +199,9 @@ def main() -> None:
                         help="Use train.smoke.jsonl, 1 epoch, batch=1, no wandb")
     parser.add_argument("--wandb-project", default="lemonkey-eval3-smolvlm")
     args = parser.parse_args()
+
+    if args.out_dir is None:
+        args.out_dir = args.data_root.parent / "lora_celeb_v0"
 
     suf = ".smoke" if args.smoke else ""
     train_path = args.data_root / f"train{suf}.jsonl"

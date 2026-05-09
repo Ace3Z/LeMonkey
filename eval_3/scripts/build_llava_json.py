@@ -39,8 +39,7 @@ from pathlib import Path
 import pandas as pd
 
 DEFAULT_DATA_ROOT = Path("/Volumes/externalSSD/datasets/vggface2_hearfool")
-DEFAULT_MANIFEST = DEFAULT_DATA_ROOT / "manifests/manifest.parquet"
-DEFAULT_OUT_DIR = DEFAULT_DATA_ROOT / "manifests"
+# --manifest and --out-dir default to <data-root>/manifests/... resolved at parse time
 
 PROMPT_TEMPLATES = [
     "Who is shown in this photo?",
@@ -111,8 +110,12 @@ def write_jsonl(rows: list[dict], path: Path) -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--manifest", type=Path, default=DEFAULT_MANIFEST)
-    parser.add_argument("--out-dir", type=Path, default=DEFAULT_OUT_DIR)
+    parser.add_argument("--data-root", type=Path, default=DEFAULT_DATA_ROOT,
+                        help="Anchor for default --manifest and --out-dir paths")
+    parser.add_argument("--manifest", type=Path, default=None,
+                        help="default: <data-root>/manifests/manifest.parquet")
+    parser.add_argument("--out-dir", type=Path, default=None,
+                        help="default: <data-root>/manifests")
     parser.add_argument("--train-imgs-per-id", type=int, default=100)
     parser.add_argument("--val-imgs-per-id", type=int, default=30)
     parser.add_argument("--max-identities", type=int, default=None,
@@ -121,6 +124,11 @@ def main() -> None:
                         help="Suffix on output filenames (e.g. '.smoke' → train.smoke.jsonl)")
     parser.add_argument("--seed", type=int, default=42)
     args = parser.parse_args()
+
+    if args.manifest is None:
+        args.manifest = args.data_root / "manifests/manifest.parquet"
+    if args.out_dir is None:
+        args.out_dir = args.data_root / "manifests"
 
     df = pd.read_parquet(args.manifest)
     print(f"[json] manifest: {len(df)} identities")

@@ -31,8 +31,8 @@ from pathlib import Path
 import pandas as pd
 
 DEFAULT_DATA_ROOT = Path("/Volumes/externalSSD/datasets/vggface2_hearfool")
-DEFAULT_META_CSV = DEFAULT_DATA_ROOT / "meta/identity_meta_with_estimated_age.csv"
-DEFAULT_OUT = DEFAULT_DATA_ROOT / "manifests/manifest.parquet"
+# --meta-csv and --out default to <data-root>/meta/... and <data-root>/manifests/...
+# resolved at parse time so --data-root propagates to them.
 
 
 def load_metadata(csv_path: Path) -> dict[str, dict]:
@@ -124,11 +124,18 @@ def build_manifest(data_root: Path, meta_csv: Path, min_images: int) -> pd.DataF
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--data-root", type=Path, default=DEFAULT_DATA_ROOT)
-    parser.add_argument("--meta-csv", type=Path, default=DEFAULT_META_CSV)
-    parser.add_argument("--out", type=Path, default=DEFAULT_OUT)
+    parser.add_argument("--meta-csv", type=Path, default=None,
+                        help="default: <data-root>/meta/identity_meta_with_estimated_age.csv")
+    parser.add_argument("--out", type=Path, default=None,
+                        help="default: <data-root>/manifests/manifest.parquet")
     parser.add_argument("--min-images", type=int, default=30,
                         help="Drop identities with fewer than this many images")
     args = parser.parse_args()
+
+    if args.meta_csv is None:
+        args.meta_csv = args.data_root / "meta/identity_meta_with_estimated_age.csv"
+    if args.out is None:
+        args.out = args.data_root / "manifests/manifest.parquet"
 
     df = build_manifest(args.data_root, args.meta_csv, args.min_images)
 
