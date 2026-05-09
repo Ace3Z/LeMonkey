@@ -267,6 +267,24 @@ WandB runs land under project `lemonkey-eval3-smolvlm` (override with
 
 ---
 
+## Diagnostic eval — name accuracy on held-out images of training identities
+
+After training, run this to find out whether the LoRA actually learned face → name:
+```bash
+python eval_3/scripts/eval_lora_train_id_accuracy.py \
+  --adapter   $DATA_ROOT/lora_celeb_v0 \
+  --data-root $DATA_ROOT \
+  --n-identities 50 --n-imgs-per-id 5
+```
+
+This samples 50 training identities, finds 5 images per identity that were **not** in `train.jsonl`, runs inference (`"Who is shown in this photo?"`), and reports normalized name accuracy. Add `--no-lora` for the BASE-model baseline. ~5 min on A10G.
+
+> **Why this script exists:** the eval loss reported during training measures performance on identity-disjoint val identities (zero-shot identification, structurally impossible). This script measures the actually-meaningful signal — can the model name a *new photo of an identity it WAS trained on*. See `docs/lora_vlm_finetuning.md` for context.
+
+For runs going forward, the `build_llava_json.py` default is now `--val-strategy per-identity`, so `eval_loss` during training will track this signal directly.
+
+---
+
 ## All flags
 
 ### `build_celeb_dataset.py`
@@ -288,7 +306,23 @@ WandB runs land under project `lemonkey-eval3-smolvlm` (override with
 | `--val-imgs-per-id` | 30 | Cap per val identity |
 | `--max-identities` | None | Limit identities per split (smoke testing) |
 | `--out-suffix` | `""` | Suffix for output files (`.smoke` → `train.smoke.jsonl`) |
+| `--val-strategy` | `per-identity` | `per-identity` (recommended): same IDs in train+val, different images — `eval_loss` measures whether LoRA learned trained identities. `disjoint` (legacy): hearfool's identity-disjoint partition — measures impossible zero-shot ID, use only as an OOD probe. |
 | `--seed` | 42 | RNG seed for image sampling + prompt selection |
+
+### `eval_lora_train_id_accuracy.py`
+
+| Flag | Default | Effect |
+|---|---|---|
+| `--adapter` | (required) | Path to the LoRA adapter dir |
+| `--data-root` | (required) | Root with `manifests/` subdir |
+| `--manifest` | `<data-root>/manifests/manifest.parquet` | Identity → name + image_paths |
+| `--train-jsonl` | `<data-root>/manifests/train.jsonl` | Used to identify *held-out* images per identity |
+| `--n-identities` | 50 | How many training identities to sample |
+| `--n-imgs-per-id` | 5 | Held-out images per sampled identity |
+| `--prompt` | `"Who is shown in this photo?"` | Prompt format |
+| `--no-lora` | False | Skip adapter, eval base model (BASELINE) |
+| `--out-jsonl` | None | Optional dump of every (img, expected, predicted, correct) row |
+| `--seed` | 0 | RNG seed for identity + image sampling |
 
 ### `train_smolvlm2_lora.py`
 
