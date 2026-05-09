@@ -5,7 +5,9 @@
 # On AWS A10G also: pip install bitsandbytes  (skip on Mac — Linux/Windows only)
 
 torch>=2.4
-transformers>=4.50,<6
+torchvision>=0.19  # SmolVLM2 video processor uses torchvision.transforms.v2
+num2words           # SmolVLM2 processor dep (number normalization)
+transformers==5.3.0  # 5.4+ broke SmolVLM2 AutoProcessor auto-detect
 peft>=0.13
 trl>=0.12
 accelerate>=1.2
