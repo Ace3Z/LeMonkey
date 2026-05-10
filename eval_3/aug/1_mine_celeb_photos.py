@@ -82,27 +82,44 @@ class CelebSpec:
     name: str
     wiki_slug: str
 
-    @property
-    def wikimedia_filepath_url(self) -> str:
-        return f"https://en.wikipedia.org/wiki/Special:FilePath/{self.wiki_slug}.jpg?width=1200"
-
 
 # ─── Wikipedia primary headshot ──────────────────────────────────────────────
 def fetch_wikipedia_reference(celeb: CelebSpec, *, timeout: float = 20.0) -> Image.Image | None:
-    """Fetch a canonical 1200px-wide reference image. Tolerates redirects."""
+    """Fetch the primary Wikipedia image for `celeb`.
+
+    Strategy (in order until one works):
+      1. Hit the Wikipedia REST page-summary endpoint, grab the
+         `originalimage.source` URL (this is the page's lead/infobox
+         image). Robust — same path used by the Wikipedia mobile app.
+      2. Fallback: try Special:FilePath/<slug>.jpg (used by the
+         original implementation; fails when the lead image's filename
+         doesn't match the page slug — e.g. "Yann_LeCun_-_2018_(cropped).jpg"
+         vs page slug "Yann_LeCun").
+    """
+    # 1. REST summary endpoint
+    summary_url = f"https://en.wikipedia.org/api/rest_v1/page/summary/{celeb.wiki_slug}"
     try:
-        r = requests.get(
-            celeb.wikimedia_filepath_url,
-            headers={"User-Agent": UA},
-            timeout=timeout,
-            allow_redirects=True,
-        )
+        r = requests.get(summary_url, headers={"User-Agent": UA}, timeout=timeout)
+        r.raise_for_status()
+        meta = r.json()
+        img_url = (meta.get("originalimage") or meta.get("thumbnail") or {}).get("source")
+        if img_url:
+            ir = requests.get(img_url, headers={"User-Agent": UA}, timeout=timeout, allow_redirects=True)
+            ir.raise_for_status()
+            img = Image.open(io.BytesIO(ir.content)).convert("RGB")
+            return ImageOps.exif_transpose(img)
+    except Exception as e:
+        print(f"  [WARN] {celeb.key}: REST summary fetch failed: {e}")
+
+    # 2. Fallback to Special:FilePath
+    fb = f"https://en.wikipedia.org/wiki/Special:FilePath/{celeb.wiki_slug}.jpg?width=1200"
+    try:
+        r = requests.get(fb, headers={"User-Agent": UA}, timeout=timeout, allow_redirects=True)
         r.raise_for_status()
         img = Image.open(io.BytesIO(r.content)).convert("RGB")
-        img = ImageOps.exif_transpose(img)
-        return img
+        return ImageOps.exif_transpose(img)
     except Exception as e:
-        print(f"  [WARN] {celeb.key}: wikipedia reference fetch failed: {e}")
+        print(f"  [WARN] {celeb.key}: Special:FilePath fallback also failed: {e}")
         return None
 
 

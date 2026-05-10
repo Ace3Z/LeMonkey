@@ -52,6 +52,12 @@ import cv2
 import numpy as np
 import pycocotools.mask as mask_util
 
+# Local import — _video_io routes AV1 mp4s through a one-time H.264 transcode
+import importlib.util as _ilu
+_spec = _ilu.spec_from_file_location("_video_io", str(Path(__file__).resolve().parent / "_video_io.py"))
+_vio = _ilu.module_from_spec(_spec); _spec.loader.exec_module(_vio)
+ensure_h264 = _vio.ensure_h264
+
 
 # ─── Recipe primitives ──────────────────────────────────────────────────────
 def reinhard_lab(
@@ -96,6 +102,9 @@ def replace_portrait(
     erode_px: int = 1,
     ring_dilate_px: int = 11,
     apply_unsharp: bool = False,
+    apply_reinhard: bool = False,
+    blend_mode: str = "alpha_feather",
+    feather_sigma: float = 2.0,
 ) -> np.ndarray:
     """Replace the masked region in src_frame with new_photo via the
     Recommended-tier recipe. Returns a new frame; src_frame is not mutated.
@@ -126,10 +135,21 @@ def replace_portrait(
     H, W = src_frame.shape[:2]
     h, w = new_photo.shape[:2]
 
+    # 0. Clip corners to image bounds. cv2.minAreaRect can return corners
+    # slightly outside the image when the portrait is partially cropped at
+    # the camera edge (we've seen up to ~15 px overshoot on real episodes).
+    # cv2.seamlessClone then asserts on the bbox-vs-image ROI math. Clipping
+    # here yields a slightly non-rectangular quadrilateral (the homography
+    # gracefully handles non-rect quads — getPerspectiveTransform doesn't
+    # require axis-alignment).
+    dst_corners = dst_corners.astype(np.float32).copy()
+    dst_corners[:, 0] = np.clip(dst_corners[:, 0], 0, W - 1)
+    dst_corners[:, 1] = np.clip(dst_corners[:, 1], 0, H - 1)
+
     # 1. Lanczos warp — INTER_LANCZOS4 is the gold-standard high-quality
     # downsampling kernel for photographic content (ImageMagick filters lit).
     src_corners = np.array([[0, 0], [w - 1, 0], [w - 1, h - 1], [0, h - 1]], dtype=np.float32)
-    M = cv2.getPerspectiveTransform(src_corners, dst_corners.astype(np.float32))
+    M = cv2.getPerspectiveTransform(src_corners, dst_corners)
     warped = cv2.warpPerspective(new_photo, M, (W, H), flags=cv2.INTER_LANCZOS4)
 
     # 2. MTF match — emulate the camera's intrinsic blur (lens + sensor +
@@ -146,56 +166,95 @@ def replace_portrait(
         usm_blur = cv2.GaussianBlur(warped, (0, 0), sigmaX=1.0)
         warped = cv2.addWeighted(warped, 1.5, usm_blur, -0.5, 0)
 
-    # 3. Reinhard color transfer (Reinhard et al. 2001) sampled from a
-    # ~5-px outer ring of the mask — captures local WB / exposure / shadow
-    # tint at the portrait's exact location, beats whole-image stats which
-    # are dominated by the table colour.
+    # 3. (Optional) Reinhard color transfer (Reinhard et al. 2001) sampled
+    # from a ~5-px outer ring of the mask. Disabled by default (apply_reinhard
+    # = False) because empirically (Validation Pass 3 on ep01, 2026-05-10)
+    # it over-corrects when the ring is dominated by table/wall white —
+    # Reinhard pulls the photo's mean toward white and the std-clamp keeps
+    # only a fraction of the photo's contrast → bleached output. The pre-fill
+    # step (4 below) already provides local DC matching at the Poisson
+    # boundary; Poisson's gradient-domain blend handles the interior. So
+    # Reinhard is only needed when the ring has rich texture/colour
+    # (atypical for our wrist-cam-on-white-table setup).
     ring_dilated = cv2.dilate(mask, np.ones((ring_dilate_px, ring_dilate_px), np.uint8))
     ring = cv2.subtract(ring_dilated, mask)
-    warped = reinhard_lab(warped, src_frame, sample_mask=ring)
+    if apply_reinhard:
+        warped = reinhard_lab(warped, src_frame, sample_mask=ring)
 
-    # 4. Pre-fill the destination's mask region with the local ring-mean
-    # colour. This is critical: cv2.seamlessClone uses the destination's
-    # boundary pixels (just inside the mask, after OpenCV's ~3-px internal
-    # erosion per opencv#17450) as Dirichlet conditions for the Poisson
-    # solve. If we leave dst untouched, the boundary lies inside the
-    # ORIGINAL portrait region — anchoring Poisson to the original
-    # portrait colour and reverting the inpaint. Replacing dst's mask
-    # interior with the ring mean makes the boundary lie on a smooth
-    # background gray, which is what we actually want.
-    # Verified empirically — eval_3/aug/tests/test_replace_portrait.py
-    # variant B in the 2026-05-10 A/B test (dist_to_ring=23 vs raw=213).
-    ring_pix = src_frame[ring > 0]
-    if len(ring_pix) >= 10:
-        ring_mean_bgr = ring_pix.astype(np.float32).mean(0).astype(np.uint8)
-        dst_for_clone = src_frame.copy()
-        dst_for_clone[mask > 0] = ring_mean_bgr
-    else:
-        dst_for_clone = src_frame
-
-    # 5. Optional 1-px erosion to drop one-pixel JPEG halo artefacts.
-    # Kept small because seamlessClone already erodes ~3 px internally
-    # (opencv#17450); previously we used 3 px which stacked badly.
+    # 4. Optional 1-px erosion to drop one-pixel JPEG halo artefacts.
     if erode_px > 0:
-        mask_for_clone = cv2.erode(mask, np.ones((erode_px * 2 + 1, erode_px * 2 + 1), np.uint8))
+        mask_for_blend = cv2.erode(mask, np.ones((erode_px * 2 + 1, erode_px * 2 + 1), np.uint8))
     else:
-        mask_for_clone = mask
+        mask_for_blend = mask
+    if mask_for_blend.sum() == 0:
+        return src_frame                                 # mask vanished
 
-    # 6. Poisson NORMAL_CLONE — Pérez et al. SIGGRAPH 2003 Eq. 11
-    # ("importing"): copies the *source* gradients, lets boundary
-    # continuity absorb DC colour drift. NORMAL because we want the new
-    # photo's content fully (MIXED_CLONE would let dst gradients bleed
-    # through, which on a portrait-into-portrait swap means the OLD face
-    # comes back).
-    ys, xs = np.where(mask_for_clone > 0)
-    if len(ys) == 0:
-        return src_frame                                 # mask vanished, bail
-    center = (int(xs.mean()), int(ys.mean()))
-    out = cv2.seamlessClone(
-        warped, dst_for_clone, (mask_for_clone * 255).astype(np.uint8),
-        center, cv2.NORMAL_CLONE,
-    )
-    return out
+    # 5. Blend.
+    #
+    # blend_mode = "alpha_feather" (DEFAULT): Gaussian-feathered alpha paste.
+    #   Inside the mask: full new-photo colour. At the boundary: smooth
+    #   transition from new photo to surrounding frame.
+    #   This is the right choice for "replace one printed photo with another
+    #   printed photo at the same pose under the same lighting" because:
+    #     a) both photos have similar dynamic range / mean colour
+    #     b) the boundary (cardstock edge on table) is a sharp visible line
+    #        anyway in the original — feathering matches that look
+    #     c) preserves the new photo's identity (ArcFace cosine ≥ 0.4) which
+    #        Poisson NORMAL_CLONE bleaches when the ring is dominated by
+    #        white table (verified empirically on ep01 frame 0, 2026-05-10:
+    #        Poisson output mean = (198, 201, 209), warped photo mean
+    #        = (105, 139, 166); ArcFace cosine for Poisson output likely
+    #        below threshold).
+    #
+    # blend_mode = "poisson_normal": cv2.seamlessClone(NORMAL_CLONE) on a
+    #   pre-filled destination (mask region replaced with ring-mean before
+    #   cloning, per Validation Pass 2 — without the pre-fill, OpenCV's
+    #   internal 3-px erosion anchors Poisson to the *original* portrait
+    #   colour and reverts the inpaint). Use when the new photo's lighting
+    #   genuinely differs from the local environment and you want
+    #   gradient-domain DC absorption — but expect bleached output if the
+    #   ring is uniformly bright/dark.
+    if blend_mode == "alpha_feather":
+        feather = cv2.GaussianBlur(mask_for_blend.astype(np.float32), (0, 0), sigmaX=feather_sigma)
+        feather = (feather / max(feather.max(), 1e-6))[:, :, None]   # H,W,1
+        out = warped.astype(np.float32) * feather + src_frame.astype(np.float32) * (1 - feather)
+        out = np.clip(out, 0, 255).astype(np.uint8)
+        return out
+
+    if blend_mode == "poisson_normal":
+        # pre-fill dst's mask region with ring-mean (see VALIDATION.md §8e).
+        ring_pix = src_frame[ring > 0]
+        if len(ring_pix) >= 10:
+            ring_mean_bgr = ring_pix.astype(np.float32).mean(0).astype(np.uint8)
+            dst_for_clone = src_frame.copy()
+            dst_for_clone[mask > 0] = ring_mean_bgr
+        else:
+            dst_for_clone = src_frame
+
+        ys, xs = np.where(mask_for_blend > 0)
+        center = (int(xs.mean()), int(ys.mean()))
+        # Safety: clamp center so seamlessClone's bbox+center math fits.
+        bbox_w = xs.max() - xs.min() + 1
+        bbox_h = ys.max() - ys.min() + 1
+        cx = max(bbox_w // 2 + 1, min(W - bbox_w // 2 - 1, center[0]))
+        cy = max(bbox_h // 2 + 1, min(H - bbox_h // 2 - 1, center[1]))
+        safe_center = (int(cx), int(cy))
+        try:
+            out = cv2.seamlessClone(
+                warped, dst_for_clone, (mask_for_blend * 255).astype(np.uint8),
+                safe_center, cv2.NORMAL_CLONE,
+            )
+            return out
+        except cv2.error as e:
+            print(f"[WARN] seamlessClone failed at center={safe_center}, "
+                  f"bbox={bbox_w}×{bbox_h}: {e}; falling back to alpha_feather", flush=True)
+            # fall through to alpha_feather
+            feather = cv2.GaussianBlur(mask_for_blend.astype(np.float32), (0, 0), sigmaX=feather_sigma)
+            feather = (feather / max(feather.max(), 1e-6))[:, :, None]
+            out = warped.astype(np.float32) * feather + src_frame.astype(np.float32) * (1 - feather)
+            return np.clip(out, 0, 255).astype(np.uint8)
+
+    raise ValueError(f"unknown blend_mode {blend_mode!r}; choose 'alpha_feather' or 'poisson_normal'")
 
 
 # ─── ffmpeg encode (NVENC if available, libx264 fallback) ───────────────────
@@ -237,9 +296,27 @@ def decode_layout(layout: str) -> list[str]:
     return [INITIAL_TO_KEY.get(c, c.lower()) for c in layout]
 
 
-def assign_celebs_to_portraits(corners_data: dict, layout_celebs: list[str]) -> dict[str, str]:
-    """Given 3 portraits with corners, sort by mean-x to identify L/M/R,
-    then map each portrait_id → celeb key according to the layout list."""
+def assign_celebs_to_portraits(
+    corners_data: dict,
+    layout_celebs: list[str],
+    seeds: dict | None = None,
+) -> dict[str, str]:
+    """Map each portrait_id (the SAM 2 obj_id from frame 0 click order) to a
+    celeb key.
+
+    Two strategies:
+      1. If `seeds` carries an explicit "celebs" list (saved by the
+         interactive clicker when it prompted celeb-by-celeb), trust it
+         directly: portrait_id i → seeds["celebs"][i].
+      2. Otherwise fall back to mean-x sort (assumes a horizontal layout
+         where leftmost portrait corresponds to layout_celebs[0]). This is
+         only correct for true left-to-right arrangements; semicircle /
+         triangle arrangements need strategy 1.
+    """
+    if seeds and "celebs" in seeds and len(seeds.get("celebs") or []) == 3:
+        celebs = seeds["celebs"]
+        return {str(i): celebs[i] for i in range(3)}
+
     portrait_means: dict[str, float] = {}
     for pid_str, frames in corners_data["portraits"].items():
         # Use the first non-occluded frame's centre x for a stable assignment
@@ -317,7 +394,7 @@ def render_variant(
         cache = pickle.load(f)
     masks_per_frame: dict[int, dict[int, dict]] = cache["masks"]
 
-    cap = cv2.VideoCapture(str(src_video))
+    cap = cv2.VideoCapture(str(ensure_h264(src_video)))
     n_frames = corners_data["n_frames"]
     work_dir.mkdir(parents=True, exist_ok=True)
 
@@ -411,7 +488,12 @@ def process_episode(
     layout_celebs = decode_layout(layout)
     if not layout_celebs:
         return {"ep": ep_dir.name, "error": f"layout '{layout}' is required and must be 3 letters from S/O/L"}
-    pid_to_celeb = assign_celebs_to_portraits(corners_data, layout_celebs)
+
+    # Prefer the explicit click-order → celeb mapping written by the
+    # interactive clicker (handles semicircle / triangle arrangements).
+    seeds_path = ep_dir / "portrait_seeds.json"
+    seeds_dict = json.loads(seeds_path.read_text()) if seeds_path.is_file() else None
+    pid_to_celeb = assign_celebs_to_portraits(corners_data, layout_celebs, seeds_dict)
     if len(pid_to_celeb) != 3:
         return {"ep": ep_dir.name, "error": f"could not assign 3 portraits — got {pid_to_celeb}"}
 

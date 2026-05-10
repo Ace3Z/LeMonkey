@@ -42,6 +42,12 @@ from pathlib import Path
 import cv2
 import numpy as np
 
+# Local import — _video_io routes AV1 mp4s through a one-time H.264 transcode
+import importlib.util as _ilu
+_spec = _ilu.spec_from_file_location("_video_io", str(Path(__file__).resolve().parent / "_video_io.py"))
+_vio = _ilu.module_from_spec(_spec); _spec.loader.exec_module(_vio)
+ensure_h264 = _vio.ensure_h264
+
 try:
     from insightface.app import FaceAnalysis
 except ImportError:
@@ -156,7 +162,7 @@ def verify_variant(
     n_frames = corners_data["n_frames"]
     sample_indices = list(np.linspace(0, n_frames - 1, n_samples, dtype=int))
 
-    cap = cv2.VideoCapture(str(video))
+    cap = cv2.VideoCapture(str(ensure_h264(video)))
     cosines: list[float] = []
     n_faces_per_frame: list[int] = []
     fi = 0

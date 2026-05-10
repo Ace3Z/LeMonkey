@@ -43,18 +43,29 @@ import numpy as np
 
 # Heavy imports deferred for fast --help
 def _import_heavy():
-    global cv2, torch, build_sam2_image_predictor, build_sam2_video_predictor, mask_util
+    global cv2, torch, build_sam2_image_predictor, build_sam2_video_predictor, mask_util, ensure_h264, read_frame_zero, ensure_frame_dir
     import cv2  # type: ignore
     import torch  # type: ignore
     from sam2.build_sam import build_sam2_video_predictor, build_sam2  # type: ignore
     from sam2.sam2_image_predictor import SAM2ImagePredictor  # type: ignore
     import pycocotools.mask as mask_util  # type: ignore
+    # _video_io: AV1 → H.264 transcode (for cv2) + frame-dir extraction
+    # (for SAM 2, since decord has no aarch64 wheel on Thor).
+    import importlib.util as _ilu
+    _spec = _ilu.spec_from_file_location("_video_io", str(Path(__file__).resolve().parent / "_video_io.py"))
+    _vio = _ilu.module_from_spec(_spec); _spec.loader.exec_module(_vio)
+    ensure_h264 = _vio.ensure_h264
+    read_frame_zero = _vio.read_frame_zero
+    ensure_frame_dir = _vio.ensure_frame_dir
     globals().update({
         "cv2": cv2, "torch": torch,
         "build_sam2_video_predictor": build_sam2_video_predictor,
         "build_sam2": build_sam2,
         "SAM2ImagePredictor": SAM2ImagePredictor,
         "mask_util": mask_util,
+        "ensure_h264": ensure_h264,
+        "read_frame_zero": read_frame_zero,
+        "ensure_frame_dir": ensure_frame_dir,
     })
 
 
@@ -72,14 +83,10 @@ def find_episode_video(ep_dir: Path) -> Path:
     return candidates[0]
 
 
-def read_frame_zero(video_path: Path) -> np.ndarray:
-    """Decode and return frame 0 as BGR uint8 ndarray."""
-    cap = cv2.VideoCapture(str(video_path))
-    ok, frame = cap.read()
-    cap.release()
-    if not ok or frame is None:
-        raise RuntimeError(f"failed to read frame 0 of {video_path}")
-    return frame
+# NOTE: read_frame_zero is now provided by _video_io (handles AV1 transparently).
+# Kept this stub here so existing callers continue to work; it just delegates.
+def _read_frame_zero_local(video_path: Path) -> np.ndarray:
+    return read_frame_zero(video_path)
 
 
 # ─── Seed acquisition ────────────────────────────────────────────────────────
@@ -90,14 +97,35 @@ def load_seeds(ep_dir: Path) -> dict | None:
     return json.loads(seeds_json.read_text())
 
 
-def save_seeds(ep_dir: Path, points: list[list[int]], labels: list[int]) -> Path:
+def save_seeds(
+    ep_dir: Path, points: list[list[int]], labels: list[int],
+    celebs: list[str] | None = None,
+) -> Path:
     seeds_json = ep_dir / "portrait_seeds.json"
-    seeds_json.write_text(json.dumps({"points": points, "labels": labels}, indent=2))
+    payload: dict = {"points": points, "labels": labels}
+    if celebs is not None:
+        # explicit click-order → celeb mapping. portrait_id 0 = celebs[0], etc.
+        # When present, the augmentation pipeline uses this directly and skips
+        # the mean-x heuristic.
+        payload["celebs"] = celebs
+    seeds_json.write_text(json.dumps(payload, indent=2))
     return seeds_json
 
 
-def interactive_click(frame_bgr: np.ndarray) -> tuple[list[list[int]], list[int]]:
-    """Open an OpenCV window; user left-clicks 3 portrait centers, then any key."""
+def interactive_click(
+    frame_bgr: np.ndarray,
+    expected_celebs: list[str] | None = None,
+) -> tuple[list[list[int]], list[int], list[str]]:
+    """Open an OpenCV window; user clicks 3 portrait centres in a known order.
+
+    If `expected_celebs` is provided (e.g. ['swift','obama','lecun'] from the
+    sidecar's layout field), the prompt explicitly asks the user to click
+    each celeb in that order, and we return the click-order → celeb mapping.
+    Otherwise we just collect 3 generic clicks.
+
+    Returns (points, labels, celebs_in_click_order).
+    celebs_in_click_order is empty if expected_celebs was None.
+    """
     points: list[list[int]] = []
     labels: list[int] = []
 
@@ -106,25 +134,39 @@ def interactive_click(frame_bgr: np.ndarray) -> tuple[list[list[int]], list[int]
             points.append([x, y])
             labels.append(1)
 
-    win = "click 3 portrait centers (LMB), then press ENTER (Esc to cancel)"
+    n_expected = 3 if expected_celebs is None else len(expected_celebs)
+    overlay_colors = [(0, 255, 0), (255, 0, 0), (0, 0, 255)]
+    win = "portrait_seeder"
     cv2.namedWindow(win, cv2.WINDOW_NORMAL)
     cv2.setMouseCallback(win, cb)
-    overlay_colors = [(0, 255, 0), (255, 0, 0), (0, 0, 255)]
     while True:
         disp = frame_bgr.copy()
+        # On-image instructions
+        if expected_celebs is not None:
+            if len(points) < n_expected:
+                next_celeb = expected_celebs[len(points)]
+                cv2.putText(disp, f"click on: {next_celeb.upper()}  ({len(points)+1}/{n_expected})",
+                            (10, 28), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0,255,255), 2)
+            else:
+                cv2.putText(disp, "ENTER to confirm    Esc to cancel",
+                            (10, 28), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0,255,255), 2)
+        else:
+            cv2.putText(disp, f"click 3 portraits (LMB)   {len(points)}/3   ENTER when done",
+                        (10, 28), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0,255,255), 2)
         for i, (x, y) in enumerate(points):
             cv2.circle(disp, (x, y), 8, overlay_colors[i], -1)
-            cv2.putText(disp, str(i), (x + 12, y + 4),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.7, overlay_colors[i], 2)
+            label = f"{i}: {expected_celebs[i]}" if expected_celebs else str(i)
+            cv2.putText(disp, label, (x + 12, y + 4),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.6, overlay_colors[i], 2)
         cv2.imshow(win, disp)
         k = cv2.waitKey(20) & 0xFF
         if k == 27:  # Esc
             cv2.destroyWindow(win)
             raise KeyboardInterrupt("cancelled")
-        if k in (13, 10) and len(points) == 3:  # Enter
+        if k in (13, 10) and len(points) == n_expected:  # Enter
             break
     cv2.destroyWindow(win)
-    return points, labels
+    return points, labels, (expected_celebs or [])
 
 
 # ─── SAM 2.1 frame 0 → init masks ────────────────────────────────────────────
@@ -157,7 +199,11 @@ def propagate_video(
     init_masks: list[np.ndarray],
 ) -> dict[int, dict[int, dict]]:
     """Returns {frame_idx: {portrait_id: {'rle': rle, 'score': float}}}."""
-    state = video_predictor.init_state(video_path=str(video_path))
+    # SAM 2's mp4 input path requires decord, which has no aarch64 wheel.
+    # Pass a JPEG frame dir instead (SAM 2 supports both transparently).
+    # ensure_frame_dir handles AV1 sources via system ffmpeg (libdav1d).
+    frames_dir = ensure_frame_dir(video_path)
+    state = video_predictor.init_state(video_path=str(frames_dir))
     for pid, m in enumerate(init_masks):
         video_predictor.add_new_mask(state, frame_idx=0, obj_id=pid, mask=m)
     out: dict[int, dict[int, dict]] = {}
@@ -195,21 +241,32 @@ def process_episode(
     print(f"\n  → {ep_dir.name}")
     print(f"    video: {video}")
 
-    # 1. Frame 0
-    frame0 = read_frame_zero(video)
+    # 1. Frame 0 (read_frame_zero from _video_io handles AV1 transparently)
+    frame0 = _read_frame_zero_local(video)
 
-    # 2. Seeds
+    # 2. Seeds — read the episode's reference.json to learn the layout (SOL/SLO/...)
+    #    so the interactive clicker can prompt celeb-by-celeb in layout order.
+    expected_celebs: list[str] | None = None
+    ref_path = ep_dir / "reference.json"
+    if ref_path.is_file():
+        ref = json.loads(ref_path.read_text())
+        layout = ref.get("layout", "-")
+        initial_to_key = {"S": "swift", "O": "obama", "L": "lecun"}
+        if len(layout) == 3 and all(c in initial_to_key for c in layout):
+            expected_celebs = [initial_to_key[c] for c in layout]
+
     seeds = load_seeds(ep_dir)
     if seeds is None:
         if not interactive:
             return {"ep": ep_dir.name, "error": "no portrait_seeds.json; pass --interactive to click"}
-        print(f"    no seeds — opening interactive clicker")
+        print(f"    no seeds — opening interactive clicker"
+              + (f" (will prompt for {expected_celebs})" if expected_celebs else ""))
         try:
-            points, labels = interactive_click(frame0)
+            points, labels, celebs = interactive_click(frame0, expected_celebs)
         except KeyboardInterrupt:
             return {"ep": ep_dir.name, "error": "interactive cancelled"}
-        save_seeds(ep_dir, points, labels)
-        seeds = {"points": points, "labels": labels}
+        save_seeds(ep_dir, points, labels, celebs if celebs else None)
+        seeds = {"points": points, "labels": labels, "celebs": celebs}
         print(f"    saved seeds → {ep_dir/'portrait_seeds.json'}")
     points, labels = seeds["points"], seeds["labels"]
     if len(points) != 3:
