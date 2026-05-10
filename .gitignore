@@ -57,3 +57,6 @@ eval_3/rollouts/
 eval_3/evals/
 eval_3/state/
 eval_3/__pycache__/
+
+# claude code agent state
+.claude/

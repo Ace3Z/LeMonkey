@@ -1,237 +1,269 @@
-# eval_3 — SO-101 π0.5, Coke can on celebrity image
+# eval_3 — SO-101 SmolVLA, Coke can on celebrity image
 
-Runtime artifacts and scripts for **Eval 3** (50 pts): the policy must place a
-Coke can on top of the printed celebrity image named by the prompt.
+Runtime artifacts and scripts for **Eval 3** (50 pts + smallest-model bonus
+20 pts). Architecture re-locked **2026-05-09** after empirical Phase 1 probe
+results — see [Architecture decision](#architecture-decision).
 
-Per `docs/PROJECT.md` §2:
-- DIN A5 color portraits placed in a semicircle. **All images are head/shoulder
-  portraits — not full-body.**
-- A normal 330 ml Coke can in the middle (empty for Eval 3, no Coke Zero).
-  May be crumbled at the sides for grip; must still stand on its own.
-- Prompt: `"Place the coke on [celebrity name]"`.
+## Task spec (PROJECT.md §2)
+
+- **3 DIN A5 color portraits** placed in a semicircle. Head/shoulder portraits
+  only, **no full-body, no white border**. Cut from
+  [`docs/Eval_3_TOY_Celebrity_Images.pdf`](../docs/Eval_3_TOY_Celebrity_Images.pdf).
+- **Empty 330 ml Coke can** in front of the robot (regular Coke, not Zero).
+  May be crumpled at the sides for grip; must still self-stand.
+- **Prompt:** `"Place the coke on [celebrity name]"`.
 - **In-distribution celebrities:** Taylor Swift, Barack Obama, Yann LeCun.
-- **9 rollouts / team**, **5.55 pts each** (50 / 9), **20 s / rollout**, split
-  into three groups of three:
+- **9 rollouts × 5.55 pts each** (50 ÷ 9), **20 s / rollout**, in three tiers:
 
-  | Runs | Setup | Image source |
+  | Runs | Tier | Image source |
   |---|---|---|
-  | **1–3** known IID | one Swift + one Obama + one LeCun on the table in random order | **Exact images from the TOY PDF** ([`docs/Eval_3_TOY_Celebrity_Images.pdf`](../docs/Eval_3_TOY_Celebrity_Images.pdf) — 5 of each celebrity, 15 total) |
-  | **4–6** held-out IID | same three celebrities | Different photos of Swift / Obama / LeCun the TAs did NOT hand out |
-  | **7–9** OOD | popular OOD celebs (e.g. Roger Federer, Angela Merkel) | Drawn from a TA candidate list (Slack) |
+  | **1–3** known IID | Exact images from the TOY PDF (5 per celeb, 15 total) |
+  | **4–6** held-out IID | Different photos of Swift/Obama/LeCun the TAs did NOT hand out |
+  | **7–9** OOD | Popular OOD celebs from a TA candidate list (published on Slack) |
 
-  Exact image setups (positions, OOD identity) are undisclosed in advance but
-  identical across groups.
+**Smallest-model bonus (PROJECT.md §2):** Eval 3 awards 20/18/16/… pts for
+1st/2nd/3rd place by **total active inference parameter count** of the policy.
+This is **40 % of a perfect rollout score** — heavily incentivises a small
+backbone.
 
-> **Action item:** print [`docs/Eval_3_TOY_Celebrity_Images.pdf`](../docs/Eval_3_TOY_Celebrity_Images.pdf)
-> in color and **cut the images out so there is no white border**. These cut-outs
-> are the exact images used in runs 1–3.
+**VLA-only at inference (PROJECT.md §3, loosened):**
+- At demo day: no YOLO, face-ID, cloud-VLM API calls, or other foundation
+  models in the policy itself. Only the deployed VLA runs.
+- At training time: external models **are** allowed offline to label or
+  synthesise data (face-recognition for clean labels, SDXL for synthetic
+  backgrounds, etc.) — only their *outputs* end up in the VLA weights.
 
-**Constraint (PROJECT.md §3, updated rule):** VLA-only **at inference time**.
-- At demo day: no YOLO, face-ID models, cloud-VLM API calls, or other
-  foundation models in the policy itself.
-- At training time: **other models *are* allowed offline to create labelled
-  data** (e.g. run a face-recognition model to auto-label demos with celebrity
-  bounding boxes; generate synthetic backgrounds via SDXL). The "helper" model
-  must not run at inference — only its outputs end up baked into the VLA's
-  weights.
+This loosening is what makes the data-augmentation strategy below legal.
 
-This loosening is **new** vs. the original brief and opens up data-augmentation
-routes that the architecture doc's "primary π0.5 + name-only" plan did not
-assume.
+---
 
-## Architecture
+## Architecture decision
 
-Backbone is fixed: **`lerobot/pi05_base`** (Pi0.5, ~3.3 B params, PaliGemma-3B
-VLM + 300 M action expert, flow-matching head). PROJECT.md §3 explicitly
-allows different models per eval, so SmolVLA stays for Eval 1/2 and Pi0.5
-takes Eval 3 — costs the smallest-model bonus but is the only path that even
-has a chance at the OOD celebrity tier (Pi0.5's PaliGemma backbone has
-WebLI-derived public-figure knowledge; SmolVLM-500M does not).
+**Locked: SmolVLA-450M + Path A (image-as-prompt + co-train) + identity-preserving inpainting augmentation + VGGFace2 VQA co-training.**
 
-The plan **branches** based on a 10-min zero-shot probe (Phase 1 below).
-Two concrete paths:
+### Why SmolVLA, not Pi0.5
 
-### Path A — image-as-prompt + co-train (primary, recommended)
+The earlier plan (revision A in this repo's git history) chose **Pi0.5
+(~3.3 B params)** on the assumption that PaliGemma's WebLI pretraining gave it
+celebrity-name knowledge for the OOD tier. We **empirically tested that
+assumption on 2026-05-09** by running
+[`scripts/probe_paligemma.py`](scripts/probe_paligemma.py) plus a multi-prompt
+sweep (results in `~/dl_logs/paligemma_probe.log`):
 
-Adopt the **Interleave-VLA pattern** ([arxiv 2505.02152](https://arxiv.org/abs/2505.02152) —
-2–3× OOD generalization gain over text-only, single-VLA at inference):
+| Probe | Result |
+|---|---|
+| `"Who is this person?"` over 14 TOY images | **0/14 names** (got `woman`, `man`, `person`, `artist`, `chef`, `festival`) |
+| Same prompt over 6 OOD references (Federer, Merkel, Musk, Messi, Ronaldo, Beyoncé) | **0/6 names** (got `tennis player`, `chancellor`, `man`, `queen`) |
+| Gender prompt, all 14 TOY | **13/14 correct** — vision tower is healthy |
+| Profession prompt, all 14 TOY | Swift = `artist` 5/5 ✓; Obama = `politician/orator/speaker` 3/4 reasonable; LeCun = `model/chef/artist` 0/5 ✗ |
 
-- At every training step AND inference step, the prompt is interleaved:
-  `[reference photo of <name>] "Place the coke on <name>"`
-- The VLA matches the reference photo to one of the 3 prints in the scene —
-  it does **visual matching**, not name-recall. This sidesteps PaliGemma's
-  weak / undocumented zero-shot celebrity recognition entirely.
-- **Co-train** with VQA pairs from VGGFace2 / IMDB-Wiki (~5–10k pairs from
-  ~100 candidates) to keep PaliGemma's face features sharp. Mix ratio per
-  Pi0.5-KI paper: ≥1 VQA sample for every 2 robot demos.
-- `train_expert_only=False` (must train VLM gradients to ground name → face).
-- Single-VLA-at-inference compliant: the reference photo lookup is data, not
-  a model. The face-ID model used to clean VGGFace2 only runs offline (per
-  PROJECT.md §3 loosening: "helper" models allowed at training time only).
+PaliGemma 3B can **see** but cannot **name**. The premise that justified Pi0.5
+(WebLI celebrity recall) does not hold. Once we commit to **image-as-prompt**
+(the only viable path — see Path A below), Pi0.5's vision tower (SigLIP-So400m)
+no longer beats SmolVLA's vision tower in any meaningful way for our task —
+both are SigLIP-derived and produce comparable face-identity embeddings.
 
-Triggers: probe accuracy < 80 % on TOY OR < 50 % on a sample of popular OOD
-celebs, OR (regardless of probe) we want robust runs 7–9.
+### The bonus math
 
-### Path B — text-only Pi0.5 fine-tune (conservative)
+| Pi0.5 success | SmolVLA success | Pi0.5 total | SmolVLA total (with +20 1st-place bonus) | Winner |
+|---|---|---|---|---|
+| 9/9 | 4/9 | 50.0 | 42.2 + 20 = **62.2** | SmolVLA |
+| 8/9 | 4/9 | 44.4 | **62.2** | SmolVLA |
+| 7/9 | 5/9 | 38.9 | **47.8** | SmolVLA |
+| 7/9 | 3/9 | 38.9 | 36.7 | Pi0.5 (barely) |
 
-The original scaffolded plan: `lerobot/pi05_base`, prompt is just
-`"Place the coke on <name>"`, train action expert only, freeze PaliGemma.
+Pi0.5 only wins when SmolVLA underperforms it by ≥ 4 rollouts. With both on
+the same Path-A pipeline, that gap is unlikely.
 
-Triggers: probe accuracy ≥ 80 % on TOY AND ≥ 50 % on OOD sample.
+### The 3 layers of face-matching the policy needs to learn
 
-Risk: PaliGemma forgets what little celebrity grounding it has during
-sequential fine-tune (catastrophic forgetting documented in Pi0.5-KI and
-"Don't Blind Your VLA" arxiv 2510.25616). Mitigated by `train_expert_only=True`
-default — the VLM weights are not touched, so the celebrity-recognition
-ability we measured pre-train is exactly what we get post-train.
+| Layer | What | Where it comes from |
+|---|---|---|
+| **L1 — face-similarity features** | "Photos of same person produce close embeddings" | Pretrained — SmolVLM2 / SigLIP gives this for free |
+| **L2 — printed-portrait → portrait robustness** | "Different photo of Obama matches the printed portrait of Obama, despite halftone, glare, paper warp" | **Inpainting augmentation** on our 144 demos (the user's idea — well-precedented per [GenAug](https://genaug.github.io/), [ROSIE](https://diffusion-rosie.github.io/), [RoboEngine](https://roboengine.github.io/)) |
+| **L3 — open-set OOD generalisation** | "Recognise a celebrity not in my 3-IID training set when given a held-out reference photo" | Image-as-prompt + VGGFace2 VQA co-training + ~30 supplementary demos with extra celebs |
 
-### Why π0.5 over π0
+L1 is free. L3 is image-as-prompt + VQA. **L2 is what the inpainting
+augmentation buys us** — the hardest layer because the printed-portrait
+domain is OOD vs internet photos.
 
-- `tokenizer_max_length=200` (π0 = 48) — fits longer prompts and OOD names.
-- State/action **quantile** normalisation — more robust on small fine-tune sets.
-- Pi0.5 already co-trained on web data + robot data, the same shape Path A needs.
+### Path A — image-as-prompt + co-train
 
-## Pre-training risk-check (run BEFORE burning Brev hours)
+Adopt the [Interleave-VLA pattern (arXiv 2505.02152)](https://arxiv.org/abs/2505.02152)
+(2× OOD generalisation gain over text-only, single-VLA at inference):
 
-1. **Zero-shot PaliGemma probe on the TOY PDF + a sample of popular OOD candidates.**
-   Run `eval_3/scripts/probe_paligemma.py` (no Brev — local GPU, ~10 min).
-   The script: extracts the 15 TOY images from `docs/Eval_3_TOY_Celebrity_Images.pdf`,
-   pulls reference photos for ~10 popular OOD candidates (Federer, Merkel,
-   Musk, Beyoncé, etc.) from Wikipedia, and asks
-   `google/paligemma-3b-pt-224` "Who is this person?" for each. Decision rule:
-   - **≥ 80 % TOY AND ≥ 50 % OOD** → Path B (text-only Pi0.5) is viable.
-     Path A still safer for OOD tier; pick based on time budget.
-   - **anything below** → Path A (image-as-prompt + co-train) is mandatory.
-2. **Compute budget check.** Pi0.5 fine-tuning on Brev: ~10–15 h on RTX Pro
-   6000 / A100 with batch 32 × 25–30k steps. ~$15–20 of credit. With $170+
-   left after Eval 2's two runs, well within budget for one Path A run + 2h
-   diagnostics.
-3. **Post-train generalisation probes.** Three failure modes the 9-rollout
-   split exposes — diagnose each separately:
-   - TOY collapse → memorisation problem; more semicircle position variety.
-   - Held-out IID collapse → photo-specific overfit; more photos per IID celeb.
-   - OOD collapse → reference-photo grounding broken; check VQA co-train ratio.
+- Every training and inference step: prompt is interleaved
+  `[reference photo of <name>] "Place the coke on <name>"`. Both images
+  go through the VLM via `observation.images.{camera1,reference}`. SmolVLA's
+  `modeling_smolvla.py` natively iterates over all `image_features` keys
+  (`L404–444`).
+- The VLA matches the reference photo to one of the 3 prints in the workspace
+  — it does **face-matching**, not name-recall. Sidesteps PaliGemma's
+  zero-shot blindness entirely.
+- **Co-train** with VGGFace2 VQA pairs (~5–10 k) at ≥ 1 VQA per 2 robot demos
+  to keep VLM features sharp without catastrophic forgetting (per
+  [Pi0.5-KI](https://arxiv.org/abs/2509.13371) and
+  [Don't Blind Your VLA](https://arxiv.org/abs/2510.25616)).
+- `train_expert_only=False` (let VLM gradients flow so it learns name↔face).
+- **Single-VLA-at-inference compliant:** the reference photo is data, not a
+  model. Face-ID model used to clean VGGFace2 only runs offline.
 
-## Layout
+---
+
+## The data strategy — augmentation + extra-celeb supplementary demos
+
+### Inpainting augmentation (Phase 2b — Brev-side)
+
+Recorded demos look like: `(camera_video, action, state, prompt, reference_photo_path)`.
+The portraits in the workspace are flat printed rectangles, not real faces, so
+**diffusion inpainting / face-swap is the wrong tool** (slow, hallucinatory).
+Use **homography + Poisson seamless cloning** instead:
+
+```
+For each recorded episode:
+  1. SAM 2.1 video predictor — click 3 boxes on frame 0 (one per portrait),
+     propagate masks across all 600 frames via memory bank.
+     Cache RLE masks (~5 MB / demo).
+  2. Mine ~30 verified web photos per celeb (Wikimedia + icrawler Bing
+     fallback, filtered with InsightFace ArcFace cosine > 0.4 vs reference).
+  3. For each (demo, augmentation variant):
+        For each frame's 3 portrait masks:
+          approxPolyDP → 4 corners
+          cv2.findHomography(new_celeb_photo_corners, mask_corners)
+          cv2.warpPerspective + cv2.seamlessClone(NORMAL_CLONE)
+        Encode H.264 with NVENC (~5 s / video)
+  4. Save augmented variant with its own `reference.json` sidecar
+     (different reference photo from the workspace photo).
+```
+
+**Effective multiplier:** 144 base × 10 augmentation variants ≈ 1440 effective
+training episodes. Per Lin et al.,
+[ICLR 2025](https://arxiv.org/abs/2410.18647), diversity of (env × object) pairs
+matters far more than demos-per-condition; rapid diminishing returns past
+~50 demos per pair. **Cap at ~10–15× per demo.**
+
+**Per-demo augmentation cost on Brev RTX Pro 6000:** ~35 s (SAM-2 propagation + homography + encode).
+
+### Supplementary celebrity demos (Phase 2c — robot-side)
+
+Beyond the 144 base demos with Swift/Obama/LeCun, **collect ~30 more demos
+with ~5–10 additional public figures** (Bezos, Beyoncé, Federer, Merkel,
+Messi, Trump, Cristiano Ronaldo, etc.). These DON'T need to be balanced —
+the goal is to teach the policy "the prompt format + face-matching pattern
+generalises beyond the 3 training celebs." Critical for the 3 OOD rollouts
+(runs 7–9).
+
+**Total effective dataset:** ~144 base × 10 inpainted = 1440 + ~30 × 10 = 300
+extra-celeb augmented + ~5 k VGGFace2 VQA pairs ≈ 1700 robot episodes + 5 k VQA.
+
+---
+
+## Phase plan
+
+### Phase 0 — physical prep (you, no compute, today/tomorrow)
+- ☐ Print + cut TOY PDF (no white border)
+- ☐ Get an empty 330 ml regular Coke can
+- ☐ Set up workspace: 3-portrait semicircle, can in front of robot
+- ☐ Source ≥ 30 verified web photos per IID celeb (Swift, Obama, LeCun)
+- ☐ Source + print ~5–10 extra-celeb portraits at A5 (for supplementary demos)
+
+### Phase 1 — gating probe ✓ done 2026-05-09
+- ✓ Built `scripts/probe_paligemma.py` and `scripts/ask_paligemma.py`
+- ✓ Ran probe → 0/14 TOY, 0/6 OOD → **Path A mandatory**
+- ✓ Multi-prompt sweep confirmed vision-tower healthy / name-recall absent
+- ✓ Decision: switch from Pi0.5 to SmolVLA-450M (this README)
+
+### Phase 2a — quick smoke-record (5 episodes, today)
+- ☐ Run `scripts/record_eval3_quick.py` to record ~5 episodes of the full task
+  (pick up can, place on a target celebrity portrait)
+- These 5 episodes are the basis for **iterating on the inpainting augmentation
+  pipeline at home** before committing to the 144-ep main collection
+
+### Phase 2b — augmentation pipeline (you at home + me, ~1 day)
+- ☐ `scripts/aug/mine_celeb_photos.py` — Wikimedia + icrawler + InsightFace verifier
+- ☐ `scripts/aug/segment_portraits.py` — SAM 2 video segmentation
+- ☐ `scripts/aug/inpaint_dataset.py` — homography + seamlessClone
+- ☐ Smoke-test the full pipeline on the 5 quick-record episodes
+
+### Phase 2c — main recording (~5 h teleop)
+- ☐ Update `record_eval3.py` for the 144-episode balanced plan (already exists from rev A)
+- ☐ Record 144 demos (3 IID celebs × 6 layouts × 8 reps)
+- ☐ Record ~30 supplementary extra-celeb demos
+- ☐ Run augmentation pipeline → ~1700 effective training episodes
+
+### Phase 2d — VQA co-train pipeline (parallelizable, ~2 h)
+- ☐ `scripts/aug/build_vqa_cotrain.py` — VGGFace2 sample → ~5 k VQA pairs
+  formatted as LeRobot v3 episodes
+- ☐ Mix into main training dataset
+
+### Phase 2e — merge + push
+- ☐ `scripts/merge_eval3_episodes.py` (adapt from `eval_2/scripts/merge_eval2_episodes.py`)
+- ☐ Push merged to `HBOrtiz/so101_eval3_all`
+
+### Phase 3 — training on Brev (~10 h compute, $15)
+- ☐ Adapt `eval_2/scripts/brev/run_training.sh` for SmolVLA + Eval 3 paths
+  (deprecate the existing `eval_3/scripts/brev/setup_pi05.sh` etc. — those
+  were for the abandoned Pi0.5 plan)
+- ☐ `--policy.path=lerobot/smolvla_base`, `train_expert_only=False`,
+  batch 96 (vs 192 for Eval 2 because of dual-image input), 25k steps,
+  image augmentation (color + illumination, NO horizontal flip)
+- ☐ Push trained checkpoint to `HBOrtiz/smolvla_eval3`
+
+### Phase 4 — pull + smoke (Thor, ~1 h)
+- ☐ `scripts/run_rollout_eval3.py` — adapts `eval_2/scripts/run_rollout.sh`,
+  loads held-out reference photo at episode start, streams as
+  `observation.images.reference`
+- ☐ Smoke-test against TOY portraits, then held-out IID, then a sample of OOD
+
+### Phase 5 — demo day
+- 9 rollouts: TOY → held-out IID → OOD
+
+---
+
+## Files we have / will have
 
 ```
 eval_3/
-├── README.md                    ← this file
+├── README.md                                 ← this file
 ├── scripts/
-│   └── brev/                    scripts to scp to the Brev VM for training
-│       ├── setup_pi05.sh           env bootstrap (lerobot[pi0]==0.5.1 + paligemma deps)
-│       ├── run_training.sh         the actual lerobot-train command
-│       ├── start_training.sh       wraps run_training.sh in a transient systemd user service
-│       ├── follow_training.sh      live tail of the log
-│       └── training_status.sh      one-shot status snapshot
-├── state/                       plan.json — persistent recording state (gitignored)
-├── train/                       model checkpoints (gitignored)
-├── rollouts/                    per-rollout dataset dumps (gitignored)
-└── evals/                       per-session eval CSVs (gitignored)
+│   ├── probe_paligemma.py                    ✓ Phase 1 gating probe
+│   ├── ask_paligemma.py                      ✓ interactive PaliGemma helper (file/REPL/sweep/camera)
+│   ├── record_eval3_quick.py                 ← Phase 2a (5-episode smoke record)
+│   ├── record_eval3.py                       ✓ Phase 2c (144-episode balanced plan; rev A scaffold)
+│   ├── aug/                                  ← Phase 2b (build at home / on Brev)
+│   │   ├── mine_celeb_photos.py
+│   │   ├── segment_portraits.py
+│   │   ├── inpaint_dataset.py
+│   │   └── build_vqa_cotrain.py
+│   ├── merge_eval3_episodes.py               ← Phase 2e
+│   ├── run_rollout_eval3.py                  ← Phase 4
+│   └── brev/                                 (rev A — scaffolded for Pi0.5; will be replaced
+│       │                                       by SmolVLA-targeted scripts adapted from eval_2)
+│       ├── setup_pi05.sh
+│       ├── run_training.sh
+│       ├── start_training.sh
+│       ├── follow_training.sh
+│       └── training_status.sh
+├── state/                                    ← plan.json (gitignored)
+├── train/                                    ← model checkpoints (gitignored)
+├── rollouts/                                 ← per-rollout dataset dumps (gitignored)
+└── evals/                                    ← per-session eval CSVs (gitignored)
 ```
-
-Datasets live under `~/LeMonkey/datasets/eval3/` (one dir per episode).
-
-## Status
-
-**Not yet trained.** Brev scripts are scaffolded but **not executed**.
-Recording protocol (record_eval3.py) and rollout script (run_rollout_eval3.py)
-not yet implemented. Build order:
-
-**Phase 0 — physical prep (no compute, today):**
-- ☐ Print + cut TOY PDF (no white border, per PROJECT.md)
-- ☐ Find ≥ 4 extra photos per IID celeb (Swift / Obama / LeCun) for held-out training data
-- ☐ Decide camera mount → **shoulder mount** for Eval 3 (sees all prints throughout the descent; wrist loses them). PROJECT.md §4 allows per-eval mount choice.
-
-**Phase 1 — gating probe (no compute, ~1 h):**
-- ☐ Build `eval_3/scripts/probe_paligemma.py`
-- ☐ Run probe → branch: Path A (image-as-prompt + co-train) OR Path B (text-only)
-
-**Phase 2 — data pipeline (~1–2 h coding + ~10–15 h teleop):**
-- ☐ `record_eval3.py` — recorder, image-as-prompt format if Path A
-- ☐ Collect ~150 demos (semicircle layouts varied, lighting varied, include some HG)
-- ☐ `merge_eval3_episodes.py` → one LeRobot v3 dataset
-- ☐ Push dataset to `HBOrtiz/so101_eval3_all`
-- ☐ (Path A only) build VQA co-train stream from VGGFace2 / IMDB-Wiki
-
-**Phase 3 — training (~12 h on Brev RTX Pro 6000):**
-- ☐ Update `run_training.sh` for Path A or B; image augmentation enabled (color + illumination)
-- ☐ Launch via `start_training.sh`; checkpoint every 5 k steps
-
-**Phase 4 — pull-back + validation (~30 min, no robot):**
-- ☐ Pull final checkpoint from HF, run `probe_paligemma.py` again on the trained model
-- ☐ Verify ≥ 80 % held-out IID accuracy before committing to robot tests
-
-**Phase 5 — real-robot eval:**
-- ☐ Build `run_rollout_eval3.py` (mirror of `eval_2/scripts/run_rollout_freeplay.py` with image-as-prompt input if Path A)
-- ☐ Run all 9 protocol rollouts; iterate before demo day
-
-## Training pipeline (scaffolded, not yet run)
-
-The recipe mirrors Eval 2's Brev pipeline, with the policy / batch-size /
-schedule swapped for π0.5. **Training is parked — do not run yet.**
-
-### What to copy to Brev (when ready)
-
-```
-~/LeMonkey/datasets/eval3_merged/                       ← merged dataset (TBD)
-~/LeMonkey/eval_3/scripts/brev/setup_pi05.sh            → ~/setup_pi05.sh
-~/LeMonkey/eval_3/scripts/brev/run_training.sh          → ~/run_training.sh
-~/LeMonkey/eval_3/scripts/brev/start_training.sh        → ~/start_training.sh
-~/LeMonkey/eval_3/scripts/brev/follow_training.sh       → ~/follow_training.sh
-~/LeMonkey/eval_3/scripts/brev/training_status.sh       → ~/training_status.sh
-```
-
-### On Brev (when ready)
-
-```bash
-# 1. (only on a fresh VM) install miniconda + lerobot[pi0]==0.5.1 + ffmpeg + HF auth
-bash ~/LeMonkey/eval_3/scripts/brev/setup_pi05.sh
-hf auth login   # paste write token
-
-# 2. Linger so training survives SSH disconnect
-sudo loginctl enable-linger $USER
-
-# 3. Launch training as a systemd user service
-chmod +x ~/run_training.sh ~/start_training.sh ~/follow_training.sh ~/training_status.sh
-~/start_training.sh
-~/follow_training.sh    # live progress (Ctrl-C to detach; training keeps running)
-```
-
-### Training config (planned)
-
-| Param | Value | Why |
-|---|---|---|
-| `--policy.path` | `lerobot/pi05_base` | π0.5 with PaliGemma-3B backbone |
-| `--policy.push_to_hub` | `false` | local-only; we push via `hf upload` after |
-| `--policy.empty_cameras` | `2` | match v2 — pads two missing cameras with zeros |
-| `--dataset.repo_id` | `local/so101_eval3_all` | local-only |
-| `--dataset.root` | `~/LeMonkey/datasets/eval3_merged` | the merged dataset (TBD) |
-| `--dataset.image_transforms.enable` | `true` | color jitter + **random illumination** (per PROJECT.md §7 TA tip — demo-day lighting is unpredictable). **No horizontal flip** (would mirror celebrity faces). |
-| `--batch_size` | `32` | π0.5 = ~6 × SmolVLA VRAM; eval_2 used 192 on H100. Drop to 16 if OOM. |
-| `--steps` | `30000` | larger model + smaller batch → more steps than eval_2's 25k |
-| `--save_freq` | `5000` | 6 intermediates (5k/10k/15k/20k/25k/30k) |
-| `--output_dir` | `/home/shadeform/outputs/train/pi05_eval3` | per-eval output |
-| `--job_name` | `pi05_eval3` | per-eval job name |
-| `--policy.device` | `cuda` | |
-| `--wandb.enable` | `false` | |
-
-Defaults left untouched (relying on `lerobot/pi05_base` config):
-- `train_expert_only=true` → freeze PaliGemma, only action expert trains.
-- `freeze_vision_encoder=true` → SigLIP vision encoder frozen.
-- `optimizer_lr=2.5e-5` → π0/0.5 default.
-- `num_inference_steps=10` → flow-matching default.
 
 ## Hardware
 
-Same as Eval 1/2 — see `eval_1/README.md`. Leader on `/dev/so101-leader`,
-follower on `/dev/so101-follower`, camera on `/dev/video0`.
+Same SO-101 setup as Eval 1 / Eval 2. Leader on `/dev/so101-leader`,
+follower on `/dev/so101-follower`, camera on `/dev/video0`. **Wrist mount
+kept** (matches Eval 1/2 — the previous plan's "shoulder mount" decision is
+voided since image-as-prompt + augmentation reduce dependence on always
+seeing all 3 portraits).
 
-For Eval 3 specifically, **camera placement** is a per-eval decision
-([PROJECT.md §4](../docs/PROJECT.md#4-hardware--objects)). Wrist-mounted
-(default) sees the can but loses sight of all the portraits during the
-descent; a self-built shoulder mount keeps every portrait in frame
-throughout the rollout. Decision deferred until the zero-shot PaliGemma
-probe — if PaliGemma needs a clean overview shot of the workspace to
-recognise faces, shoulder-mount; if wrist-down works fine, leave it
-mounted to match Eval 1/2 data.
+## Open questions / external blockers
+
+- **OOD celebrity roster** — TAs to publish on Slack. We can prepare for any
+  popular celeb with the augmentation + supplementary-celeb training, but
+  prints for the 3 OOD rollouts can only be cut after the list lands.
+- **Smallest-model bonus tie-breaking** — if multiple teams pick SmolVLA,
+  do we tie at 1st (each get 20 pts), or split (e.g., 18-each)? Worth a
+  Slack ping to TAs.
+- **Demo-day machine specs** — still TBD. Plan assumes Thor or equivalent.
