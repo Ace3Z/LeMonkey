@@ -81,10 +81,10 @@ def pick_device_dtype() -> tuple[str, torch.dtype]:
 
 
 def load_model(adapter_path: Path, no_lora: bool, device: str, dtype: torch.dtype):
-    # Use the adapter dir's processor (it was saved with the model) when LoRA is on,
-    # else use the base model's processor.
-    proc_src = MODEL_ID if no_lora else str(adapter_path)
-    proc = AutoProcessor.from_pretrained(proc_src)
+    # Processor is never modified during LoRA training — always load it from the
+    # base model id. (Important: HF Trainer checkpoint dirs like checkpoint-7000/
+    # contain only adapter_*.{json,safetensors}, no processor files.)
+    proc = AutoProcessor.from_pretrained(MODEL_ID)
 
     base = AutoModelForImageTextToText.from_pretrained(MODEL_ID, torch_dtype=dtype)
     if no_lora:
