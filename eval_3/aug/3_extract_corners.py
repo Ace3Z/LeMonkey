@@ -121,6 +121,20 @@ def detect_and_interp_occlusion(
     """
     raw: list (one per frame) of (corners | None, score, area)
     Returns list of dicts: {corners, occluded, score, interpolated}
+
+    Defaults — see eval_3/aug/VALIDATION.md (2026-05-10):
+      score_threshold=0.0 — SAM 2 emits a presence-LOGIT; logit > 0 ⇔
+                            sigmoid > 0.5 = "is appearing" per
+                            facebookresearch/sam2 sam2_base.py:1115:
+                              is_obj_appearing = object_score_logits > 0
+                            So < 0 is the canonical "occluded" boundary.
+                            CONFIRMED.
+      area_drop_ratio=0.5 — empirical: half of the rolling-median area is
+                            a generous threshold for "the mask suddenly
+                            shrunk because something is covering it".
+      rolling_window=15   — empirical: 0.5 s of evidence at 30 fps.
+                            Above the 3-frame minimum from MOT lit, well
+                            below SAM 2's 30-frame default memory window.
     """
     n = len(raw)
     rolling_areas: list[int] = []

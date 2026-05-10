@@ -74,41 +74,79 @@ def replace_portrait(
     dst_corners: np.ndarray,
     *,
     mtf_sigma: float = 0.8,
-    erode_px: int = 3,
+    erode_px: int = 1,
     ring_dilate_px: int = 11,
+    apply_unsharp: bool = False,
 ) -> np.ndarray:
     """Replace the masked region in src_frame with new_photo via the
     Recommended-tier recipe. Returns a new frame; src_frame is not mutated.
 
-    src_frame : (H,W,3) uint8 BGR
-    mask      : (H,W)   uint8 binary {0,1}
-    new_photo : (h,w,3) uint8 BGR  (high-res)
-    dst_corners : (4,2) float32  TL,TR,BR,BL of the original portrait in src_frame
+    src_frame   : (H,W,3) uint8 BGR
+    mask        : (H,W)   uint8 binary {0,1}
+    new_photo   : (h,w,3) uint8 BGR  (high-res replacement)
+    dst_corners : (4,2)   float32   TL,TR,BR,BL of the original portrait
+
+    Defaults — see eval_3/aug/STRATEGY.md §3.4 + the validation pass dated
+    2026-05-10 in eval_3/aug/VALIDATION.md:
+      mtf_sigma=0.8     — empirical, in the 0.5-1.0 px range typical for
+                          640×480 USB webcam PSFs (Mosleh CVPR 2015,
+                          consumer-OLPF lit). EMPIRICAL ONLY — refine via
+                          dbg/probe_mtf.py if you can characterise the cam.
+      erode_px=1        — OpenCV's seamlessClone already erodes ~3 px
+                          internally (issue opencv#17450); stacking another
+                          3-px erosion pulls colour too far inward.
+      ring_dilate_px=11 — 5-px outer ring sampling for Reinhard local WB.
+                          EMPIRICAL ONLY — widen to 19 (9-px ring) if the
+                          ring catches too few valid pixels on textured
+                          backgrounds.
+      apply_unsharp     — optional unsharp-mask pass after MTF blur to
+                          recover edges. OFF by default per the canonical
+                          recipe; recommended-but-flagged add per
+                          VALIDATION.md §8a.
     """
     H, W = src_frame.shape[:2]
     h, w = new_photo.shape[:2]
 
-    # 1. Lanczos warp
+    # 1. Lanczos warp — INTER_LANCZOS4 is the gold-standard high-quality
+    # downsampling kernel for photographic content (ImageMagick filters lit).
     src_corners = np.array([[0, 0], [w - 1, 0], [w - 1, h - 1], [0, h - 1]], dtype=np.float32)
     M = cv2.getPerspectiveTransform(src_corners, dst_corners.astype(np.float32))
     warped = cv2.warpPerspective(new_photo, M, (W, H), flags=cv2.INTER_LANCZOS4)
 
-    # 2. MTF match
+    # 2. MTF match — emulate the camera's intrinsic blur (lens + sensor +
+    # demosaic) so the replacement doesn't look unnaturally crisp vs the
+    # rest of the frame. σ=0.8 ∈ [0.5, 1.0] — the band of measured Gaussian
+    # PSF equivalents for consumer webcams (Mosleh et al. CVPR 2015).
     if mtf_sigma > 0:
         warped = cv2.GaussianBlur(warped, (0, 0), sigmaX=mtf_sigma)
 
-    # 3. Reinhard color transfer from outer ring
+    # 2b. Optional unsharp mask — recover edges lost to Lanczos + MTF blur.
+    # Cambridge-in-Colour / community-standard "after resize, sharpen".
+    # USM σ=1.0, amount=0.5  →  out = 1.5*orig - 0.5*blurred.
+    if apply_unsharp:
+        usm_blur = cv2.GaussianBlur(warped, (0, 0), sigmaX=1.0)
+        warped = cv2.addWeighted(warped, 1.5, usm_blur, -0.5, 0)
+
+    # 3. Reinhard color transfer (Reinhard et al. 2001) sampled from a
+    # ~5-px outer ring of the mask — captures local WB / exposure / shadow
+    # tint at the portrait's exact location, beats whole-image stats which
+    # are dominated by the table colour.
     ring_dilated = cv2.dilate(mask, np.ones((ring_dilate_px, ring_dilate_px), np.uint8))
     ring = cv2.subtract(ring_dilated, mask)
     warped = reinhard_lab(warped, src_frame, sample_mask=ring)
 
-    # 4. Erode mask to drop edge halos
+    # 4. Erode mask 1 px to drop one-pixel edge artefacts — kept small
+    # because seamlessClone already erodes ~3 px internally (opencv#17450).
     if erode_px > 0:
-        mask_eroded = cv2.erode(mask, np.ones((erode_px, erode_px), np.uint8))
+        mask_eroded = cv2.erode(mask, np.ones((erode_px * 2 + 1, erode_px * 2 + 1), np.uint8))
     else:
         mask_eroded = mask
 
-    # 5. Poisson NORMAL_CLONE
+    # 5. Poisson NORMAL_CLONE — Pérez et al. SIGGRAPH 2003 Eq. 11
+    # ("importing"): copies the *source* gradients, lets boundary
+    # continuity absorb DC colour drift. NORMAL because we want the new
+    # photo's content fully (MIXED_CLONE would let the original portrait's
+    # face bleed back through).
     ys, xs = np.where(mask_eroded > 0)
     if len(ys) == 0:
         return src_frame                                 # mask vanished, bail

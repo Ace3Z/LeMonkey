@@ -208,7 +208,15 @@ def main() -> int:
     p.add_argument("variant_dir", nargs="?", default=None)
     p.add_argument("--root", default=None,
                    help="root containing variant_dirs (e.g. ~/LeMonkey/datasets/eval3_aug)")
-    p.add_argument("--threshold", type=float, default=0.4)
+    # ArcFace cos-sim ≥ 0.4 default. Verified against:
+    #   - InsightFace official guide (insightface.ai): "0.30–0.45 cosine
+    #     range at FMR = 1e-4 to 1e-5". 0.4 is squarely in band.
+    #   - DeepFace's ArcFace default uses cos-sim ≥ 0.32 (cos-distance
+    #     ≤ 0.68 via C4.5 over labelled pairs). 0.4 is stricter.
+    #   - face_recognition lib uses Euclidean ≤ 0.6 ≈ LFW 99.38% TAR.
+    # See eval_3/aug/VALIDATION.md §1.
+    p.add_argument("--threshold", type=float, default=0.4,
+                   help="ArcFace cosine similarity threshold (default 0.4 — InsightFace canonical band)")
     p.add_argument("--n-samples", type=int, default=5)
     p.add_argument("--drop-failed", action="store_true",
                    help="rm -rf variants whose min_cosine < threshold")
