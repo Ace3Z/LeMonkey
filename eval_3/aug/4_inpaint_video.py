@@ -382,17 +382,25 @@ def pick_photos_for_variant(
 def render_variant(
     src_video: Path,
     corners_data: dict,
-    masks_pkl: Path,
+    masks_pkl: Path | None,
     pid_photos: dict[str, np.ndarray],   # pid_str → (h,w,3) uint8 BGR
     *,
     out_video: Path,
     fps: int,
     work_dir: Path,
 ) -> int:
-    """Render a single augmented variant. Returns frame count written."""
-    with open(masks_pkl, "rb") as f:
-        cache = pickle.load(f)
-    masks_per_frame: dict[int, dict[int, dict]] = cache["masks"]
+    """Render a single augmented variant. Returns frame count written.
+
+    `masks_pkl` is optional. When present (legacy 2_segment_video.py pipeline)
+    we use SAM 2's per-frame RLE masks. When absent (2_detect_track.py
+    pipeline) we synthesise the mask from the tracked 4-corner polygon —
+    rectangular printed photos are well approximated by their convex hull.
+    """
+    masks_per_frame: dict[int, dict[int, dict]] = {}
+    if masks_pkl is not None and masks_pkl.is_file():
+        with open(masks_pkl, "rb") as f:
+            cache = pickle.load(f)
+        masks_per_frame = cache["masks"]
 
     cap = cv2.VideoCapture(str(ensure_h264(src_video)))
     n_frames = corners_data["n_frames"]
@@ -471,13 +479,13 @@ def process_episode(
     force: bool,
 ) -> dict:
     corners_json = ep_dir / "portrait_corners.json"
-    masks_pkl = ep_dir / "portrait_masks.pkl"
+    masks_pkl: Path | None = ep_dir / "portrait_masks.pkl"
+    if masks_pkl is not None and not masks_pkl.is_file():
+        masks_pkl = None                                  # 2_detect_track.py path — corners-only
     ref_json = ep_dir / "reference.json"
 
     if not corners_json.is_file():
-        return {"ep": ep_dir.name, "error": "portrait_corners.json missing — run 3_extract_corners.py"}
-    if not masks_pkl.is_file():
-        return {"ep": ep_dir.name, "error": "portrait_masks.pkl missing — run 2_segment_video.py"}
+        return {"ep": ep_dir.name, "error": "portrait_corners.json missing — run 2_detect_track.py (or 2_segment_video.py + 3_extract_corners.py)"}
     if not ref_json.is_file():
         return {"ep": ep_dir.name, "error": "reference.json missing — episode wasn't recorded with our recorder"}
 
