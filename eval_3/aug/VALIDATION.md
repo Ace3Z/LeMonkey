@@ -95,6 +95,63 @@ CLAUDE.md §7 calls out "frame-by-frame ArcFace verification" as the right path.
 
 ### 8d. Don't double-erode — DONE (see §4 above)
 
+### 8e. Pre-fill dst's mask region with ring-mean before seamlessClone — DISCOVERED + FIXED
+
+**Critical bug found by Validation Pass 2** (synthetic smoke test, 2026-05-10).
+
+Synthetic test `test_basic_replacement` failed with output mean ≈ original
+portrait colour (`[44, 53, 201]` vs original `[50, 50, 200]`), not the
+replacement photo's mean (`[133, 113, 113]`). A/B test of 8 inpaint
+variants on the same input revealed **the issue is OpenCV's internal
+~3-px erosion of the mask** in `cv2.seamlessClone` (per opencv#17450):
+the Dirichlet boundary for the Poisson solve lands ~3 px **inside** the
+original portrait region, anchoring the solution to the original
+portrait colour rather than the surrounding background.
+
+The integrated source gradients can't override the boundary condition
+when the source has reduced contrast (which it has, post-Reinhard's
+std-matching).
+
+Without the fix, `dist_to_ring=212` (we want low). After the fix,
+`dist_to_ring=23` — exactly what we want for "this photo lives on this
+table under this lighting."
+
+**Fix:** before calling `seamlessClone`, replace the destination's mask
+region with the ring-mean BGR colour:
+
+```python
+ring_pix = src_frame[ring > 0]
+if len(ring_pix) >= 10:
+    ring_mean_bgr = ring_pix.astype(np.float32).mean(0).astype(np.uint8)
+    dst_for_clone = src_frame.copy()
+    dst_for_clone[mask > 0] = ring_mean_bgr
+else:
+    dst_for_clone = src_frame
+```
+
+This makes the Poisson boundary land on a smooth ring-mean colour, so
+the solution = ring_mean + integrated src gradients ≈ Reinhard'd new
+photo at correct local DC.
+
+**A/B numbers** (from `tests/test_replace_portrait.py` 8-variant probe,
+synthetic noisy-gray scene with red-ish portrait + blue/yellow photo):
+
+| Variant | dist_to_ring | dist_to_orig_portrait | dist_to_photo | Verdict |
+|---|---|---|---|---|
+| A. NORMAL_CLONE raw frame (the OLD broken recipe) | 212.8 | 7.1 | 139.0 | catastrophic revert |
+| **B. NORMAL_CLONE pre-filled dst (THIS FIX)** | **22.8** | **228.7** | 161.1 | **chosen** |
+| C. MIXED_CLONE raw frame | 211.6 | 5.8 | 139.1 | also broken |
+| D. NAIVE PASTE (no Poisson) | 61.0 | 261.2 | 198.6 | seam visible |
+| E. ALPHA FEATHER paste | 57.1 | 256.5 | 194.6 | softer seam |
+| G. NORMAL_CLONE with mask DILATED+2 | 108.9 | 103.4 | 96.7 | partial improvement |
+
+**Without this fix, all augmented videos would look identical to the
+originals** — the policy would learn nothing from the augmentation pass.
+This is a non-negotiable change.
+
+Code: `4_inpaint_video.py:replace_portrait` step 4 (new pre-fill block).
+Test: `tests/test_replace_portrait.py` (5/5 pass).
+
 ## Sign-off
 
 All defaults either **CONFIRMED** with three independent sources, **modified** in response to source evidence (erode 3 → 1 px), or marked **EMPIRICAL ONLY** with reasoning + a refinement plan. Code now carries inline citations to specific source URLs / line numbers so future-me can re-validate quickly.

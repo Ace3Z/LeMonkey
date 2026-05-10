@@ -54,16 +54,35 @@ import pycocotools.mask as mask_util
 
 
 # ─── Recipe primitives ──────────────────────────────────────────────────────
-def reinhard_lab(src: np.ndarray, ref: np.ndarray, sample_mask: np.ndarray) -> np.ndarray:
-    """Match src's mean/std in Lab to those of ref, sampled where sample_mask > 0."""
+def reinhard_lab(
+    src: np.ndarray, ref: np.ndarray, sample_mask: np.ndarray,
+    *,
+    std_mult_clamp: tuple[float, float] = (0.3, 2.0),
+) -> np.ndarray:
+    """Match src's mean/std in Lab to those of ref, sampled where sample_mask > 0.
+
+    Reinhard et al. 2001 "Color Transfer between Images" (IEEE CG&A).
+
+    `std_mult_clamp` defends against the pathological case where the sample
+    region is near-uniform (e.g. deep uniform shadow, or unrealistic test
+    data) — without a clamp, ref_std/src_std can approach 0 and squash all
+    detail in src. Default [0.3, 2.0] preserves Reinhard's dynamic-range
+    matching in realistic cases (where ring std ≈ 10-30 in 8-bit space)
+    while preventing collapse when ring std is unusually low.
+    """
     src_lab = cv2.cvtColor(src, cv2.COLOR_BGR2LAB).astype(np.float32)
     ref_lab = cv2.cvtColor(ref, cv2.COLOR_BGR2LAB).astype(np.float32)
     src_mean = src_lab.mean((0, 1)); src_std = src_lab.std((0, 1)) + 1e-6
     ring_pix = ref_lab[sample_mask > 0]
     if len(ring_pix) < 10:
-        return src                                       # not enough samples; bail
+        # not enough samples; bail (already documented in STRATEGY.md as a
+        # corner case worth surfacing — match behaviour of the canonical
+        # Reinhard implementations that simply skip when the sample is empty)
+        print(f"[WARN] reinhard_lab: only {len(ring_pix)} sample pixels; skipping color transfer", flush=True)
+        return src
     ref_mean = ring_pix.mean(0); ref_std = ring_pix.std(0) + 1e-6
-    out_lab = (src_lab - src_mean) * (ref_std / src_std) + ref_mean
+    multiplier = np.clip(ref_std / src_std, std_mult_clamp[0], std_mult_clamp[1])
+    out_lab = (src_lab - src_mean) * multiplier + ref_mean
     return cv2.cvtColor(np.clip(out_lab, 0, 255).astype(np.uint8), cv2.COLOR_LAB2BGR)
 
 
@@ -135,24 +154,45 @@ def replace_portrait(
     ring = cv2.subtract(ring_dilated, mask)
     warped = reinhard_lab(warped, src_frame, sample_mask=ring)
 
-    # 4. Erode mask 1 px to drop one-pixel edge artefacts — kept small
-    # because seamlessClone already erodes ~3 px internally (opencv#17450).
-    if erode_px > 0:
-        mask_eroded = cv2.erode(mask, np.ones((erode_px * 2 + 1, erode_px * 2 + 1), np.uint8))
+    # 4. Pre-fill the destination's mask region with the local ring-mean
+    # colour. This is critical: cv2.seamlessClone uses the destination's
+    # boundary pixels (just inside the mask, after OpenCV's ~3-px internal
+    # erosion per opencv#17450) as Dirichlet conditions for the Poisson
+    # solve. If we leave dst untouched, the boundary lies inside the
+    # ORIGINAL portrait region — anchoring Poisson to the original
+    # portrait colour and reverting the inpaint. Replacing dst's mask
+    # interior with the ring mean makes the boundary lie on a smooth
+    # background gray, which is what we actually want.
+    # Verified empirically — eval_3/aug/tests/test_replace_portrait.py
+    # variant B in the 2026-05-10 A/B test (dist_to_ring=23 vs raw=213).
+    ring_pix = src_frame[ring > 0]
+    if len(ring_pix) >= 10:
+        ring_mean_bgr = ring_pix.astype(np.float32).mean(0).astype(np.uint8)
+        dst_for_clone = src_frame.copy()
+        dst_for_clone[mask > 0] = ring_mean_bgr
     else:
-        mask_eroded = mask
+        dst_for_clone = src_frame
 
-    # 5. Poisson NORMAL_CLONE — Pérez et al. SIGGRAPH 2003 Eq. 11
+    # 5. Optional 1-px erosion to drop one-pixel JPEG halo artefacts.
+    # Kept small because seamlessClone already erodes ~3 px internally
+    # (opencv#17450); previously we used 3 px which stacked badly.
+    if erode_px > 0:
+        mask_for_clone = cv2.erode(mask, np.ones((erode_px * 2 + 1, erode_px * 2 + 1), np.uint8))
+    else:
+        mask_for_clone = mask
+
+    # 6. Poisson NORMAL_CLONE — Pérez et al. SIGGRAPH 2003 Eq. 11
     # ("importing"): copies the *source* gradients, lets boundary
     # continuity absorb DC colour drift. NORMAL because we want the new
-    # photo's content fully (MIXED_CLONE would let the original portrait's
-    # face bleed back through).
-    ys, xs = np.where(mask_eroded > 0)
+    # photo's content fully (MIXED_CLONE would let dst gradients bleed
+    # through, which on a portrait-into-portrait swap means the OLD face
+    # comes back).
+    ys, xs = np.where(mask_for_clone > 0)
     if len(ys) == 0:
         return src_frame                                 # mask vanished, bail
     center = (int(xs.mean()), int(ys.mean()))
     out = cv2.seamlessClone(
-        warped, src_frame, (mask_eroded * 255).astype(np.uint8),
+        warped, dst_for_clone, (mask_for_clone * 255).astype(np.uint8),
         center, cv2.NORMAL_CLONE,
     )
     return out
