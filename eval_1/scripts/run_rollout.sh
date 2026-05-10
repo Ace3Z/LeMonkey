@@ -12,7 +12,7 @@ CKPT_STEP="${1:-025000}"
 POLICY="/home/lemonkey/LeMonkey/eval_1/train/smolvla_eval1_v2/checkpoints/${CKPT_STEP}/pretrained_model"
 ROLLOUT_DIR="/home/lemonkey/LeMonkey/eval_1/rollouts"
 HERE="$(dirname "$(readlink -f "$0")")"
-PYBIN="/home/lemonkey/miniconda3/envs/lerobot/bin/python"
+PYBIN="/home/lemonkey/miniconda3/envs/lemonkey/bin/python"
 HOME_POSE="/tmp/run_rollout_home.json"
 HOME_DRIVE_S=2.0
 

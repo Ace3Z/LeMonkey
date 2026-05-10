@@ -35,7 +35,7 @@ esac
 POLICY="/home/lemonkey/LeMonkey/eval_1/train/${MODEL_DIR}/checkpoints/${CKPT}/pretrained_model"
 OUT_BASE="/home/lemonkey/LeMonkey/eval_1/evals"
 ROLL_BASE="/home/lemonkey/LeMonkey/eval_1/rollouts"
-PYBIN="/home/lemonkey/miniconda3/envs/lerobot/bin/python"
+PYBIN="/home/lemonkey/miniconda3/envs/lemonkey/bin/python"
 
 if [ ! -d "$POLICY" ]; then
   echo "ERROR: checkpoint not found: $POLICY" >&2; exit 1
