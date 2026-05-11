@@ -737,13 +737,25 @@ def process_episode(
     #     order. But the sidecar can be wrong (ep04: operator typed "SOL" but
     #     placed L-S-O), so we log a [WARN] and surface the disagreement.
     ARCFACE_MIN_COS = 0.40
+    ARCFACE_MIN_GAP = 0.15        # v9.3: best - 2nd-best ≥ this is "confident enough"
+                                  # even if absolute cosine < ARCFACE_MIN_COS.
+                                  # Justification: on ep01, swift was correctly
+                                  # identified at cos=0.366 but rejected by the
+                                  # absolute threshold; the 2nd-best (obama=0.151)
+                                  # was 0.215 below — an unambiguous win. The
+                                  # gap test catches these confident-but-low
+                                  # matches without admitting noise.
     print("    ArcFace identify each portrait...", end=" ")
     t0 = time.time()
     id_results = identify_portraits(face_app, frame_0, initial_corners, celeb_protos)
     arcface_celebs = [r["best"] for r in id_results]
     arcface_cosines = [r["score"] for r in id_results]
     all_found = all(r["found"] for r in id_results)
-    all_above = all(r["score"] >= ARCFACE_MIN_COS for r in id_results)
+    def _conf(r):
+        scores_sorted = sorted(r["all_scores"].values(), reverse=True)
+        gap = scores_sorted[0] - scores_sorted[1] if len(scores_sorted) > 1 else scores_sorted[0]
+        return r["score"] >= ARCFACE_MIN_COS or gap >= ARCFACE_MIN_GAP
+    all_above = all(_conf(r) for r in id_results)
     arcface_unique = len(set(arcface_celebs)) == 3 and "?" not in arcface_celebs
     arcface_trusted = all_found and all_above and arcface_unique
     print(f"({time.time()-t0:.1f}s, trust={arcface_trusted}, "
