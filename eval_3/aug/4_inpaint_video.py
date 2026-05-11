@@ -110,6 +110,12 @@ def replace_portrait(
                                    # occluder boundaries (where the visible-paper
                                    # mask transitions 1→0). σ=0.8 ≈ 1.5 px transition
                                    # gives a sharp but anti-aliased edge.
+    auto_rotate_to_paper_aspect: bool = True,  # v9.4: rotate the source photo 90°
+                                   # if its aspect (w/h) doesn't match the paper's
+                                   # long-axis direction. Eliminates horizontal
+                                   # stretching when a portrait photo lands on a
+                                   # landscape paper rectangle (tradeoff: face ends
+                                   # up sideways relative to the viewer).
 ) -> np.ndarray:
     """Replace the masked region in src_frame with new_photo via the
     Recommended-tier recipe. Returns a new frame; src_frame is not mutated.
@@ -138,6 +144,23 @@ def replace_portrait(
                           VALIDATION.md §8a.
     """
     H, W = src_frame.shape[:2]
+
+    # v9.4: auto-rotate the source photo if its aspect doesn't match the paper's.
+    # dst_corners is ordered TL/TR/BR/BL (see _order_tl_tr_br_bl in stage 2).
+    # The "top edge" of the paper is corner[0]→corner[1]; the "left edge" is
+    # corner[0]→corner[3]. If top > left, the paper is landscape (long side
+    # horizontal in viewer-frame). If the source photo's aspect disagrees,
+    # rotate the photo 90° clockwise so the long axes align — eliminates
+    # horizontal stretching at the cost of an upright→sideways face rotation.
+    if auto_rotate_to_paper_aspect:
+        top_edge = float(np.linalg.norm(np.array(dst_corners[1]) - np.array(dst_corners[0])))
+        left_edge = float(np.linalg.norm(np.array(dst_corners[3]) - np.array(dst_corners[0])))
+        paper_landscape = top_edge > left_edge
+        ph, pw = new_photo.shape[:2]
+        photo_landscape = pw > ph
+        if paper_landscape != photo_landscape:
+            new_photo = cv2.rotate(new_photo, cv2.ROTATE_90_CLOCKWISE)
+
     h, w = new_photo.shape[:2]
 
     # 0. Clip corners to image bounds. cv2.minAreaRect can return corners
@@ -366,14 +389,38 @@ def assign_celebs_to_portraits(
 
 
 # ─── Photo bank loading ─────────────────────────────────────────────────────
-def load_photo_bank(photo_bank_root: Path) -> dict[str, list[Path]]:
+def load_photo_bank(
+    photo_bank_root: Path, *, portrait_only: bool = True,
+) -> dict[str, list[Path]]:
+    """When portrait_only=True (default), drop photos whose width > height.
+    Pasting a landscape photo into a typically-portrait paper region stretches
+    the face horizontally; filtering to portrait-source removes that artifact."""
+    from PIL import Image
     bank: dict[str, list[Path]] = {}
+    dropped = {}
     for d in photo_bank_root.iterdir():
-        if d.is_dir() and not d.name.startswith("_"):
-            pics = sorted(p for p in d.iterdir()
-                          if p.suffix.lower() in {".jpg", ".jpeg", ".png"} and not p.name.startswith("__"))
-            if pics:
-                bank[d.name] = pics
+        if not (d.is_dir() and not d.name.startswith("_")):
+            continue
+        kept = []
+        n_drop = 0
+        for p in sorted(d.iterdir()):
+            if p.suffix.lower() not in {".jpg", ".jpeg", ".png"} or p.name.startswith("__"):
+                continue
+            if portrait_only:
+                try:
+                    with Image.open(p) as im:
+                        w, h = im.size
+                except Exception:
+                    continue
+                if w >= h:                              # landscape OR square → drop
+                    n_drop += 1; continue
+            kept.append(p)
+        if kept:
+            bank[d.name] = kept
+            if n_drop > 0:
+                dropped[d.name] = n_drop
+    if portrait_only and dropped:
+        print(f"  portrait-only filter dropped: {dropped}", flush=True)
     return bank
 
 
