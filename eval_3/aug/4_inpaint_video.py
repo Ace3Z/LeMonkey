@@ -98,13 +98,18 @@ def replace_portrait(
     new_photo: np.ndarray,
     dst_corners: np.ndarray,
     *,
+    lum_ratio: np.ndarray | None = None,  # (H,W) float32 — per-pixel shadow multiplier
     mtf_sigma: float = 0.8,
     erode_px: int = 1,
     ring_dilate_px: int = 11,
     apply_unsharp: bool = False,
     apply_reinhard: bool = False,
     blend_mode: str = "alpha_feather",
-    feather_sigma: float = 2.0,
+    feather_sigma: float = 0.8,    # v9.1: was 2.0 — wider feather caused a visible
+                                   # halo of the original photo to leak through at
+                                   # occluder boundaries (where the visible-paper
+                                   # mask transitions 1→0). σ=0.8 ≈ 1.5 px transition
+                                   # gives a sharp but anti-aliased edge.
 ) -> np.ndarray:
     """Replace the masked region in src_frame with new_photo via the
     Recommended-tier recipe. Returns a new frame; src_frame is not mutated.
@@ -166,6 +171,19 @@ def replace_portrait(
         usm_blur = cv2.GaussianBlur(warped, (0, 0), sigmaX=1.0)
         warped = cv2.addWeighted(warped, 1.5, usm_blur, -0.5, 0)
 
+    # 2c. SHADOW MODULATION (v7) — modulate the warped new photo by the
+    # per-pixel luminance ratio L_i / L_0 so that shadows cast by the gripper /
+    # can / hand on the original paper appear naturally on the new photo.
+    # Without this, shadow regions either reveal the original (binary alpha
+    # excludes them) or paste the new photo at full bright intensity (binary
+    # alpha includes them, the shadow is gone). The ratio is computed in stage
+    # 4's render_variant against frame_0 (saved by stage 2), restricted to the
+    # M_0 paper mask, and clamped to [0.4, 1.4] so the photo isn't pushed to
+    # extreme values by ratio outliers.
+    if lum_ratio is not None:
+        warped = np.clip(warped.astype(np.float32) * lum_ratio[..., None],
+                         0, 255).astype(np.uint8)
+
     # 3. (Optional) Reinhard color transfer (Reinhard et al. 2001) sampled
     # from a ~5-px outer ring of the mask. Disabled by default (apply_reinhard
     # = False) because empirically (Validation Pass 3 on ep01, 2026-05-10)
@@ -215,8 +233,22 @@ def replace_portrait(
     #   gradient-domain DC absorption — but expect bleached output if the
     #   ring is uniformly bright/dark.
     if blend_mode == "alpha_feather":
+        # Asymmetric feather: blur the mask for a soft inward transition,
+        # then CLAMP to the original mask so the alpha is exactly zero
+        # outside it. Without the clamp, the Gaussian extends ~σ × 3 px
+        # past the mask boundary and bleeds the new photo onto adjacent
+        # pixels — which on our setup means the gripper/can/hand get
+        # partly overwritten. Per the user's correct observation: SAM 2's
+        # mask already excludes those occluders by construction (SAM
+        # tracks the paper *underneath*), so the right behaviour is to
+        # respect the mask exactly at its boundary.
         feather = cv2.GaussianBlur(mask_for_blend.astype(np.float32), (0, 0), sigmaX=feather_sigma)
-        feather = (feather / max(feather.max(), 1e-6))[:, :, None]   # H,W,1
+        # Clamp to the (un-eroded) mask: alpha is at most where SAM said paper is.
+        feather = np.minimum(feather, mask.astype(np.float32))
+        m = feather.max()
+        if m > 1e-6:
+            feather = feather / m
+        feather = feather[:, :, None]                           # H,W,1
         out = warped.astype(np.float32) * feather + src_frame.astype(np.float32) * (1 - feather)
         out = np.clip(out, 0, 255).astype(np.uint8)
         return out
@@ -379,6 +411,33 @@ def pick_photos_for_variant(
 
 
 # ─── Variant render ─────────────────────────────────────────────────────────
+def _mean_lum_ratio_v9(
+    frame_i: np.ndarray, frame_0: np.ndarray, visible_paper: np.ndarray,
+) -> float:
+    """v9: ONE SCALAR mean luminance ratio over the visible-paper region.
+
+    Replaces v7/v8 per-pixel lum_ratio. The research consensus (LIBERO-Plus
+    2025, Pumacay et al., LeRobot/OpenVLA defaults, ROSIE, GenAug, CACTI)
+    is that per-pixel shadow modeling is the smallest-impact perturbation
+    axis for VLAs (8-11pp impact vs 45-72pp for camera shift). A single
+    scalar that crudely matches the inserted photo's brightness to the
+    current frame's average is sufficient — ColorJitter at train time
+    handles the rest. Clamped to [0.6, 1.2] so a near-fully-occluded
+    visible_paper (only a few pixels left, possibly all in shadow) can't
+    push the photo to extreme values."""
+    if visible_paper.sum() < 50:
+        return 1.0
+    lab_i = cv2.cvtColor(frame_i, cv2.COLOR_BGR2LAB)
+    lab_0 = cv2.cvtColor(frame_0, cv2.COLOR_BGR2LAB)
+    L_i = lab_i[..., 0].astype(np.float32)
+    L_0 = lab_0[..., 0].astype(np.float32)
+    mask = visible_paper > 0
+    L_i_mean = float(L_i[mask].mean())
+    L_0_mean = float(L_0[mask].mean())
+    ratio = L_i_mean / max(L_0_mean, 5.0)
+    return float(np.clip(ratio, 0.6, 1.2))
+
+
 def render_variant(
     src_video: Path,
     corners_data: dict,
@@ -388,19 +447,27 @@ def render_variant(
     out_video: Path,
     fps: int,
     work_dir: Path,
+    frame_0: np.ndarray | None = None,            # v7: shadow-modulation reference
+    M_0_per_pid: dict[int, np.ndarray] | None = None,  # v7: paper-rectangle mask per pid
 ) -> int:
     """Render a single augmented variant. Returns frame count written.
 
-    `masks_pkl` is optional. When present (legacy 2_segment_video.py pipeline)
-    we use SAM 2's per-frame RLE masks. When absent (2_detect_track.py
-    pipeline) we synthesise the mask from the tracked 4-corner polygon —
-    rectangular printed photos are well approximated by their convex hull.
+    v7: when `frame_0` and `M_0_per_pid` are provided (saved by stage 2 v7),
+    compute a per-pixel luminance ratio L_i/L_0 within the M_0 rectangle and
+    pass it to `replace_portrait` so shadows cast on the original paper
+    appear on the augmented photo. Falls back gracefully to the v6 binary
+    composite when v7 sidecars are absent.
+
+    `masks_pkl` carries per-frame visible-paper masks (M_0 AND NOT object).
+    `corners_data` carries the constant 4-corner rectangle per portrait.
     """
     masks_per_frame: dict[int, dict[int, dict]] = {}
     if masks_pkl is not None and masks_pkl.is_file():
         with open(masks_pkl, "rb") as f:
             cache = pickle.load(f)
         masks_per_frame = cache["masks"]
+        if M_0_per_pid is None and "M_0_per_pid" in cache:
+            M_0_per_pid = cache["M_0_per_pid"]
 
     cap = cv2.VideoCapture(str(ensure_h264(src_video)))
     n_frames = corners_data["n_frames"]
@@ -418,19 +485,27 @@ def render_variant(
             rec = corners_data["portraits"][pid_str].get(str(fi))
             if rec is None or rec["corners"] is None:
                 continue
-            # Reconstruct mask from RLE if available; else build from corners as a polygon
             if payload is not None:
                 mask = mask_util.decode(payload["rle"]).astype(np.uint8)
                 if mask.ndim == 3:
                     mask = mask[:, :, 0]
             else:
-                # interpolated frame — synthesize a polygon mask from corners
                 H, W = frame.shape[:2]
                 mask = np.zeros((H, W), dtype=np.uint8)
                 pts = np.asarray(rec["corners"], dtype=np.int32)
                 cv2.fillPoly(mask, [pts], 1)
             corners = np.asarray(rec["corners"], dtype=np.float32)
-            out = replace_portrait(out, mask, photo, corners)
+
+            # v9 global brightness match: one scalar = mean(L_i/L_0) over the
+            # currently-visible paper. Replaces v7's per-pixel lum_ratio. Per
+            # LIBERO-Plus 2025 + Pumacay decomp, this is sufficient — the field
+            # skips per-pixel shadow modeling for VLA augmentation.
+            lum_ratio = None
+            if frame_0 is not None:
+                ratio = _mean_lum_ratio_v9(frame, frame_0, mask)
+                lum_ratio = np.full(frame.shape[:2], ratio, dtype=np.float32)
+
+            out = replace_portrait(out, mask, photo, corners, lum_ratio=lum_ratio)
         cv2.imwrite(str(work_dir / f"f{fi:06d}.png"), out)
         written += 1
     cap.release()
@@ -462,9 +537,13 @@ def hardlink_meta(src_ep: Path, dst_ep: Path) -> None:
             rel = src_path.relative_to(src_ep)
             dst_path = dst_ep / rel
             dst_path.parent.mkdir(parents=True, exist_ok=True)
+            if dst_path.exists():
+                # Already linked from a prior --force run; hardlink → same
+                # content, so leave it. (Avoids shutil.SameFileError.)
+                continue
             try:
                 os.link(src_path, dst_path)
-            except (OSError, FileExistsError):
+            except OSError:
                 shutil.copy2(src_path, dst_path)
 
 
@@ -508,6 +587,14 @@ def process_episode(
     src_video = find_video(ep_dir)
     rng = random.Random(seed + hash(ep_dir.name) % 1_000_000)
 
+    # v7: load frame_0 for shadow-aware luminance modulation. Stage 2 v7
+    # writes frame_0.png next to portrait_corners.json. Fall back to None
+    # (= v6 binary composite behaviour) when the sidecar is absent.
+    frame_0_path = ep_dir / "frame_0.png"
+    frame_0_img: np.ndarray | None = None
+    if frame_0_path.is_file():
+        frame_0_img = cv2.imread(str(frame_0_path), cv2.IMREAD_COLOR)
+
     work_dir = Path("/tmp") / f"_aug_work_{ep_dir.name}_{os.getpid()}"
     work_dir.mkdir(parents=True, exist_ok=True)
     rendered: list[dict] = []
@@ -533,6 +620,7 @@ def process_episode(
             n_written = render_variant(
                 src_video, corners_data, masks_pkl, pid_photos,
                 out_video=var_video, fps=fps, work_dir=work_dir,
+                frame_0=frame_0_img,
             )
 
             hardlink_meta(ep_dir, var_out)

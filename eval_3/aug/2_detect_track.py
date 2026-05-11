@@ -38,13 +38,14 @@ import numpy as np
 
 # Deferred imports for fast --help
 def _import_heavy():
-    global cv2, torch, AutoProcessor, AutoModelForZeroShotObjectDetection, build_sam2, SAM2ImagePredictor, ensure_frame_dir, read_frame_zero, ensure_h264, FaceAnalysis
+    global cv2, torch, AutoProcessor, AutoModelForZeroShotObjectDetection, build_sam2, build_sam2_video_predictor, SAM2ImagePredictor, ensure_frame_dir, read_frame_zero, ensure_h264, FaceAnalysis, mask_util
     import cv2  # type: ignore
     import torch  # type: ignore
     from transformers import AutoProcessor, AutoModelForZeroShotObjectDetection
-    from sam2.build_sam import build_sam2
+    from sam2.build_sam import build_sam2, build_sam2_video_predictor
     from sam2.sam2_image_predictor import SAM2ImagePredictor
     from insightface.app import FaceAnalysis as _FaceAnalysis
+    import pycocotools.mask as mask_util
     spec = importlib.util.spec_from_file_location("_video_io", str(Path(__file__).resolve().parent / "_video_io.py"))
     _vio = importlib.util.module_from_spec(spec); spec.loader.exec_module(_vio)
     ensure_frame_dir = _vio.ensure_frame_dir
@@ -54,8 +55,11 @@ def _import_heavy():
         "cv2": cv2, "torch": torch,
         "AutoProcessor": AutoProcessor,
         "AutoModelForZeroShotObjectDetection": AutoModelForZeroShotObjectDetection,
-        "build_sam2": build_sam2, "SAM2ImagePredictor": SAM2ImagePredictor,
+        "build_sam2": build_sam2,
+        "build_sam2_video_predictor": build_sam2_video_predictor,
+        "SAM2ImagePredictor": SAM2ImagePredictor,
         "FaceAnalysis": _FaceAnalysis,
+        "mask_util": mask_util,
         "ensure_frame_dir": ensure_frame_dir,
         "read_frame_zero": read_frame_zero,
         "ensure_h264": ensure_h264,
@@ -243,115 +247,262 @@ def mask_to_corners(mask: np.ndarray) -> np.ndarray | None:
     return ordered
 
 
-# ─── Lucas-Kanade corner tracker ─────────────────────────────────────────────
-LK_PARAMS = dict(
-    winSize=(31, 31), maxLevel=4,
-    criteria=(cv2.TERM_CRITERIA_EPS | cv2.TERM_CRITERIA_COUNT, 30, 0.01),
-) if False else None   # populated lazily after cv2 import
+# ─── SAM 2 video-propagation tracker (v3 — mask-constrained corners) ─────────
+def _order_tl_tr_br_bl(box4x2: np.ndarray) -> np.ndarray:
+    centroid = box4x2.mean(0)
+    angles = np.arctan2(box4x2[:, 1] - centroid[1], box4x2[:, 0] - centroid[0])
+    out = np.zeros((4, 2), dtype=np.float32)
+    used = [False] * 4
+    for ideal, slot in [(-np.pi*3/4, 0), (-np.pi/4, 1), (np.pi/4, 2), (np.pi*3/4, 3)]:
+        d = np.abs(np.arctan2(np.sin(angles - ideal), np.cos(angles - ideal)))
+        for idx in np.argsort(d):
+            if not used[idx]:
+                out[slot] = box4x2[idx]; used[idx] = True; break
+    return out
 
 
-def _lk_params():
-    return dict(
-        winSize=(31, 31), maxLevel=4,
-        criteria=(cv2.TERM_CRITERIA_EPS | cv2.TERM_CRITERIA_COUNT, 30, 0.01),
-    )
+def kalman_rts_smooth_xy(
+    measurements: np.ndarray,
+    valid: np.ndarray,
+    *,
+    dt: float = 1.0 / 30.0,
+    q_pos: float = 0.5,
+    q_vel: float = 5.0,
+    r_meas: float = 2.0,
+) -> np.ndarray:
+    """Rauch-Tung-Striebel smoother for a single 2-D corner trajectory.
 
+    Forward pass = standard Kalman filter with a constant-velocity model:
+        state = [x, y, vx, vy]
+        F     = [[1,0,dt,0],[0,1,0,dt],[0,0,1,0],[0,0,0,1]]
+        H     = [[1,0,0,0],[0,1,0,0]]
+        Q     = diag([q_pos², q_pos², q_vel², q_vel²])
+        R     = r_meas² × I_2
 
-def track_corners_lk(
-    video_path: Path,
-    initial_corners: dict[int, np.ndarray],
-) -> dict:
-    """LK-flow track 12 corner points (3 portraits × 4) across all video frames.
+    Occluded frames (valid==False or NaN measurement) skip the measurement
+    update — we propagate the prediction with growing uncertainty, then the
+    backward RTS pass refines those estimates from future measurements.
 
-    initial_corners: {portrait_id (0/1/2) → np.ndarray(4, 2) of float32}
-    Returns the per-frame corners dict in the same schema 4_inpaint_video.py
-    expects.
+    Reference: Rauch, Tung & Striebel 1965 ("Maximum Likelihood Estimates
+    of Linear Dynamic Systems"); see also S. Särkkä, *Bayesian Filtering
+    and Smoothing* (Cambridge, 2013), §8.2.
 
-    Strategy:
-      - Stack 12 points into one cv2.calcOpticalFlowPyrLK call per frame
-      - On status==0 (LK lost), HOLD the previous frame's position
-      - If >25% of points are lost on a single frame, mark the frame
-        partially-occluded and try a homography re-anchor against frame 0
-        (cheap ORB match)
-      - Confidence per frame = fraction of points kept by LK
+    Returns the smoothed (N, 2) trajectory.
     """
+    N = len(measurements)
+    if N == 0:
+        return measurements
+
+    F = np.array([[1, 0, dt, 0],
+                  [0, 1, 0, dt],
+                  [0, 0, 1, 0],
+                  [0, 0, 0, 1]], dtype=np.float64)
+    H = np.array([[1, 0, 0, 0],
+                  [0, 1, 0, 0]], dtype=np.float64)
+    Q = np.diag([q_pos**2, q_pos**2, q_vel**2, q_vel**2])
+    R = np.eye(2) * (r_meas ** 2)
+    I4 = np.eye(4)
+
+    # Find first valid measurement to seed state
+    first_valid = None
+    for k in range(N):
+        if valid[k] and not np.isnan(measurements[k]).any():
+            first_valid = k
+            break
+    if first_valid is None:
+        return measurements                              # nothing to smooth
+
+    x = np.array([measurements[first_valid][0], measurements[first_valid][1], 0.0, 0.0], dtype=np.float64)
+    P = np.eye(4) * 100.0                                # large initial uncertainty
+
+    # Forward pass — store filtered states + predicted (for RTS)
+    states = np.zeros((N, 4))
+    covs   = np.zeros((N, 4, 4))
+    pred_states = np.zeros((N, 4))
+    pred_covs   = np.zeros((N, 4, 4))
+
+    for k in range(N):
+        # Predict
+        x_pred = F @ x
+        P_pred = F @ P @ F.T + Q
+        pred_states[k] = x_pred
+        pred_covs[k]   = P_pred
+        # Measurement update if valid
+        if valid[k] and not np.isnan(measurements[k]).any():
+            z = measurements[k]
+            y_innov = z - H @ x_pred
+            S = H @ P_pred @ H.T + R
+            K = P_pred @ H.T @ np.linalg.inv(S)
+            x = x_pred + K @ y_innov
+            P = (I4 - K @ H) @ P_pred
+        else:
+            x = x_pred
+            P = P_pred
+        states[k] = x
+        covs[k]   = P
+
+    # Backward RTS pass — refine filtered states using future evidence
+    smoothed = states.copy()
+    smoothed_covs = covs.copy()
+    for k in range(N - 2, -1, -1):
+        # C_k = P_k|k · F^T · (P_{k+1}|k)^{-1}
+        try:
+            C = covs[k] @ F.T @ np.linalg.inv(pred_covs[k + 1])
+        except np.linalg.LinAlgError:
+            continue
+        smoothed[k] = states[k] + C @ (smoothed[k + 1] - pred_states[k + 1])
+        smoothed_covs[k] = covs[k] + C @ (smoothed_covs[k + 1] - pred_covs[k + 1]) @ C.T
+
+    return smoothed[:, :2].astype(np.float32)
+
+
+def _mask_to_corners(mask: np.ndarray) -> np.ndarray | None:
+    contours, _ = cv2.findContours(mask.astype(np.uint8), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    if not contours:
+        return None
+    c = max(contours, key=cv2.contourArea)
+    if cv2.contourArea(c) < 200:
+        return None
+    rect = cv2.minAreaRect(c)
+    return _order_tl_tr_br_bl(cv2.boxPoints(rect).astype(np.float32))
+
+
+def track_corners_sam2_video(
+    video_predictor,
+    video_path: Path,
+    initial_masks: list[np.ndarray],
+    *,
+    area_drop_ratio: float = 0.5,
+    rolling_window: int = 15,
+    apply_rts: bool = True,
+    rts_q_pos: float = 0.5,
+    rts_q_vel: float = 5.0,
+    rts_r_meas: float = 2.0,
+) -> tuple[dict, dict]:
+    """Propagate the per-portrait masks across the video using SAM 2.1's video
+    predictor, then derive 4 corners per frame per portrait from the masks.
+
+    Rationale (v3): the previous LK-on-corners approach drifted onto the
+    gripper / can when they crossed a corner — LK has no notion of "this is
+    a portrait." SAM 2.1's video propagator is occlusion-aware (its score
+    head returns < 0 when an object is hidden) and its memory bank tracks
+    the underlying paper rather than whatever's covering it. So we use
+    SAM 2 masks as the trusted source of corner positions, falling back to
+    "hold last valid" when SAM says the portrait is occluded.
+
+    Plus a temporal median smooth (window=5) on the corner positions to
+    suppress the 1-3 px mask-boundary noise SAM produces frame-to-frame.
+
+    Returns (corners_data, stats).
+    """
+    frames_dir = ensure_frame_dir(video_path)
+    state = video_predictor.init_state(video_path=str(frames_dir))
+    for pid, m in enumerate(initial_masks):
+        video_predictor.add_new_mask(state, frame_idx=0, obj_id=pid, mask=m)
+
+    # Probe video shape
     cap = cv2.VideoCapture(str(ensure_h264(video_path)))
-    ok, frame_0 = cap.read()
+    ok, frame0 = cap.read(); cap.release()
     if not ok:
-        cap.release()
-        raise RuntimeError(f"cannot read frame 0 of {video_path}")
-    n_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
-    cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
-    H, W = frame_0.shape[:2]
+        raise RuntimeError(f"can't read frame 0 of {video_path}")
+    H, W = frame0.shape[:2]
 
-    pts0 = np.vstack([initial_corners[pid] for pid in (0, 1, 2)]).astype(np.float32).reshape(-1, 1, 2)
-    gray_0 = cv2.cvtColor(frame_0, cv2.COLOR_BGR2GRAY)
+    # Per-frame raw corner positions per portrait (+ score + area)
+    raw: dict[int, dict] = {pid: {} for pid in (0, 1, 2)}
+    occluded: dict[int, dict] = {pid: {} for pid in (0, 1, 2)}
+    rolling_areas: dict[int, list[int]] = {pid: [] for pid in (0, 1, 2)}
+    n_frames = 0
+    # Cache SAM's per-frame RLE masks for stage 4 — these mask out the
+    # can/gripper/hand cleanly (SAM 2 tracks the paper *underneath* the
+    # occluder), so stage 4 can composite the new photo only where the
+    # original paper was visible.
+    masks_per_frame: dict[int, dict[int, dict]] = {}
 
+    for fi, obj_ids, mask_logits in video_predictor.propagate_in_video(state):
+        n_frames = max(n_frames, fi + 1)
+        for oid, logit in zip(obj_ids, mask_logits):
+            mask_t = (logit > 0).cpu().numpy().astype(np.uint8)
+            if mask_t.ndim == 3:
+                mask_t = mask_t[0]
+            score = float(logit.max().item())
+            area = int(mask_t.sum())
+
+            rolling_areas[int(oid)].append(area)
+            if len(rolling_areas[int(oid)]) > rolling_window:
+                rolling_areas[int(oid)].pop(0)
+            rolling_med = float(np.median([a for a in rolling_areas[int(oid)] if a > 0])) \
+                          if any(rolling_areas[int(oid)]) else 0.0
+
+            corners = _mask_to_corners(mask_t) if score > 0 else None
+            is_occ = (
+                score < 0
+                or corners is None
+                or (rolling_med > 0 and area < area_drop_ratio * rolling_med)
+            )
+
+            raw[int(oid)][fi] = {
+                "corners": corners,             # np.ndarray (4,2) or None
+                "score": score, "area": area, "occluded": bool(is_occ),
+            }
+            # Always cache the mask (RLE), even when occluded — empty masks
+            # also encode trivially. Stage 4 will use these as compositing
+            # alpha so the gripper/can stays visible.
+            rle = mask_util.encode(np.asfortranarray(mask_t))
+            masks_per_frame.setdefault(fi, {})[int(oid)] = {"rle": rle, "score": score}
+
+    # ─── post-process: assemble per-corner measurement+validity arrays, then
+    #     run Kalman forward + RTS backward smoother per corner. This is the
+    #     "proper tracker" — handles occlusion by predicting forward then
+    #     refining with future measurements during the backward pass.
     out: dict = {"video_shape": [H, W], "n_frames": n_frames, "portraits": {}}
+    held_counts: dict[int, int] = {}
+
     for pid in (0, 1, 2):
         out["portraits"][str(pid)] = {}
-        out["portraits"][str(pid)]["0"] = {
-            "corners": initial_corners[pid].tolist(),
-            "occluded": False, "score": 1.0, "interpolated": False,
-        }
+        # Build per-portrait (n_frames, 4, 2) measurement array + (n_frames, 4) validity
+        meas = np.full((n_frames, 4, 2), np.nan, dtype=np.float64)
+        valid = np.zeros((n_frames, 4), dtype=bool)
+        per_frame_score = np.full(n_frames, -1.0, dtype=np.float32)
+        per_frame_occ = np.ones(n_frames, dtype=bool)
 
-    prev_gray = gray_0
-    prev_pts = pts0
-    last_valid_pts = pts0.copy()                # per-point "last seen"
-    fi = 1
-    lk_lost_count = 0
-    cap.read()                                  # advance past frame 0
-    while True:
-        ok, frame = cap.read()
-        if not ok:
-            break
-        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-        try:
-            next_pts, status, err = cv2.calcOpticalFlowPyrLK(
-                prev_gray, gray, prev_pts, None, **_lk_params())
-        except cv2.error:
-            next_pts, status, err = prev_pts, np.zeros((12, 1), dtype=np.uint8), np.ones((12, 1))*9e9
+        for fi in range(n_frames):
+            rec = raw[pid].get(fi)
+            if rec is None or rec["corners"] is None or rec["occluded"]:
+                continue
+            meas[fi] = rec["corners"]
+            valid[fi] = True
+            per_frame_score[fi] = rec["score"]
+            per_frame_occ[fi] = False
 
-        status = status.flatten()
-        kept = status > 0
-        n_kept = int(kept.sum())
-        confidence = n_kept / 12
+        if apply_rts:
+            # Smooth each of the 4 corners independently
+            smoothed = np.zeros((n_frames, 4, 2), dtype=np.float32)
+            for corner_idx in range(4):
+                smoothed[:, corner_idx] = kalman_rts_smooth_xy(
+                    measurements=meas[:, corner_idx],
+                    valid=valid[:, corner_idx],
+                    q_pos=rts_q_pos, q_vel=rts_q_vel, r_meas=rts_r_meas,
+                )
+        else:
+            smoothed = meas.astype(np.float32)
 
-        if n_kept < 12:
-            lk_lost_count += (12 - n_kept)
-            # Replace lost points with last valid position (hold)
-            next_pts_held = next_pts.copy()
-            for j in range(12):
-                if not kept[j]:
-                    next_pts_held[j] = last_valid_pts[j]
-            next_pts = next_pts_held
+        held = int(per_frame_occ.sum())
+        held_counts[pid] = held
 
-        # update last_valid for points actually tracked
-        for j in range(12):
-            if kept[j]:
-                last_valid_pts[j] = next_pts[j]
-
-        # Reshape into per-portrait corners
-        pts_r = next_pts.reshape(3, 4, 2)
-        for pid in (0, 1, 2):
+        for fi in range(n_frames):
             out["portraits"][str(pid)][str(fi)] = {
-                "corners": pts_r[pid].tolist(),
-                "occluded": (confidence < 0.5),
-                "score": confidence,
-                "interpolated": False,
+                "corners": smoothed[fi].tolist(),
+                "occluded": bool(per_frame_occ[fi]),
+                "score": float(per_frame_score[fi]),
+                "interpolated": bool(per_frame_occ[fi]),    # marked so stage 4 knows it's RTS-extrapolated
             }
 
-        prev_gray = gray; prev_pts = next_pts
-        fi += 1
-
-    cap.release()
-    out["n_frames"] = fi   # actual decoded count
-    return out, {"lk_lost_count": lk_lost_count}
+    return out, {"held_counts": held_counts, "masks_per_frame": masks_per_frame}
 
 
 # ─── per-episode driver ─────────────────────────────────────────────────────
 def process_episode(
-    ep_dir: Path, image_predictor, face_app, celeb_protos: dict[str, np.ndarray],
+    ep_dir: Path, image_predictor, video_predictor, face_app, celeb_protos: dict[str, np.ndarray],
     *, force: bool, interactive: bool,
 ) -> dict:
     out_json = ep_dir / "portrait_corners.json"
@@ -471,18 +622,35 @@ def process_episode(
     seeds_data["identify_cosines"] = [float(id_results[i][1]) for i in range(3)]
     (ep_dir / "portrait_seeds.json").write_text(json.dumps(seeds_data, indent=2))
 
-    # 7. LK-track the 12 corners across all frames
-    print(f"    LK optical flow on 12 corner points...", end=" ")
+    # 7. SAM 2 video-propagate masks → per-frame masks + RTS-smoothed corners
+    print(f"    SAM 2 video-propagate + Kalman+RTS smoothing...", end=" ")
     t0 = time.time()
-    corners_data, lk_stats = track_corners_lk(video, initial_corners)
+    # Sort the initial masks to match pid_order (same order as initial_corners)
+    initial_masks_ordered = [masks[pid_order[pid]] for pid in range(3)]
+    corners_data, track_stats = track_corners_sam2_video(
+        video_predictor, video, initial_masks_ordered,
+    )
     print(f"({time.time()-t0:.1f}s, {corners_data['n_frames']} frames, "
-          f"{lk_stats['lk_lost_count']} corner-frame losses)")
+          f"held_counts={track_stats['held_counts']})")
 
     out_json.write_text(json.dumps(corners_data, indent=2))
+
+    # Save per-frame SAM masks for stage 4 — its alpha-feather composite
+    # uses these as the paste region, so gripper/can/hand pixels stay
+    # untouched (they're outside SAM's paper mask by construction).
+    import pickle
+    masks_pkl = ep_dir / "portrait_masks.pkl"
+    with open(masks_pkl, "wb") as f:
+        pickle.dump({
+            "video_path": str(video),
+            "seeds": seeds_data,
+            "masks": track_stats["masks_per_frame"],
+        }, f)
+
     return {
         "ep": ep_dir.name, "saved": str(out_json),
         "n_frames": corners_data["n_frames"],
-        "lk_lost_count": lk_stats["lk_lost_count"],
+        "held_counts": track_stats["held_counts"],
     }
 
 
@@ -507,10 +675,11 @@ def main() -> int:
 
     _import_heavy()
 
-    print("loading SAM 2.1 hiera-L...")
+    print("loading SAM 2.1 hiera-L (image + video predictors)...")
     t0 = time.time()
     sam_model = build_sam2(args.cfg, args.ckpt, device="cuda")
     image_predictor = SAM2ImagePredictor(sam_model)
+    video_predictor = build_sam2_video_predictor(args.cfg, args.ckpt, device="cuda")
     print(f"  ({time.time()-t0:.1f}s)")
 
     print(f"loading GroundingDINO ({GDINO_MODEL}) with disable_custom_kernels=True...")
@@ -542,13 +711,13 @@ def main() -> int:
     results = []
     for ep_dir in ep_dirs:
         try:
-            r = process_episode(ep_dir, image_predictor, face_app, celeb_protos,
+            r = process_episode(ep_dir, image_predictor, video_predictor, face_app, celeb_protos,
                                 force=args.force, interactive=args.interactive)
         except Exception as e:
             r = {"ep": ep_dir.name, "error": f"{type(e).__name__}: {e}"}
         results.append(r)
         if "saved" in r:
-            print(f"  ✓ {r['ep']:50s}  {r['n_frames']:>4} frames  lk-losses={r['lk_lost_count']}")
+            print(f"  ✓ {r['ep']:50s}  {r['n_frames']:>4} frames  held={r['held_counts']}")
         elif r.get("skipped"):
             print(f"  - {r['ep']:50s}  (skipped)")
         else:
