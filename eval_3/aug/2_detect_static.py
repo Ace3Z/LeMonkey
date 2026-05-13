@@ -104,7 +104,7 @@ PHOTO_BANK_DEFAULT = Path("/home/lemonkey/LeMonkey/datasets/eval3_celebs/web")
 # paper masks M_0 (occluders enter the scene from above; if a "can" box
 # centers inside a paper mask at frame 0 before the can has been placed,
 # it's a false positive).
-OCCLUDER_TEXT_PROMPTS = ["robot gripper", "coca cola can", "human hand"]
+OCCLUDER_TEXT_PROMPTS = ["robot gripper", "coca cola can"]
 OCCLUDER_BOX_SCORE_MIN = 0.40    # v10b: raised from 0.20 → 0.40. The 0.20
                                   # default let through 0.27-confidence "human"
                                   # detections that GroundingDINO was firing

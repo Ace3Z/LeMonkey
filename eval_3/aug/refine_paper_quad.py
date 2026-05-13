@@ -70,35 +70,37 @@ import numpy as np
 
 
 # Default parameters — every value triple-sourced; deviations flagged.
-DILATE_PX = 50      # Edge band outer offset. Two failure modes drive this:
-                    # (i) SAM upsample-induced boundary looseness ≤15 px
-                    #     (SAM 2 paper §3.3),
-                    # (ii) SAM under-segmenting the paper (segments printed
-                    #     face/torso but misses white paper margin) — the
-                    #     paper margin is typically 30–50 px outside SAM's
-                    #     boundary. Verified visually 2026-05-13 on
-                    #     quick_lecun_LSO_ep01: SAM mask was the face area,
-                    #     paper edge was ~40 px outside.
-                    # 50 px gives margin for the worst case while still
-                    # being tight enough to reject far-away table seams.
-ERODE_PX = 20       # Inner offset. Keep at 20 — the inner half of the band
-                    # only matters when SAM OVERSIZES the paper (the
-                    # swift_OLS_ep01 failure mode). 20 px reach inward
-                    # handles SAM oversize ≤15 px with margin.
+DILATE_PX = 8       # Edge band outer offset. Empirically SAM 2 hiera-L is
+                    # tight to ±3 px on rigid planar targets in our setup
+                    # (user-verified 2026-05-13). 8 px outward gives a 5 px
+                    # margin for the worst-case SAM error while keeping the
+                    # band tight enough that Canny CAN'T reach internal
+                    # photo-content edges (which sit 20–40 px inside the
+                    # SAM boundary in our 640×480 frames).
+ERODE_PX = 8        # Inner offset, symmetric. Total band width = 16 px ring
+                    # centred on SAM boundary. The previous 50/20 ring was
+                    # letting Canny lock onto the celeb's silhouette inside
+                    # the paper instead of the paper-vs-table edge just
+                    # outside it (verified visually on swift_OLS_ep01 +
+                    # lecun_LSO_ep01 refit debug PNGs 2026-05-13).
 HOUGH_RHO = 1       # OpenCV docs default for high-resolution edges.
 HOUGH_THETA = np.pi / 180   # 1° angular resolution.
-HOUGH_THRESH = 18   # Min vote count. Empirically the paper edge has
-                    # ~30–50 inlier pixels at 1° resolution; 18 leaves
-                    # margin for shadow-broken edges (mid-occlusion).
-MIN_LINE_FRAC = 0.20        # min_length = 0.20 × min(box_w, box_h).
-                            # Loosened from 0.30 — at heavy paper tilt
-                            # (~50°) the visible side projection is
-                            # 0.65×, and shadows can break it further.
+HOUGH_THRESH = 15   # Min Hough vote count. Lower than my earlier 30 because
+                    # the inlier filter (below) is the dominant gate now —
+                    # we don't need Hough itself to be strict.
+MIN_LINE_FRAC = 0.15        # min_length = 0.15 × min(side_w, side_h).
+                            # Loosened — short paper-edge fragments are OK,
+                            # the SAM-prior filter rejects misleads anyway.
 MAX_LINE_GAP = 15           # Bridge small Canny gaps from shadow seams.
-ORIENT_BIN_DEG = 30         # Loosened from 25 — covers paper rotations
-                            # ≤30° relative to the coarse quad's own
-                            # principal axes (rare but real with
-                            # noisy SAM boundaries).
+SAM_PRIOR_DIST_PX = 15.0    # v10c: max perpendicular distance from a Hough
+                            # line to its candidate SAM edge for the line
+                            # to be considered an inlier. Anything farther
+                            # is rejected. 15 px gives margin for ±5 px
+                            # SAM error + ±5 px Hough quantization.
+SAM_PRIOR_ANGLE_DEG = 15.0  # v10c: max angular delta between a Hough line
+                            # and its candidate SAM edge. 15° is generous;
+                            # paper sides are rigid so the angular error
+                            # should be < 5° in practice.
 SUBPIX_WIN = (5, 5)         # cornerSubPix window. Förstner-Gülch
                             # paper uses 5×5 for natural images.
 SUBPIX_ITERS = 30
@@ -353,68 +355,100 @@ def refine_paper_quad_to_edges(
         return None
     lines = lines_raw[:, 0, :]  # (N, 4)
 
-    # 4. Cluster lines into 4 orientation bins (top, bottom, left, right)
-    # relative to the coarse-quad centroid + the *coarse* edge orientations.
-    centroid = coarse_corners.mean(axis=0)
-
-    # Determine the coarse quad's two principal axes.
-    # Edges 0→1 (TL→TR), 1→2 (TR→BR), 2→3 (BR→BL), 3→0 (BL→TL).
-    e_top = coarse_corners[1] - coarse_corners[0]      # roughly horizontal
-    e_right = coarse_corners[2] - coarse_corners[1]    # roughly vertical
-    angle_h_coarse = float(np.degrees(np.arctan2(e_top[1], e_top[0])) % 180)
-    angle_v_coarse = float(np.degrees(np.arctan2(e_right[1], e_right[0])) % 180)
+    # 4. SAM-prior line matching (v10c). Build the 4 SAM-quad edges as
+    # reference lines and assign each Hough line to its CLOSEST SAM edge.
+    # Lines whose perp-distance > SAM_PRIOR_DIST_PX or whose angular delta
+    # > SAM_PRIOR_ANGLE_DEG are rejected (RANSAC-style with a strong SAM
+    # prior — per user 2026-05-13: "only lines close to the SAM bbox are
+    # real; anything else should be eliminated with RANSAC").
+    edge_names = ["top", "right", "bottom", "left"]
+    # Coarse_corners are TL/TR/BR/BL after _order_tl_tr_br_bl.
+    # Edges: 0→1 = TL→TR (top), 1→2 = TR→BR (right), 2→3 = BR→BL (bottom),
+    # 3→0 = BL→TL (left).
+    sam_edges = []
+    for i in range(4):
+        p1 = coarse_corners[i]
+        p2 = coarse_corners[(i + 1) % 4]
+        sam_edges.append(np.array([p1[0], p1[1], p2[0], p2[1]], dtype=np.float64))
 
     def _ang_diff(a: float, b: float) -> float:
-        """Smallest abs angular distance between two angles in [0, 180)."""
         d = abs(a - b) % 180
         return min(d, 180 - d)
 
-    bins: dict[str, list[tuple[np.ndarray, float]]] = {
-        "top": [], "bottom": [], "left": [], "right": [],
+    def _midpt_perp_dist_to_line(L: np.ndarray, ref: np.ndarray) -> float:
+        """Perpendicular distance from midpoint of segment L to the infinite
+        line through ref's endpoints. ref = (x1, y1, x2, y2)."""
+        rx1, ry1, rx2, ry2 = ref
+        nx, ny = -(ry2 - ry1), (rx2 - rx1)
+        norm = float(np.hypot(nx, ny))
+        if norm < 1e-6:
+            return float("inf")
+        mid_x = 0.5 * (L[0] + L[2])
+        mid_y = 0.5 * (L[1] + L[3])
+        return abs((mid_x - rx1) * nx + (mid_y - ry1) * ny) / norm
+
+    buckets: dict[str, list[tuple[np.ndarray, float, float, float]]] = {
+        n: [] for n in edge_names
     }
     for L in lines:
-        ang = _line_angle_deg(L)
-        d = _line_perp_dist(L, centroid)
         contrast = _contrast_along_line(L, gray_blur)
         if contrast < EDGE_CONTRAST_MIN:
-            continue  # not a paper/table boundary
-        if _ang_diff(ang, angle_h_coarse) <= ORIENT_BIN_DEG:
-            (bins["top"] if d < 0 else bins["bottom"]).append((L, d))
-        elif _ang_diff(ang, angle_v_coarse) <= ORIENT_BIN_DEG:
-            (bins["left"] if d < 0 else bins["right"]).append((L, d))
-
-    # 5. For each bin, pick the OUTERMOST line (largest |d|).
-    sides: dict[str, np.ndarray | None] = {}
-    for name in ("top", "bottom", "left", "right"):
-        cands = bins[name]
-        if not cands:
-            sides[name] = None
             continue
-        sides[name] = max(cands, key=lambda t: abs(t[1]))[0]
+        line_ang = _line_angle_deg(L)
+        line_len = float(np.hypot(L[2] - L[0], L[3] - L[1]))
+        best_ei = -1
+        best_combined = float("inf")
+        best_dist = float("inf")
+        for ei, ref in enumerate(sam_edges):
+            ang_delta = _ang_diff(line_ang, _line_angle_deg(ref))
+            if ang_delta > SAM_PRIOR_ANGLE_DEG:
+                continue
+            d = _midpt_perp_dist_to_line(L, ref)
+            if d > SAM_PRIOR_DIST_PX:
+                continue
+            combined = d + 0.5 * ang_delta
+            if combined < best_combined:
+                best_combined = combined
+                best_dist = d
+                best_ei = ei
+        if best_ei < 0:
+            continue
+        buckets[edge_names[best_ei]].append((L, best_dist, line_len, contrast))
+
+    # 5. Per SAM-edge bucket: pick the line with the highest score (length
+    # rewarded, distance to SAM edge lightly penalised). If a bucket is
+    # empty, fall back to the SAM edge itself for that side — partial
+    # refinement is better than bailing the whole quad.
+    sides: dict[str, np.ndarray] = {}
+    fallback_to_sam: list[str] = []
+    for ei, name in enumerate(edge_names):
+        cands = buckets[name]
+        if not cands:
+            sides[name] = sam_edges[ei]
+            fallback_to_sam.append(name)
+            continue
+        best = max(cands, key=lambda t: t[2] / (1.0 + t[1]))
+        sides[name] = best[0].astype(np.float64)
 
     if debug_dir is not None:
         sides_viz = (frame_bgr.astype(np.float32) * 0.5).astype(np.uint8)
-        for name, color in (("top", (0, 0, 255)), ("bottom", (0, 255, 0)),
-                            ("left", (255, 0, 0)), ("right", (0, 255, 255))):
-            for L, _d in bins[name]:
+        for ei, (name, color) in enumerate((
+            ("top", (0, 0, 255)), ("right", (0, 255, 255)),
+            ("bottom", (0, 255, 0)), ("left", (255, 0, 0)),
+        )):
+            # Thin: all SAM-prior-passing candidates
+            for L, _d, _ll, _c in buckets[name]:
                 x1, y1, x2, y2 = [int(v) for v in L]
                 cv2.line(sides_viz, (x1, y1), (x2, y2), color, 1, cv2.LINE_AA)
-            if sides[name] is not None:
-                x1, y1, x2, y2 = [int(v) for v in sides[name]]
-                cv2.line(sides_viz, (x1, y1), (x2, y2), color, 3, cv2.LINE_AA)
+            # Thick: the selected line for this side
+            x1, y1, x2, y2 = [int(v) for v in sides[name]]
+            cv2.line(sides_viz, (x1, y1), (x2, y2), color, 3, cv2.LINE_AA)
         cv2.polylines(sides_viz, [coarse_corners.astype(np.int32)], True, (255, 255, 255), 1)
-        missing_now = [s for s in sides if sides[s] is None]
         cv2.imwrite(str(dbg / "04_oriented_lines_and_selected_sides.png"),
                     _draw_lines(sides_viz, [],
-                                label=f"04. lines per orientation (thin) + selected outermost "
-                                      f"(thick). red=top, green=bot, blue=left, yellow=right. "
-                                      f"missing={missing_now}"))
-    if any(sides[s] is None for s in sides):
-        if verbose:
-            missing = [s for s in sides if sides[s] is None]
-            print(f"[WARN] refine_paper_quad_missing_sides: expected=4 sides, "
-                  f"got_missing={missing}, fallback=None", flush=True)
-        return None
+                                label=f"04. SAM-prior inliers (thin) + selected per side (thick). "
+                                      f"red=top, yellow=right, green=bot, blue=left.  "
+                                      f"SAM_fallback={fallback_to_sam}"))
 
     # 6. Intersect adjacent sides → 4 corners.
     # Order: top∩left = TL, top∩right = TR, bottom∩right = BR, bottom∩left = BL
