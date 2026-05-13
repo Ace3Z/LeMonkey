@@ -321,14 +321,47 @@ SAM_BOX_FILL_MIN = 0.35    # SAM mask must cover ≥35% of the GDINO box area.
                            # A rotated paper rectangle inscribed in its
                            # axis-aligned bbox has fill = cos²(angle), so a
                            # 45° rotated paper gives 0.50; we accept down to
-                           # ~55° rotation to be safe. The original 0.50
-                           # threshold rejected ALL slightly-rotated papers
-                           # and fell back to Canny, which mis-locates the
-                           # rectangle (it picks edge-asymmetric contours).
-SAM_MULTIMASK = True       # pick largest of SAM's 3 candidates
+                           # ~55° rotation to be safe.
+SAM_IN_BOX_MIN = 0.95      # ≥95% of SAM mask pixels must lie inside the GDINO
+                           # box — i.e., spillover must be ≤5%. Filters polluted
+                           # "whole" candidates that grab paper+table or paper+
+                           # gripper.
+SAM_MULTIMASK = True       # request all 3 SAM candidates so we can rank them.
 
 def sam_box_to_mask(image_predictor, frame_bgr: np.ndarray, box) -> tuple[np.ndarray, float, int]:
-    """Return (boolean mask, box_fill_fraction, idx_of_chosen)."""
+    """Return (boolean mask, box_fill_fraction, idx_of_chosen).
+
+    v10: keeps SAM's 3-candidate "argmax(area)" ranking (which empirically
+    picks the paper-as-whole when the GDINO box is set to the paper —
+    SAM's candidates are nested whole/part/sub-part, so the largest valid
+    candidate IS the paper). Adds a new spillover gate (in_box_frac ≥
+    SAM_IN_BOX_MIN) to reject "whole" candidates that bleed into the
+    surrounding table — these were the F1 failure mode (defect #1 in the
+    2026-05-13 bottleneck diagnosis).
+
+    Why area-argmax and not iou_pred-argmax:
+      - SAM 2's pred_iou score rates mask *quality* (boundary sharpness,
+        coherence), NOT which candidate is "paper" vs "face within photo".
+        Empirically on swift_OLS_ep01 (smoke test 2026-05-13), iou-pred
+        argmax picked the face-content candidate over the paper
+        (verification dropped from cos=0.399 to cos=-0.058).
+      - SAM 1's AMG uses pred_iou_thresh=0.88 as a *filter*, then a
+        custom NMS — it doesn't rank candidates by score for instance
+        selection. We use the spillover gate analogously: filter, don't
+        re-rank.
+      - First principles: for a paper inscribed in a near-tight GDINO box,
+        paper_area ≈ box_area · cos²(rotation). The "face content"
+        candidate is intrinsically smaller. Largest-passing-spillover =
+        paper, never face-content.
+
+    Sources for the spillover gate:
+      - facebookresearch/segment-anything automatic_mask_generator.py
+        (stability_score_thresh=0.95 — analogous quality filter)
+      - IDEA-Research/Grounded-SAM-2 grounded_sam2_local_demo.py
+        (uses multimask_output=False to skip selection entirely)
+      - First-principles: in_box_frac = mask∩box / mask_total quantifies
+        how much SAM "leaked" outside the box; ≥0.95 = ≤5% leak.
+    """
     image_predictor.set_image(cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2RGB))
     masks, scores, _ = image_predictor.predict(
         box=np.array(box[:4], dtype=np.float32),
@@ -336,20 +369,40 @@ def sam_box_to_mask(image_predictor, frame_bgr: np.ndarray, box) -> tuple[np.nda
     )
     if masks.ndim == 2:
         masks = masks[None, ...]
+    scores = np.asarray(scores).ravel()
     x0, y0, x1, y1 = [int(v) for v in box[:4]]
     box_area = max(1, (x1 - x0) * (y1 - y0))
-    # For each candidate, count pixels inside the GDINO box (SAM may bleed
-    # outside on textured tables; we want the IN-BOX coverage of the paper).
-    coverages = []
     H_img, W_img = frame_bgr.shape[:2]
     x0c, y0c = max(0, x0), max(0, y0)
     x1c, y1c = min(W_img, x1), min(H_img, y1)
+
+    in_box_counts, fills, in_box_fracs = [], [], []
     for m in masks:
-        in_box = m[y0c:y1c, x0c:x1c].sum()
-        coverages.append(in_box)
-    idx = int(np.argmax(coverages))
-    fill = coverages[idx] / box_area
-    return masks[idx].astype(bool), float(fill), idx
+        in_box = int(m[y0c:y1c, x0c:x1c].sum())
+        total = int(m.sum())
+        in_box_counts.append(in_box)
+        fills.append(in_box / box_area)
+        in_box_fracs.append(in_box / max(total, 1))
+    in_box_arr = np.asarray(in_box_fracs, dtype=np.float32)
+    fills_arr = np.asarray(fills, dtype=np.float32)
+    counts_arr = np.asarray(in_box_counts, dtype=np.int64)
+
+    valid = (fills_arr >= SAM_BOX_FILL_MIN) & (in_box_arr >= SAM_IN_BOX_MIN)
+    if valid.any():
+        cand = np.where(valid)[0]
+        idx = int(cand[np.argmax(counts_arr[cand])])  # largest among non-spilled
+    else:
+        idx = int(np.argmax(counts_arr))  # largest overall (legacy behaviour)
+        print(
+            f"[WARN] sam_no_valid_candidate: expected=fill>={SAM_BOX_FILL_MIN} "
+            f"AND in_box_frac>={SAM_IN_BOX_MIN}, "
+            f"got=fills={fills_arr.round(2).tolist()} "
+            f"in_box={in_box_arr.round(2).tolist()} "
+            f"scores={scores.round(3).tolist()}, "
+            f"fallback=argmax_area(idx={idx})",
+            flush=True,
+        )
+    return masks[idx].astype(bool), float(fills_arr[idx]), idx
 
 
 def find_paper_quadrilateral_canny(frame_bgr: np.ndarray, box, pad: int = 12) -> np.ndarray | None:
@@ -476,7 +529,15 @@ def mask_to_corners_and_filled_rect(
     filled_rect_mask is the minAreaRect of the input mask FILLED — i.e.
     rectangular by construction. The filled-rect mask is what M_0 should be:
     we want the augmented photo to fill the FULL paper rectangle, not just
-    whatever SAM happened to segment."""
+    whatever SAM happened to segment.
+
+    NOTE (2026-05-13 bottleneck diagnosis, defect #3): minAreaRect inherits
+    SAM-mask noise. A morph-open here was tried (v10 first attempt) but did
+    not help on the dominant failure case (swift_OLS_ep01) because that
+    case's oversizing is upstream of SAM — a too-generous GroundingDINO
+    box that SAM faithfully fills. The right fix is a classical sub-pixel
+    rectangle refit constrained to the paper boundary (planned next).
+    """
     contours, _ = cv2.findContours(mask.astype(np.uint8), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     if not contours: return None, None
     c = max(contours, key=cv2.contourArea)
