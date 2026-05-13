@@ -33,8 +33,15 @@ def find_src_video(variant_dir: Path) -> Path | None:
         return None
     aug = json.loads(aug_path.read_text())
     src = aug["src_episode"]
-    for root in [Path.home() / "LeMonkey/datasets/eval3_quick",
-                 Path.home() / "LeMonkey/datasets/eval3"]:
+    candidates: list[Path] = []
+    here = Path(__file__).resolve()
+    for parent in here.parents:
+        if parent.name == "LeMonkey" and (parent / "datasets").exists():
+            candidates += [parent / "datasets/eval3_quick", parent / "datasets/eval3"]
+            break
+    candidates += [Path.home() / "LeMonkey/datasets/eval3_quick",
+                   Path.home() / "LeMonkey/datasets/eval3"]
+    for root in candidates:
         if (root / src).is_dir():
             return find_video(root / src)
     return None
@@ -86,14 +93,14 @@ def make_compare(variant_dir: Path, *, fps: int | None = None) -> dict:
             for i, f in enumerate(bgr_frames):
                 cv2.imwrite(str(tdp / f"f{i:04d}.png"), f)
             subprocess.run([
-                "ffmpeg", "-y", "-loglevel", "error",
+                "ffmpeg", "-nostdin", "-y", "-loglevel", "error",
                 "-framerate", str(fps),
                 "-i", str(tdp / "f%04d.png"),
                 "-c:v", "libx264", "-crf", "20", "-preset", "medium",
                 "-pix_fmt", "yuv420p",
                 "-movflags", "+faststart",
                 str(out_mp4),
-            ], check=True)
+            ], check=True, stdin=subprocess.DEVNULL)
     out_png = variant_dir / "dbg_compare_3frames.png"
     if static_3:
         cv2.imwrite(str(out_png), cv2.vconcat(static_3))

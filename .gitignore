@@ -27,6 +27,9 @@ wandb/
 *.pt
 *.safetensors
 
+# Third-party deps installed locally (sam2 is cloned + checkpoint downloaded per machine)
+third_party/sam2/
+
 # Datasets (typically hosted on HF Hub, not in git)
 data/
 datasets/

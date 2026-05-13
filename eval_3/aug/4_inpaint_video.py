@@ -92,6 +92,51 @@ def reinhard_lab(
     return cv2.cvtColor(np.clip(out_lab, 0, 255).astype(np.uint8), cv2.COLOR_LAB2BGR)
 
 
+_FACE_APP_CACHE: list = [None]
+def _get_face_app():
+    if _FACE_APP_CACHE[0] is None:
+        from insightface.app import FaceAnalysis
+        app = FaceAnalysis(name="buffalo_l", providers=["CPUExecutionProvider"])
+        app.prepare(ctx_id=0, det_size=(640, 640))
+        _FACE_APP_CACHE[0] = app
+    return _FACE_APP_CACHE[0]
+
+
+def face_centered_aspect_crop(photo: np.ndarray, target_aspect: float) -> np.ndarray:
+    """Crop `photo` to `target_aspect` (= width/height), centered on the
+    detected face if found else on the photo centre. This eliminates the
+    horizontal/vertical squish that homography warping would otherwise apply
+    when the source photo's native aspect differs from the destination
+    paper's aspect — important for face content, where a 28-35% horizontal
+    squish (measured on real samples) visibly elongates the head.
+
+    Preserves more of the relevant area than warp-stretching because the
+    crop is anchored to the face landmark rather than the geometric centre.
+    """
+    h, w = photo.shape[:2]
+    cur_aspect = w / h
+    if abs(cur_aspect - target_aspect) < 0.01:
+        return photo
+    face_app = _get_face_app()
+    faces = face_app.get(photo)
+    if faces:
+        f = max(faces, key=lambda x: (x.bbox[2] - x.bbox[0]) * (x.bbox[3] - x.bbox[1]))
+        fx = float((f.bbox[0] + f.bbox[2]) * 0.5)
+        fy = float((f.bbox[1] + f.bbox[3]) * 0.5)
+    else:
+        fx, fy = w * 0.5, h * 0.5
+        print(f"[WARN] face_crop_no_face: expected=face_detected_in_source, "
+              f"got=no_detection_({w}x{h}), fallback=photo_center_crop", flush=True)
+    if cur_aspect > target_aspect:
+        new_w = int(round(h * target_aspect))
+        x0 = max(0, min(int(round(fx - new_w / 2)), w - new_w))
+        return photo[:, x0:x0 + new_w]
+    else:
+        new_h = int(round(w / target_aspect))
+        y0 = max(0, min(int(round(fy - new_h / 2)), h - new_h))
+        return photo[y0:y0 + new_h, :]
+
+
 def replace_portrait(
     src_frame: np.ndarray,
     mask: np.ndarray,
@@ -318,7 +363,7 @@ def encode_video(frames_dir: Path, out_mp4: Path, fps: int) -> None:
     out_mp4.parent.mkdir(parents=True, exist_ok=True)
     # Try NVENC first
     nvenc_cmd = [
-        "ffmpeg", "-y", "-loglevel", "error",
+        "ffmpeg", "-nostdin", "-y", "-loglevel", "error",
         "-framerate", str(fps),
         "-i", str(frames_dir / "f%06d.png"),
         "-c:v", "h264_nvenc", "-preset", "p5", "-rc", "vbr",
@@ -327,7 +372,7 @@ def encode_video(frames_dir: Path, out_mp4: Path, fps: int) -> None:
         str(out_mp4),
     ]
     libx264_cmd = [
-        "ffmpeg", "-y", "-loglevel", "error",
+        "ffmpeg", "-nostdin", "-y", "-loglevel", "error",
         "-framerate", str(fps),
         "-i", str(frames_dir / "f%06d.png"),
         "-c:v", "libx264", "-crf", "20", "-preset", "medium",
@@ -335,9 +380,9 @@ def encode_video(frames_dir: Path, out_mp4: Path, fps: int) -> None:
         str(out_mp4),
     ]
     try:
-        subprocess.run(nvenc_cmd, check=True)
+        subprocess.run(nvenc_cmd, check=True, stdin=subprocess.DEVNULL)
     except (subprocess.CalledProcessError, FileNotFoundError):
-        subprocess.run(libx264_cmd, check=True)
+        subprocess.run(libx264_cmd, check=True, stdin=subprocess.DEVNULL)
 
 
 # ─── Layout decoding ────────────────────────────────────────────────────────
@@ -389,20 +434,35 @@ def assign_celebs_to_portraits(
 
 
 # ─── Photo bank loading ─────────────────────────────────────────────────────
+def _is_color_photo(path: Path, min_mean_sat: float = 60.0) -> bool:
+    """True when `path` is a colour photo (not B&W / sepia / muted).
+    Uses mean saturation in HSV; B&W has near-zero saturation everywhere,
+    sepia 10-25, muted 25-55, clearly colour 60+. Threshold empirically
+    separates the categories in the eval3 photo bank (see saturation probe
+    2026-05-13)."""
+    img = cv2.imread(str(path), cv2.IMREAD_COLOR)
+    if img is None or img.ndim != 3 or img.shape[2] != 3:
+        return False
+    hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
+    return float(hsv[..., 1].mean()) >= min_mean_sat
+
+
 def load_photo_bank(
-    photo_bank_root: Path, *, portrait_only: bool = True,
+    photo_bank_root: Path, *, portrait_only: bool = True, color_only: bool = True,
 ) -> dict[str, list[Path]]:
-    """When portrait_only=True (default), drop photos whose width > height.
-    Pasting a landscape photo into a typically-portrait paper region stretches
-    the face horizontally; filtering to portrait-source removes that artifact."""
+    """Load celeb→[photo paths] mapping with two filters:
+    - portrait_only=True: drop photos whose width >= height (landscape stretches
+      faces horizontally when pasted into typically-portrait paper regions).
+    - color_only=True: drop B&W / sepia photos (jarring style mismatch when
+      pasted next to color printed portraits — see eval3 dbg_compare F2)."""
     from PIL import Image
     bank: dict[str, list[Path]] = {}
-    dropped = {}
+    dropped_portrait: dict[str, int] = {}
+    dropped_color: dict[str, int] = {}
     for d in photo_bank_root.iterdir():
         if not (d.is_dir() and not d.name.startswith("_")):
             continue
         kept = []
-        n_drop = 0
         for p in sorted(d.iterdir()):
             if p.suffix.lower() not in {".jpg", ".jpeg", ".png"} or p.name.startswith("__"):
                 continue
@@ -413,14 +473,18 @@ def load_photo_bank(
                 except Exception:
                     continue
                 if w >= h:                              # landscape OR square → drop
-                    n_drop += 1; continue
+                    dropped_portrait[d.name] = dropped_portrait.get(d.name, 0) + 1
+                    continue
+            if color_only and not _is_color_photo(p):
+                dropped_color[d.name] = dropped_color.get(d.name, 0) + 1
+                continue
             kept.append(p)
         if kept:
             bank[d.name] = kept
-            if n_drop > 0:
-                dropped[d.name] = n_drop
-    if portrait_only and dropped:
-        print(f"  portrait-only filter dropped: {dropped}", flush=True)
+    if portrait_only and dropped_portrait:
+        print(f"  portrait-only filter dropped: {dropped_portrait}", flush=True)
+    if color_only and dropped_color:
+        print(f"  color-only filter dropped:    {dropped_color}", flush=True)
     return bank
 
 
@@ -662,6 +726,13 @@ def process_episode(
                 img = cv2.imread(str(p), cv2.IMREAD_COLOR)
                 if img is None:
                     raise RuntimeError(f"cannot read {p}")
+                # v9.6: face-centered crop to paper aspect — eliminates the
+                # warp's 20-35% face stretch when photo aspect ≠ paper aspect.
+                pts = np.asarray(corners_data["portraits"][pid]["0"]["corners"], dtype=np.float32)
+                paper_top = float(np.linalg.norm(pts[1] - pts[0]))
+                paper_left = float(np.linalg.norm(pts[3] - pts[0]))
+                target_aspect = paper_top / max(paper_left, 1e-6)
+                img = face_centered_aspect_crop(img, target_aspect)
                 pid_photos[pid] = img
 
             n_written = render_variant(

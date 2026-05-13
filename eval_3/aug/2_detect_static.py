@@ -405,17 +405,68 @@ def box_to_axis_aligned_corners(box) -> np.ndarray:
 
 
 # ─── Mask → ordered 4-corner quadrilateral ───────────────────────────────────
+def _reorder_corners_face_aware(box4x2: np.ndarray, face_center) -> np.ndarray:
+    """Re-anchor adjacency-preserving 4-corner output so TL→TR is the SHORT
+    edge nearer the face. Robust at all paper tilts (the geometric
+    midpoint-y heuristic in `_order_tl_tr_br_bl` flips at θ ≈ atan(H/W)
+    for non-square papers, putting the LONG edge into TL→TR and triggering
+    auto-rotate to spin the photo 90° → sideways face).
+
+    Inputs:
+        box4x2      : (4,2) adjacency-preserving corners (e.g. from
+                      _order_tl_tr_br_bl or directly cv2.boxPoints)
+        face_center : (fx, fy) in the same image-frame coords as box4x2
+    """
+    pts = np.asarray(box4x2, dtype=np.float32).copy()
+    if pts.shape != (4, 2):
+        raise ValueError(f"_reorder_corners_face_aware: expected (4,2), got {pts.shape}")
+    fc = np.asarray(face_center, dtype=np.float32).reshape(2)
+    nxt = np.roll(pts, -1, axis=0)
+    edge_lens = np.linalg.norm(nxt - pts, axis=1)
+    edge_mids = (pts + nxt) * 0.5
+    short_len = float(edge_lens.min())
+    short_mask = edge_lens <= short_len * 1.01
+    short_idx = np.where(short_mask)[0]
+    dists = np.linalg.norm(edge_mids[short_idx] - fc, axis=1)
+    top_edge_idx = int(short_idx[int(np.argmin(dists))])
+    e0, e1 = pts[top_edge_idx], nxt[top_edge_idx]
+    tl_idx = top_edge_idx if e0[0] <= e1[0] else (top_edge_idx + 1) % 4
+    rolled = np.roll(pts, -tl_idx, axis=0)
+    x, y = rolled[:, 0], rolled[:, 1]
+    if float(np.sum(x * np.roll(y, -1) - np.roll(x, -1) * y)) < 0:
+        rolled = rolled[[0, 3, 2, 1]]
+    return rolled.astype(np.float32)
+
+
 def _order_tl_tr_br_bl(box4x2: np.ndarray) -> np.ndarray:
-    centroid = box4x2.mean(0)
-    ang = np.arctan2(box4x2[:, 1] - centroid[1], box4x2[:, 0] - centroid[0])
-    out = np.zeros((4, 2), dtype=np.float32)
-    used = [False] * 4
-    for ideal, slot in [(-np.pi*3/4, 0), (-np.pi/4, 1), (np.pi/4, 2), (np.pi*3/4, 3)]:
-        d = np.abs(np.arctan2(np.sin(ang - ideal), np.cos(ang - ideal)))
-        for idx in np.argsort(d):
-            if not used[idx]:
-                out[slot] = box4x2[idx]; used[idx] = True; break
-    return out
+    """Reorder 4 corners (adjacency-preserving input, e.g. cv2.boxPoints)
+    into TL, TR, BR, BL traversal in image coords (y grows down).
+
+    Old impl used ideal angles ±45°/±135° from centroid; for papers tilted
+    near 45° the four corners sit at the cardinals (0°/±90°/180°), and the
+    greedy nearest-ideal match put diagonally-opposite corners into
+    adjacent slots — producing a self-intersecting (bowtie) polygon. Warp
+    into a bowtie quadrilateral renders as two solid triangles meeting at
+    the center (Obama-as-black-diamond bug, 2026-05-11).
+
+    Fix: pick the actual "top" edge as the one with smallest midpoint y,
+    then TL is its left endpoint. Adjacency comes for free from
+    cv2.boxPoints; we just rotate to start at TL and flip if traversal is
+    CCW in image coords."""
+    pts = np.asarray(box4x2, dtype=np.float32).copy()
+    if pts.shape != (4, 2):
+        raise ValueError(f"_order_tl_tr_br_bl: expected (4,2), got {pts.shape}")
+    nxt = np.roll(pts, -1, axis=0)
+    edge_mid_y = (pts[:, 1] + nxt[:, 1]) * 0.5
+    top_edge_idx = int(np.argmin(edge_mid_y))
+    e0, e1 = pts[top_edge_idx], nxt[top_edge_idx]
+    tl_idx = top_edge_idx if e0[0] <= e1[0] else (top_edge_idx + 1) % 4
+    rolled = np.roll(pts, -tl_idx, axis=0)
+    x, y = rolled[:, 0], rolled[:, 1]
+    signed_area_2 = float(np.sum(x * np.roll(y, -1) - np.roll(x, -1) * y))
+    if signed_area_2 < 0:
+        rolled = rolled[[0, 3, 2, 1]]
+    return rolled.astype(np.float32)
 
 
 def mask_to_corners_and_filled_rect(
@@ -512,14 +563,17 @@ def identify_portraits(face_app, frame_bgr: np.ndarray, corners_per_pid: dict[in
     for pid in (0, 1, 2):
         corners = corners_per_pid[pid].astype(np.float32)
         found = False; best = "?"; best_s = 0.0; all_scores = {}
+        face_center = None
         for cx, cy, emb in centres:
             if cv2.pointPolygonTest(corners, (cx, cy), False) >= 0:
                 all_scores = {c: float(emb @ p) for c, p in protos.items()}
                 best = max(all_scores, key=all_scores.get)
                 best_s = all_scores[best]
                 found = True
+                face_center = (cx, cy)
                 break
-        out.append({"best": best, "score": best_s, "all_scores": all_scores, "found": found})
+        out.append({"best": best, "score": best_s, "all_scores": all_scores,
+                    "found": found, "face_center": face_center})
     return out
 
 
@@ -777,6 +831,22 @@ def process_episode(
                 "error": f"ArcFace unreliable ({list(zip(arcface_celebs, arcface_cosines))}) "
                          f"and no layout sidecar"}
 
+    # 3b. Face-aware corner re-anchoring. The detected face's centre is the
+    # only ground-truth signal for "which short edge of the paper is the
+    # top of the photo". Without it, the geometric heuristic flips above
+    # ~atan(H/W) ≈ 56° of tilt, which sends auto-rotate into a 90° photo
+    # spin and the augmented face ends up sideways.
+    n_reanchored = 0
+    for pid in range(3):
+        fc = id_results[pid].get("face_center")
+        if fc is None:
+            print(f"[WARN] face_center_missing pid={pid}: expected=face_inside_polygon, "
+                  f"got=None, fallback=keep_geometric_TL", flush=True)
+            continue
+        initial_corners[pid] = _reorder_corners_face_aware(initial_corners[pid], fc)
+        n_reanchored += 1
+    print(f"    face-aware corner reorder applied to {n_reanchored}/3 portraits.")
+
     # 4. Persist seeds
     seeds_data = {
         "points": [[int(box_centres[pid_order[pid]][0]), int(box_centres[pid_order[pid]][1])]
@@ -914,7 +984,12 @@ def process_episode(
     corners_data = {
         "video_shape": [H, W],
         "n_frames": n_frames,
-        "pipeline_version": "v8.1_grounded_sam2_shadow_rescue",
+        "pipeline_version": "v9.5_face_aware_corner_anchor",
+        "face_centers": {
+            str(pid): list(id_results[pid]["face_center"])
+                       if id_results[pid].get("face_center") is not None else None
+            for pid in range(3)
+        },
         "portraits": {
             str(pid): {
                 str(fi): {

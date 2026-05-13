@@ -47,6 +47,7 @@ import importlib.util as _ilu
 _spec = _ilu.spec_from_file_location("_video_io", str(Path(__file__).resolve().parent / "_video_io.py"))
 _vio = _ilu.module_from_spec(_spec); _spec.loader.exec_module(_vio)
 ensure_h264 = _vio.ensure_h264
+resolve_lemonkey_path = _vio.resolve_lemonkey_path
 
 try:
     from insightface.app import FaceAnalysis
@@ -152,6 +153,7 @@ def verify_variant(
     ref_photo_path = augmentation.get("reference_photo") or sidecar.get("reference_photo")
     if not ref_photo_path:
         return {"variant": variant_dir.name, "error": "no reference_photo in augmentation/sidecar"}
+    ref_photo_path = str(resolve_lemonkey_path(ref_photo_path))
     ref_img = cv2.imread(ref_photo_path, cv2.IMREAD_COLOR)
     if ref_img is None:
         return {"variant": variant_dir.name, "error": f"cannot read reference_photo at {ref_photo_path}"}

@@ -25,12 +25,60 @@ Usage:
 """
 from __future__ import annotations
 
+import os
 import shutil
 import subprocess
 from pathlib import Path
 
 import cv2
 import numpy as np
+
+
+_LEGACY_DATASET_PREFIX = "/home/lemonkey/LeMonkey"
+
+
+def _local_lemonkey_root() -> Path | None:
+    here = Path(__file__).resolve()
+    for parent in here.parents:
+        if parent.name == "LeMonkey" and (parent / "datasets").exists():
+            return parent
+    return None
+
+
+_LOCAL_ROOT_CACHE: list = []
+_REMAP_LOGGED: set = set()
+
+
+def resolve_lemonkey_path(p) -> Path:
+    """Rewrite a /home/lemonkey/LeMonkey/... path to its local equivalent when
+    running outside Thor. No-op if the path exists, doesn't start with the
+    legacy prefix, or no local LeMonkey root is detectable.
+
+    Override the auto-detected root by setting the LEMONKEY_ROOT env var.
+    Logs once per remapped path so the fallback is never silent.
+    """
+    p = Path(p)
+    if p.exists():
+        return p
+    s = str(p)
+    if not s.startswith(_LEGACY_DATASET_PREFIX + "/"):
+        return p
+
+    if not _LOCAL_ROOT_CACHE:
+        env = os.environ.get("LEMONKEY_ROOT")
+        _LOCAL_ROOT_CACHE.append(Path(env) if env else _local_lemonkey_root())
+    root = _LOCAL_ROOT_CACHE[0]
+    if root is None:
+        return p
+
+    rewritten = root / s[len(_LEGACY_DATASET_PREFIX) + 1 :]
+    if str(rewritten) not in _REMAP_LOGGED:
+        _REMAP_LOGGED.add(str(rewritten))
+        print(
+            f"[WARN] path_remap: expected={p}, got=not-found, fallback={rewritten}",
+            flush=True,
+        )
+    return rewritten
 
 
 def _is_h264_or_decodable(video_path: Path) -> bool:
@@ -70,14 +118,18 @@ def ensure_h264(video_path: Path | str, *, force: bool = False) -> Path:
 
     print(f"[_video_io] transcoding AV1 → H.264 (one-time): {video_path.name}", flush=True)
     cmd = [
-        "ffmpeg", "-y", "-loglevel", "error",
+        "ffmpeg", "-nostdin", "-y", "-loglevel", "error",
         "-i", str(video_path),
         "-c:v", "libx264", "-crf", "18", "-preset", "fast",
         "-pix_fmt", "yuv420p",
         "-an",                                   # drop audio (LeRobot videos have none)
         str(sidecar),
     ]
-    rc = subprocess.run(cmd, check=False)
+    # `-nostdin` is critical when this runs inside a bash while-read loop:
+    # without it, ffmpeg consumes characters from the parent shell's stdin,
+    # corrupting the next iteration's input AND can return non-zero on the
+    # garbage. Diagnosed 2026-05-12 during the 60-sample batch.
+    rc = subprocess.run(cmd, check=False, stdin=subprocess.DEVNULL)
     if rc.returncode != 0 or not sidecar.is_file():
         raise RuntimeError(f"ffmpeg transcode failed for {video_path}")
     return sidecar
@@ -140,12 +192,12 @@ def ensure_frame_dir(video_path: Path | str, *, force: bool = False) -> Path:
     # ffmpeg has libdav1d so it handles AV1 directly, no need to transcode first.
     print(f"[_video_io] extracting frames → {frames_dir.name}/ (one-time)", flush=True)
     cmd = [
-        "ffmpeg", "-y", "-loglevel", "error",
+        "ffmpeg", "-nostdin", "-y", "-loglevel", "error",
         "-i", str(video_path),
         "-q:v", "2",                              # high-quality JPEG
         str(frames_dir / "%05d.jpg"),
     ]
-    rc = subprocess.run(cmd, check=False)
+    rc = subprocess.run(cmd, check=False, stdin=subprocess.DEVNULL)
     if rc.returncode != 0:
         raise RuntimeError(f"ffmpeg frame extraction failed for {video_path}")
     sentinel.touch()

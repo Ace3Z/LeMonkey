@@ -1,12 +1,18 @@
 #!/bin/bash
 # Guided teleop recording session for Eval 3.
 #
-# Research-validated plan (cross-checked against 6+ sources, see RESEARCH below):
-#   3 celebs × 3 can positions (LEFT/MIDDLE/RIGHT) × 17 episodes = 153 demos
-#   ~26 min recording per celeb × 3 = ~78 min total + setup/breaks ≈ 2 hr
+# Plan (operator's revised design — 2026-05-11):
+#   3 target celebs × 3 PHOTO LAYOUTS × 20 episodes = 180 demos
+#   Each target rotates through Left / Middle / Right physical positions
+#   via 3 distinct photo arrangements. The other two celebs fill the
+#   remaining slots in a consistent secondary order.
 #
-# Math: 17 episodes/position × 3 positions = 51 demos/celeb (matches the
-#   LeRobot SmolVLA 50-demo/task published floor).
+# Can position: NOT prescribed — the operator places the coke can freely
+# per episode for additional implicit diversity. We rely on operator
+# instinct to vary it across the 20 episodes within each layout-batch.
+#
+# Augmentation (later, in eval_3/aug/) handles the rest of the diversity
+# (photo content, lighting noise, etc.).
 #
 # RESEARCH SOURCES (all 3 agents converged on this plan):
 #   • LeRobot SmolVLA docs        — 50/task floor
@@ -40,19 +46,31 @@ set -euo pipefail
 
 # ────────────── CONFIG ──────────────
 ROOT_DEFAULT="$HOME/LeMonkey/datasets/eval3"
-EPISODES_PER_POSITION=17       # 17 × 3 positions = 51/celeb (matches LeRobot 50/task floor)
-EPISODE_TIME_S=20
+EPISODE_TIME_S=18
 RESET_TIME_S=10
-LAYOUT="SOL"                   # Swift–Obama–LeCun left→right (printed-photo physical order)
 TARGETS=(swift obama lecun)
-POSITIONS=(
-  "LEFT    — leftmost third of the workspace, IN FRONT of the camera"
-  "MIDDLE  — center of the workspace, IN FRONT of the camera"
-  "RIGHT   — rightmost third of the workspace, IN FRONT of the camera"
-)
-POSITION_KEYS=("L" "M" "R")
-TOTAL_EPISODES=$(( EPISODES_PER_POSITION * ${#POSITIONS[@]} * ${#TARGETS[@]} ))
-EPISODES_PER_CELEB=$(( EPISODES_PER_POSITION * ${#POSITIONS[@]} ))
+# Per-target physical printed-photo inventory (taken from the operator's desk):
+#   swift: 5 photos × 4 eps each =  20 eps / batch
+#   obama: 4 photos × 5 eps each =  20 eps / batch
+#   lecun: 5 photos × 4 eps each =  20 eps / batch
+# All targets land at exactly 20 eps per (target × layout) batch.
+declare -A PHOTOS_PER_TARGET=( [swift]=5 [obama]=4 [lecun]=5 )
+declare -A EPS_PER_PHOTO_FOR=( [swift]=4 [obama]=5 [lecun]=4 )
+EPISODES_PER_BATCH=20            # invariant — every target hits this
+
+# Per-target layouts that rotate the TARGET through L → M → R positions.
+# Layout string is 3 letters from {S,O,L} reading the photos left → middle → right
+# as the operator faces the table.
+declare -A LAYOUTS_FOR
+LAYOUTS_FOR[swift]="SOL OSL OLS"   # Swift at L (SOL), M (OSL), R (OLS)
+LAYOUTS_FOR[obama]="OSL SOL SLO"   # Obama at L (OSL), M (SOL), R (SLO)
+LAYOUTS_FOR[lecun]="LSO SLO SOL"   # LeCun at L (LSO), M (SLO), R (SOL)
+N_LAYOUTS_PER_TARGET=3
+TOTAL_EPISODES=$(( EPISODES_PER_BATCH * N_LAYOUTS_PER_TARGET * ${#TARGETS[@]} ))
+EPISODES_PER_CELEB=$(( EPISODES_PER_BATCH * N_LAYOUTS_PER_TARGET ))
+
+# Map layout-letter → celeb name for the human-readable instruction
+declare -A LETTER_TO_CELEB=( [S]="SWIFT" [O]="OBAMA" [L]="LECUN" )
 
 ROOT="${1:-$ROOT_DEFAULT}"
 mkdir -p "$ROOT"
@@ -62,7 +80,7 @@ echo
 echo "════════════════════════════════════════════════════════════"
 echo "  EVAL 3 GUIDED TELEOP RECORDING"
 echo "  Output: $ROOT"
-echo "  Plan: 3 celebs × 3 positions × $EPISODES_PER_POSITION episodes = $TOTAL_EPISODES demos"
+echo "  Plan: 3 celebs × 3 layouts × $EPISODES_PER_BATCH episodes = $TOTAL_EPISODES demos"
 echo "        ($EPISODES_PER_CELEB demos per celeb — matches LeRobot 50/task floor)"
 echo "════════════════════════════════════════════════════════════"
 echo
@@ -140,7 +158,7 @@ echo
 
 # ────────────── STATIC SETUP INSTRUCTIONS ──────────────
 cat <<'BANNER'
-[2/5] STATIC SETUP — do this ONCE, then DO NOT change for the whole session.
+[2/5] STATIC SETUP — done ONCE before the session starts.
 ─────────────────────────────────────────────────────────────────────────────
 
   Camera is mounted on the ARM and looks IN FRONT of it (toward workspace).
@@ -175,30 +193,25 @@ cat <<'BANNER'
 ✓ Close blinds; lighting locked.
 ✓ Coca-Cola can is the same can throughout.
 
-3 CAN STARTING POSITIONS (rotate through them per phase):
-BANNER
-for i in 0 1 2; do
-  echo "   ${POSITION_KEYS[$i]}: ${POSITIONS[$i]}"
-done
-cat <<'BANNER'
-
-  All can positions are IN FRONT of the photo row (between photos and operator).
-
-WHEN THINGS CHANGE during the session — the script will tell you:
-   • PHOTOS                  → place ONCE at start, then NEVER move them
-   • CAN POSITION            → script prompts you between every 17-episode batch
-                                (3 batches per celeb = 3 position changes/celeb)
-   • TARGET CELEB / PROMPT   → script prompts you between every 51-episode phase
-                                (2 phase changes total: Swift→Obama, Obama→LeCun)
+WHEN THINGS CHANGE during the session:
+   • PHOTO LAYOUT         → script prompts you to physically rearrange the
+                             3 photos between every 20-episode batch.
+                             3 layouts per target celeb × 3 target celebs
+                             = 9 layout changes total over the session.
+   • TARGET CELEB         → script prompts you between every 60-episode phase
+                             (Swift → Obama → LeCun).
+   • CAN POSITION         → YOU decide per episode. Vary it freely.
    • CAMERA / LIGHTING / GRIPPER / TABLE / ROBOT HOME → never (locked)
 
-WHY THIS LAYOUT (cross-checked sources):
-   • Position diversity > demo count   — Lin et al. ICLR 2025
-   • Camera locked                     — Pumacay #1 fragility axis (-45.9 pp)
-   • Lighting locked                   — Pumacay #4 axis, cheap to control
-   • Photos portrait-oriented          — v9.4 auto-rotate handles mismatch
-                                          but portrait input is cleaner
-   • 3 positions × 17 eps = 51/celeb   — matches the LeRobot 50/task floor
+LAYOUT NOTATION:
+   3-letter code reading photos LEFT → MIDDLE → RIGHT in the camera view.
+   S = Swift, O = Obama, L = LeCun.
+   e.g.  "OSL" means: Obama on the LEFT, Swift in the MIDDLE, LeCun on the RIGHT.
+
+THE 9 LAYOUTS (3 per target):
+   target=swift:  SOL  (Swift L)   OSL  (Swift M)   OLS  (Swift R)
+   target=obama:  OSL  (Obama L)   SOL  (Obama M)   SLO  (Obama R)
+   target=lecun:  LSO  (LeCun L)   SLO  (LeCun M)   SOL  (LeCun R)
 
 Press ENTER when the static setup is done (or Ctrl-C to abort).
 BANNER
@@ -216,33 +229,58 @@ phase_num=0
 for celeb in "${TARGETS[@]}"; do
   phase_num=$((phase_num + 1))
   ref_photo=$(ls -1 "$BANK/$celeb"/*.jpg 2>/dev/null | head -1)
+  read -ra layouts_for_celeb <<< "${LAYOUTS_FOR[$celeb]}"
 
   echo
   echo "═══════════════════════════════════════════════════════════════"
-  echo "  PHASE $phase_num / ${#TARGETS[@]} — change TARGET CELEB to: $celeb"
+  echo "  PHASE $phase_num / ${#TARGETS[@]} — TARGET CELEB = $celeb"
   echo "  Prompt sent to policy: \"Place the coke on $celeb.\""
-  echo "  Will record 3 positions × $EPISODES_PER_POSITION episodes = $EPISODES_PER_CELEB demos"
+  echo "  Will record $N_LAYOUTS_PER_TARGET layouts × $EPISODES_PER_BATCH episodes = $EPISODES_PER_CELEB demos"
+  echo "  Layouts (target rotates L→M→R): ${layouts_for_celeb[*]}"
   echo "═══════════════════════════════════════════════════════════════"
   if (( phase_num > 1 )); then
-    echo "  NOTE: photos STAY in the same SOL layout from phase 1. Do not move them."
-    echo "        Only the TARGET (= which photo you should place the can on) changes."
     read -p "  Press ENTER when ready to start phase $phase_num (target = $celeb)... " _
   fi
 
+  n_photos_for_celeb=${PHOTOS_PER_TARGET[$celeb]}
+  eps_per_photo=${EPS_PER_PHOTO_FOR[$celeb]}
+  celeb_upper="${celeb^^}"
+
   for i in 0 1 2; do
-    pkey="${POSITION_KEYS[$i]}"
-    pdesc="${POSITIONS[$i]}"
+    layout="${layouts_for_celeb[$i]}"
+    L0="${layout:0:1}"; L1="${layout:1:1}"; L2="${layout:2:1}"
+    arrangement="${LETTER_TO_CELEB[$L0]} (LEFT)  |  ${LETTER_TO_CELEB[$L1]} (MIDDLE)  |  ${LETTER_TO_CELEB[$L2]} (RIGHT)"
     echo
-    echo "───────────────────────────────────────"
-    echo "  PHASE $phase_num — Position ${pkey} ($((i+1))/3): $pdesc"
-    echo "  Will record $EPISODES_PER_POSITION episodes here."
-    echo "───────────────────────────────────────"
-    echo "  ACTION: place the COCA-COLA CAN at position $pkey on the table."
-    echo "          (in front of the photos, $pdesc)"
-    echo "          DO NOT touch the photos or the camera."
-    echo "          Confirm the leader arm is in resting position."
-    read -p "  Press ENTER to start the $EPISODES_PER_POSITION-episode batch (or 'q' to quit)... " ans
+    echo "════════════════════════════════════════════════════════════════"
+    echo "  ⚠ CHANGE LAYOUT — PHASE $phase_num, Layout $((i+1))/$N_LAYOUTS_PER_TARGET = ${layout}"
+    echo "════════════════════════════════════════════════════════════════"
+    echo "  ⚠ Re-arrange ALL 3 photos so they read LEFT → MIDDLE → RIGHT as:"
+    echo "       $arrangement"
+    echo
+    echo "  This layout will record $EPISODES_PER_BATCH episodes total, split as:"
+    echo "       $n_photos_for_celeb physical $celeb_upper photos × $eps_per_photo episodes per photo"
+    echo "  You'll be prompted to swap the $celeb_upper photo $((n_photos_for_celeb - 1)) times within this layout."
+    echo "  (Other celebs' photos stay put for this layout.)"
+    echo "  Place the can wherever you want for each episode."
+    read -p "  Press ENTER once the layout is set (or 'q' to quit)... " ans
     if [[ "$ans" == "q" ]]; then echo "  quitting at user request"; exit 0; fi
+
+    # ────────── inner sub-loop: photo-swap sub-batches ──────────
+    for ((photo_idx = 1; photo_idx <= n_photos_for_celeb; photo_idx++)); do
+      echo
+      echo "──────────────────────────────────────────────"
+      echo "  ⚠ ${celeb_upper} PHOTO #${photo_idx}/${n_photos_for_celeb}  (Phase $phase_num, Layout $layout)"
+      echo "──────────────────────────────────────────────"
+      if (( photo_idx == 1 )); then
+        echo "  ⚠ Place the ${celeb_upper} photo labeled #${photo_idx} (e.g. ${celeb}_0${photo_idx}) in its slot."
+      else
+        echo "  ⚠⚠⚠  CHANGE THE ${celeb_upper} PHOTO TO #${photo_idx}  (e.g. ${celeb}_0${photo_idx})  ⚠⚠⚠"
+        echo "        Remove the previous ${celeb_upper} photo, place the next one in the SAME slot."
+      fi
+      echo "  Other two celebs' photos stay put. Camera/lighting/robot unchanged."
+      echo "  Recording $eps_per_photo episodes with this ${celeb_upper} photo."
+      read -p "  Press ENTER to start (or 'q' to quit)... " ans
+      if [[ "$ans" == "q" ]]; then echo "  quitting at user request"; exit 0; fi
 
     # Per-batch recorder loop with error recovery + manual delete option.
     # The Python recorder (record_eval3_quick.py) already supports an in-loop
@@ -251,19 +289,19 @@ for celeb in "${TARGETS[@]}"; do
     # motor lost power, USB hiccup) — we count what's actually on disk and
     # offer retry/skip/delete-partial.
     while true; do
-      n_before=$(ls -1d "$ROOT"/quick_${celeb}_${LAYOUT}_*/ 2>/dev/null | wc -l)
+      n_before=$(ls -1d "$ROOT"/quick_${celeb}_${layout}_*/ 2>/dev/null | wc -l) || n_before=0
       set +e
-      EVAL3_CAN_POSITION="$pkey" python "$RECORDER" \
+      python "$RECORDER" \
         --target "$celeb" \
-        --layout "$LAYOUT" \
+        --layout "$layout" \
         --reference-photo "$ref_photo" \
-        --num-episodes "$EPISODES_PER_POSITION" \
+        --num-episodes "$eps_per_photo" \
         --episode-time-s "$EPISODE_TIME_S" \
         --reset-time-s "$RESET_TIME_S" \
         --root "$ROOT"
       rc=$?
       set -e
-      n_after=$(ls -1d "$ROOT"/quick_${celeb}_${LAYOUT}_*/ 2>/dev/null | wc -l)
+      n_after=$(ls -1d "$ROOT"/quick_${celeb}_${layout}_*/ 2>/dev/null | wc -l) || n_after=0
       recorded_this_batch=$(( n_after - n_before ))
 
       if (( rc == 0 )); then
@@ -279,7 +317,7 @@ for celeb in "${TARGETS[@]}"; do
       echo
       echo "  ⚠ Recorder exited rc=$rc."
       echo "    Episodes completed this batch (saved to disk): $recorded_this_batch"
-      echo "    Episodes intended this batch: $EPISODES_PER_POSITION"
+      echo "    Episodes intended this batch: $EPISODES_PER_BATCH"
 
       # Identify the most-recent run dir — likely a partial if rc != 0.
       latest_dir=$(ls -1td "$ROOT"/quick_${celeb}_${LAYOUT}_*/ 2>/dev/null | head -1)
@@ -297,12 +335,12 @@ for celeb in "${TARGETS[@]}"; do
 
       cat <<MENU
 
-  ─── recovery menu (batch: $celeb / $pkey) ──────────────
-    r)  RETRY the entire $EPISODES_PER_POSITION-episode batch
+  ─── recovery menu (batch: $celeb / layout=$layout) ──────────────
+    r)  RETRY the entire $EPISODES_PER_BATCH-episode batch
         (will append new episode dirs — already-recorded $recorded_this_batch are kept)
     d)  DELETE the latest partial directory and RETRY
         partial detected: ${partial_dir:-none}
-    s)  SKIP this batch (move on; accept $recorded_this_batch < $EPISODES_PER_POSITION)
+    s)  SKIP this batch (move on; accept $recorded_this_batch < $EPISODES_PER_BATCH)
     p)  PAUSE — fix the issue (e.g. plug in arm power), then ENTER to retry
     q)  QUIT the recording session entirely
   ───────────────────────────────────────────────────────
@@ -330,7 +368,8 @@ MENU
           read -p "  → press ENTER to retry… " _
           continue ;;
       esac
-    done
+    done   # end of while-true retry loop
+    done   # end of for ((photo_idx)) sub-batch loop
   done
 
   echo
@@ -345,7 +384,7 @@ echo "  ✓ ALL DONE: $total_episodes_done demos recorded in ${elapsed}s"
 echo "═══════════════════════════════════════════════════════════════"
 echo
 echo "[4/5] Sanity check — listing recorded episodes…"
-n_actual=$(ls -1d "$ROOT"/quick_*/ 2>/dev/null | wc -l)
+n_actual=$(ls -1d "$ROOT"/quick_*/ 2>/dev/null | wc -l) || n_actual=0
 echo "  Found $n_actual episode dirs under $ROOT"
 if (( n_actual < TOTAL_EPISODES )); then
   echo "  ⚠ Less than $TOTAL_EPISODES — some episodes were skipped/deleted; that's OK if intentional."
