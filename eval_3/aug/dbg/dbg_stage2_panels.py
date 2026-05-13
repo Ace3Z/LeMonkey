@@ -259,13 +259,51 @@ def render_one(variant_dir: Path) -> dict:
         cv2.imwrite(str(out_p), portraits_img)
         cv2.imwrite(str(out_o), occ_img)
         vid_res = make_occluder_video(ep_dir, out_v)
+
+        # v10: surface every pipeline-trace debug PNG from the source episode
+        # into the variant dir so each augmentation output is a self-contained
+        # debugging bundle. CLAUDE.md §7 quality bar — every step visible.
+        copied = mirror_pipeline_debug(ep_dir, variant_dir)
         return {"variant": variant_dir.name,
                 "portraits": str(out_p),
                 "occluders_png": str(out_o),
-                "occluders_mp4": str(out_v) if vid_res.get("ok") else f"FAILED: {vid_res.get('error')}"}
+                "occluders_mp4": str(out_v) if vid_res.get("ok") else f"FAILED: {vid_res.get('error')}",
+                "mirrored_debug_files": copied}
     except Exception as e:
         traceback.print_exc()
         return {"variant": variant_dir.name, "error": f"{type(e).__name__}: {e}"}
+
+
+def mirror_pipeline_debug(ep_dir: Path, variant_dir: Path) -> list[str]:
+    """Copy every pipeline-trace debug PNG from the source episode dir into
+    `variant_dir`, so the variant becomes a self-contained debugging bundle.
+
+    Files mirrored:
+      - dbg_v7_midframe.png (M_0 + visible-paper overlay at clip midpoint)
+      - dbg_occluder_detections_frame0.png (GroundingDINO bboxes @ frame 0)
+      - dbg_occluder_detections_last_frame.png (GroundingDINO bboxes @ last)
+      - dbg_refit/pid{0,1,2}/0[1-5]_*.png (refit Canny+Hough+sides pipeline)
+    """
+    import shutil
+    copied: list[str] = []
+    for fname in (
+        "dbg_v7_midframe.png",
+        "dbg_occluder_detections_frame0.png",
+        "dbg_occluder_detections_last_frame.png",
+    ):
+        src = ep_dir / fname
+        if src.is_file():
+            dst = variant_dir / fname
+            shutil.copyfile(src, dst)
+            copied.append(fname)
+    src_refit = ep_dir / "dbg_refit"
+    if src_refit.is_dir():
+        dst_refit = variant_dir / "dbg_refit"
+        if dst_refit.exists():
+            shutil.rmtree(dst_refit)
+        shutil.copytree(src_refit, dst_refit)
+        copied.append("dbg_refit/")
+    return copied
 
 
 def main() -> int:
