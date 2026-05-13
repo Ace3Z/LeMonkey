@@ -116,6 +116,17 @@ EDGE_CONTRAST_MIN = 12.0    # Min grayscale Δ between the two sides of an
                             # edge. Real paper-table contrast ≥ 50 GL on
                             # clean frames, but shadowed/occluded segments
                             # can drop to ~20. Loosened from 25 to 12.
+QUAD_OUTSET_PX = 2.0        # v10d: after refit, push each corner ~2 px
+                            # radially outward (away from quad centroid).
+                            # Compensates for Canny edge thickness (1-2 px)
+                            # + cornerSubPix→fillConvexPoly int rounding
+                            # (~0.5 px) + JPEG block artifact at the paper
+                            # boundary (1-2 px). Without this outset, the
+                            # augmented photo sat 2-3 px inside the printed
+                            # paper edge and the outermost ring of the
+                            # original photo bled through (user-spotted
+                            # 2026-05-13: "some little parts of the original
+                            # photo show beneath the augmented photos").
 
 
 def _line_perp_dist(line: np.ndarray, pt: np.ndarray) -> float:
@@ -507,6 +518,24 @@ def refine_paper_quad_to_edges(
                   flush=True)
         return None
     iou = _quad_iou(coarse_corners, refined, (H, W))
+
+    # 9. Radial outset (v10d). Push each corner outward by QUAD_OUTSET_PX
+    # along its direction from the quad centroid. Compensates for the
+    # 2-3 px combined effect of Canny edge thickness + corner integer
+    # rounding + JPEG block artifacts. Without it, the augmented photo
+    # sits inside the printed paper boundary and the original photo's
+    # outermost ring leaks through.
+    if QUAD_OUTSET_PX > 0:
+        centroid_r = refined.mean(axis=0)
+        deltas = refined - centroid_r
+        norms = np.linalg.norm(deltas, axis=1, keepdims=True)
+        unit = deltas / np.maximum(norms, 1e-6)
+        refined_outset = (refined + unit * QUAD_OUTSET_PX).astype(np.float32)
+        # Keep within frame bounds — fillConvexPoly tolerates off-image
+        # vertices but the inpaint pipeline's warpPerspective doesn't.
+        refined_outset[:, 0] = np.clip(refined_outset[:, 0], 0.0, W - 1.0)
+        refined_outset[:, 1] = np.clip(refined_outset[:, 1], 0.0, H - 1.0)
+        refined = refined_outset
 
     if debug_dir is not None:
         final_viz = frame_bgr.copy()
