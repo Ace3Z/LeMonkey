@@ -105,7 +105,17 @@ PHOTO_BANK_DEFAULT = Path("/home/lemonkey/LeMonkey/datasets/eval3_celebs/web")
 # centers inside a paper mask at frame 0 before the can has been placed,
 # it's a false positive).
 OCCLUDER_TEXT_PROMPTS = ["robot gripper", "coca cola can", "human hand"]
-OCCLUDER_BOX_SCORE_MIN = 0.20
+OCCLUDER_BOX_SCORE_MIN = 0.40    # v10b: raised from 0.20 → 0.40. The 0.20
+                                  # default let through 0.27-confidence "human"
+                                  # detections that GroundingDINO was firing
+                                  # diffusely on celebrity photos in frame.
+                                  # 0.40 matches the IDEA-Research/GroundingDINO
+                                  # official BOX_THRESHOLD default (0.35) with
+                                  # a small margin. Legit gripper/can detections
+                                  # score 0.70–0.80 so they're well above.
+                                  # Verified visually 2026-05-13 on swift_OLS_ep01:
+                                  # the FP "human" at 0.27 on Swift's portrait
+                                  # is now dropped at the score gate.
 OCCLUDER_DILATE_PX = 0            # v9.1: was 3 — created a halo ring of original
                                   # photo visible around occluders. The classifier
                                   # (chroma + dark-on-bright) catches anything SAM
@@ -208,6 +218,7 @@ def detect_occluders_grounding_dino(
 def filter_occluders_against_paper(
     occluder_dets: list[dict], paper_masks: list[np.ndarray],
     *, max_in_paper_fraction: float = 0.60,
+    drop_if_center_in_paper: bool = False,
 ) -> list[dict]:
     """Drop occluder boxes whose AREA is mostly contained in a paper mask M_0.
     These are FALSE POSITIVES: Grounding DINO firing on photo content (e.g.
@@ -243,12 +254,36 @@ def filter_occluders_against_paper(
             in_paper = M[y0c:y1c, x0c:x1c] > 0
             frac = float(in_paper.sum()) / max(box_area, 1)
             max_frac = max(max_frac, frac)
-        if max_frac < max_in_paper_fraction:
+        # v10b: also reject when the box CENTER lies inside any portrait.
+        # Catches the "giant bbox that covers Swift's paper plus a lot of
+        # surrounding table" case where in_paper_fraction is small
+        # (because box is huge) but the box is centered on a portrait so
+        # SAM 2 propagation latches onto the portrait content. Applied at
+        # frame 0 only (caller controls).
+        cx = int(round(0.5 * (x0c + x1c - 1)))
+        cy = int(round(0.5 * (y0c + y1c - 1)))
+        center_in_paper = False
+        if drop_if_center_in_paper and 0 <= cx < W and 0 <= cy < H:
+            for M in paper_masks:
+                if M[cy, cx] > 0:
+                    center_in_paper = True
+                    break
+
+        if max_frac < max_in_paper_fraction and not center_in_paper:
+            print(f"  [occluder_kept] label={d['label']!r} score={d['score']:.2f} "
+                  f"box=[{x0},{y0},{x1},{y1}] in_paper_frac={max_frac:.2f} "
+                  f"center=({cx},{cy})", flush=True)
             keep.append(d)
         else:
+            reason = (
+                f"in_paper_frac={max_frac:.2f}"
+                + (f" AND center_in_paper@({cx},{cy})" if center_in_paper else "")
+            )
             print(f"[WARN] occluder_fp_filtered: expected=box_in_paper_fraction<"
-                  f"{max_in_paper_fraction:.2f}, got=label={d['label']!r}_score={d['score']:.2f}"
-                  f"_in_paper_frac={max_frac:.2f}, fallback=drop", flush=True)
+                  f"{max_in_paper_fraction:.2f}"
+                  + (" AND box_center_outside_papers" if drop_if_center_in_paper else "")
+                  + f", got=label={d['label']!r}_score={d['score']:.2f}_{reason}, "
+                  f"fallback=drop", flush=True)
     return keep
 
 
@@ -555,33 +590,98 @@ def corners_to_filled_rect(corners: np.ndarray, frame_shape: tuple) -> np.ndarra
     return filled
 
 
-def find_paper_mask_for_box(image_predictor, frame_bgr: np.ndarray, box):
-    """Apply the v7 strategy: SAM multimask → Canny → box-axis-aligned.
+# v10: classical sub-pixel rectangle refinement (Hough+contrast+subpix corner).
+# Imported lazily so existing imports still work if the module is missing.
+try:
+    from refine_paper_quad import refine_paper_quad_to_edges
+    _REFINE_AVAILABLE = True
+except ImportError:
+    try:
+        from .refine_paper_quad import refine_paper_quad_to_edges
+        _REFINE_AVAILABLE = True
+    except (ImportError, ValueError):
+        # Fallback: load by file path (we're often run as a script, not a module)
+        import importlib.util as _ilu_refine
+        _spec_r = _ilu_refine.spec_from_file_location(
+            "refine_paper_quad",
+            str(Path(__file__).resolve().parent / "refine_paper_quad.py"),
+        )
+        if _spec_r is not None:
+            _mod_r = _ilu_refine.module_from_spec(_spec_r)
+            _spec_r.loader.exec_module(_mod_r)
+            refine_paper_quad_to_edges = _mod_r.refine_paper_quad_to_edges
+            _REFINE_AVAILABLE = True
+        else:
+            _REFINE_AVAILABLE = False
+            print("[WARN] refine_paper_quad_import_failed: expected=eval_3/aug/"
+                  "refine_paper_quad.py, got=not_loadable, fallback=skip_refinement",
+                  flush=True)
+
+REFINE_PAPER_EDGES = True  # toggle classical sub-pixel refit on the paper quad
+
+
+def find_paper_mask_for_box(image_predictor, frame_bgr: np.ndarray, box,
+                              refit_debug_dir = None):
+    """Apply the v7 strategy: SAM multimask → Canny → box-axis-aligned,
+    then a v10 classical sub-pixel rectangle refit on the result.
+
     Returns: (corners 4×2, filled_rect_mask uint8, source: str)
-    where `source` ∈ {"sam_multimask", "canny_edges", "gdino_box"}.
-    The filled_rect_mask is what should be stored as M_0."""
+    where `source` ∈ {"sam_multimask", "canny_edges", "gdino_box"} plus an
+    optional "+edge_refined" suffix when the v10 refit succeeded.
+    The filled_rect_mask is what should be stored as M_0.
+
+    If `refit_debug_dir` is set, the refit module saves per-step diagnostic
+    PNGs there (01_band_and_coarse_quad.png, 02_canny_edges_in_band.png,
+    03_hough_lines.png, 04_oriented_lines_and_selected_sides.png,
+    05_final_refined_vs_coarse.png)."""
     H_img, W_img = frame_bgr.shape[:2]
-    # Try SAM multimask first.
+
+    # Tier 1: SAM multimask.
     sam_mask, fill, idx = sam_box_to_mask(image_predictor, frame_bgr, box)
+    coarse_corners: np.ndarray | None = None
+    coarse_filled: np.ndarray | None = None
+    source: str = ""
+    coarse_mask_for_refine: np.ndarray | None = None
     if fill >= SAM_BOX_FILL_MIN:
         corners, filled = mask_to_corners_and_filled_rect(sam_mask, frame_bgr.shape)
         if corners is not None:
-            return corners, filled, f"sam_multimask[idx={idx},fill={fill:.2f}]"
-    # SAM too small — Canny edge detection fallback.
-    quad = find_paper_quadrilateral_canny(frame_bgr, box)
-    if quad is not None:
-        ordered = _order_tl_tr_br_bl(quad)
-        filled = corners_to_filled_rect(ordered, frame_bgr.shape)
-        print(f"[WARN] paper_mask_fallback: expected=sam_fill>={SAM_BOX_FILL_MIN}, "
-              f"got=sam_fill={fill:.2f}, fallback=canny_edges", flush=True)
-        return ordered, filled, f"canny_edges (sam_fill={fill:.2f})"
-    # Both failed — axis-aligned GDINO box.
-    corners = box_to_axis_aligned_corners(box)
-    filled = corners_to_filled_rect(corners, frame_bgr.shape)
-    print(f"[WARN] paper_mask_fallback: expected=sam_or_canny_paper_quad, "
-          f"got=neither_succeeded, fallback=gdino_box_axis_aligned "
-          f"(sam_fill={fill:.2f})", flush=True)
-    return corners, filled, f"gdino_box_axis_aligned (sam_fill={fill:.2f})"
+            coarse_corners, coarse_filled = corners, filled
+            coarse_mask_for_refine = sam_mask.astype(np.uint8)
+            source = f"sam_multimask[idx={idx},fill={fill:.2f}]"
+    # Tier 2: Canny.
+    if coarse_corners is None:
+        quad = find_paper_quadrilateral_canny(frame_bgr, box)
+        if quad is not None:
+            ordered = _order_tl_tr_br_bl(quad)
+            coarse_corners = ordered
+            coarse_filled = corners_to_filled_rect(ordered, frame_bgr.shape)
+            print(f"[WARN] paper_mask_fallback: expected=sam_fill>={SAM_BOX_FILL_MIN}, "
+                  f"got=sam_fill={fill:.2f}, fallback=canny_edges", flush=True)
+            source = f"canny_edges (sam_fill={fill:.2f})"
+    # Tier 3: axis-aligned GDINO box.
+    if coarse_corners is None:
+        coarse_corners = box_to_axis_aligned_corners(box)
+        coarse_filled = corners_to_filled_rect(coarse_corners, frame_bgr.shape)
+        print(f"[WARN] paper_mask_fallback: expected=sam_or_canny_paper_quad, "
+              f"got=neither_succeeded, fallback=gdino_box_axis_aligned "
+              f"(sam_fill={fill:.2f})", flush=True)
+        source = f"gdino_box_axis_aligned (sam_fill={fill:.2f})"
+
+    # v10 sub-pixel rectangle refit (snap each side to the true paper edge).
+    # Skips silently when the module isn't loadable; logs [WARN] when the
+    # refit fails any sanity gate.
+    if REFINE_PAPER_EDGES and _REFINE_AVAILABLE:
+        refined = refine_paper_quad_to_edges(
+            frame_bgr, coarse_corners,
+            sam_mask=coarse_mask_for_refine,
+            verbose=True,
+            debug_dir=refit_debug_dir,
+        )
+        if refined is not None:
+            refined_filled = corners_to_filled_rect(refined, frame_bgr.shape)
+            return refined, refined_filled, f"{source}+edge_refined"
+
+    return coarse_corners, coarse_filled, source
 
 
 # ─── ArcFace identification ──────────────────────────────────────────────────
@@ -831,8 +931,10 @@ def process_episode(
     mask_sources: dict[int, str] = {}
     for pid in range(3):
         original_idx = pid_order[pid]
+        refit_dbg = ep_dir / "dbg_refit" / f"pid{pid}"
         corners, filled, source = find_paper_mask_for_box(
-            image_predictor, frame_0, boxes[original_idx]
+            image_predictor, frame_0, boxes[original_idx],
+            refit_debug_dir=refit_dbg,
         )
         initial_corners[pid] = corners
         M0_per_pid[pid] = filled
@@ -958,21 +1060,32 @@ def process_episode(
     ok_last, frame_last = cap_last.read()
     cap_last.release()
     occluder_dets_per_frame: dict[int, list[dict]] = {}
-    dets_frame0 = detect_occluders_grounding_dino(gd_proc, gd_model, frame_0)
-    dets_frame0 = filter_occluders_against_paper(dets_frame0, list(M0_per_pid.values()))
+    dets_frame0_raw = detect_occluders_grounding_dino(gd_proc, gd_model, frame_0)
+    dets_frame0 = dets_frame0_raw
+    # v10: at frame 0 the recording convention is "workspace clear of
+    # occluders" — gripper above, no can placed yet. ANY GDINO detection
+    # of {gripper, can, hand} that lands ≥20% inside a portrait paper at
+    # frame 0 is photo content (Swift's hand in her photo, LeCun adjusting
+    # glasses, red dress matching "coca cola can"). Drop aggressively.
+    # Verified visually 2026-05-13 — at 0.60 the filter was letting Swift
+    # photos through as "human hand" and SAM 2 propagated them across
+    # the whole clip, covering Swift's face with a yellow occluder mask.
+    dets_frame0 = filter_occluders_against_paper(
+        dets_frame0, list(M0_per_pid.values()), max_in_paper_fraction=0.20,
+        drop_if_center_in_paper=True,
+    )
     if dets_frame0:
         occluder_dets_per_frame[0] = dets_frame0
+    dets_last_raw: list[dict] = []
     if ok_last and n_video_frames > 1:
-        dets_last = detect_occluders_grounding_dino(gd_proc, gd_model, frame_last)
-        # v9.2: ALSO filter last-frame detections against paper masks.
-        # Previously: only frame-0 detections were FP-filtered. If Grounding
-        # DINO detected a "human hand" INSIDE the LeCun photo (Yann adjusting
-        # his glasses — that hand is photo content, not an external occluder),
-        # the frame-0 FP filter caught it. But the SAME detection re-appeared
-        # at the last frame (the photo doesn't change), wasn't in `already`,
-        # and slipped through unfiltered → SAM 2 propagated it backward and
-        # masked out Yann's hand in every frame.
-        dets_last = filter_occluders_against_paper(dets_last, list(M0_per_pid.values()))
+        dets_last_raw = detect_occluders_grounding_dino(gd_proc, gd_model, frame_last)
+        # Last frame: keep 0.60 (lenient) because a real can sitting on the
+        # target paper IS mostly inside that paper. We accept the chance of
+        # photo-content FPs slipping through at this frame because the
+        # frame-0 propagation already covers most of the trajectory.
+        dets_last = filter_occluders_against_paper(
+            dets_last_raw, list(M0_per_pid.values()), max_in_paper_fraction=0.60
+        )
         already = {d["label"].lower() for d in dets_frame0}
         new_last = [d for d in dets_last if d["label"].lower() not in already]
         if new_last:
@@ -980,6 +1093,55 @@ def process_episode(
     n_seeds = sum(len(v) for v in occluder_dets_per_frame.values())
     print(f"({time.time()-t0:.1f}s, {n_seeds} occluder seeds: "
           f"{[(fi, [d['label'] for d in v]) for fi, v in sorted(occluder_dets_per_frame.items())]})")
+
+    # v10: save debug PNGs of GroundingDINO occluder detections (KEPT in green,
+    # DROPPED in red) on frame 0 and last frame, with portrait outlines for
+    # context. So we can SEE every bbox that's being considered.
+    def _draw_occluder_dbg(img, raw_dets, kept_dets, m0_per_pid, label_title):
+        out = img.copy()
+        kept_keys = {(tuple(round(v, 1) for v in d["box"]), d["label"]) for d in kept_dets}
+        # portrait outlines
+        for pid_i, M in m0_per_pid.items():
+            cnts, _ = cv2.findContours(M.astype(np.uint8), cv2.RETR_EXTERNAL,
+                                        cv2.CHAIN_APPROX_SIMPLE)
+            cv2.drawContours(out, cnts, -1, (255, 255, 255), 1)
+            ys, xs = np.where(M > 0)
+            if xs.size > 0:
+                cv2.putText(out, f"pid{pid_i}", (int(xs.min()) + 4, int(ys.min()) + 14),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.45, (255, 255, 255), 1, cv2.LINE_AA)
+        for d in raw_dets:
+            x0, y0, x1, y1 = [int(v) for v in d["box"]]
+            box_key = (tuple(round(v, 1) for v in d["box"]), d["label"])
+            kept = box_key in kept_keys
+            color = (0, 255, 0) if kept else (0, 0, 255)
+            cv2.rectangle(out, (x0, y0), (x1, y1), color, 2)
+            cx = (x0 + x1) // 2; cy = (y0 + y1) // 2
+            cv2.circle(out, (cx, cy), 4, color, -1)
+            tag = ("[KEPT] " if kept else "[DROP] ") + f"{d['label']} s={d['score']:.2f}"
+            cv2.rectangle(out, (x0, max(0, y0 - 18)),
+                          (x0 + 9 * len(tag) + 4, y0), color, -1)
+            cv2.putText(out, tag, (x0 + 2, max(13, y0 - 5)),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.42, (255, 255, 255), 1, cv2.LINE_AA)
+        cv2.rectangle(out, (0, 0), (out.shape[1], 24), (0, 0, 0), -1)
+        cv2.putText(out, label_title, (8, 17), cv2.FONT_HERSHEY_SIMPLEX, 0.55,
+                    (255, 255, 255), 1, cv2.LINE_AA)
+        return out
+
+    dbg_frame0 = _draw_occluder_dbg(
+        frame_0, dets_frame0_raw, dets_frame0, M0_per_pid,
+        f"GroundingDINO occluders @ frame 0  GREEN=kept  RED=dropped  "
+        f"(raw n={len(dets_frame0_raw)}, kept n={len(dets_frame0)})",
+    )
+    cv2.imwrite(str(ep_dir / "dbg_occluder_detections_frame0.png"), dbg_frame0)
+    if ok_last and n_video_frames > 1:
+        dbg_last = _draw_occluder_dbg(
+            frame_last, dets_last_raw,
+            occluder_dets_per_frame.get(n_video_frames - 1, []),
+            M0_per_pid,
+            f"GroundingDINO occluders @ frame {n_video_frames - 1}  GREEN=kept (as new)  "
+            f"RED=dropped  (raw n={len(dets_last_raw)})",
+        )
+        cv2.imwrite(str(ep_dir / "dbg_occluder_detections_last_frame.png"), dbg_last)
 
     occluder_masks_per_frame: dict[int, dict[int, np.ndarray]] = {}
     obj_id_to_label: dict[int, str] = {}
