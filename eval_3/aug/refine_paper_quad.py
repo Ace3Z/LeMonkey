@@ -482,8 +482,15 @@ def refine_paper_quad_to_edges(
                   f"fallback=raw_intersections", flush=True)
         # Keep raw intersections — they're already sub-pixel.
 
-    # Re-order TL/TR/BR/BL (cornerSubPix doesn't permute, but be defensive).
-    refined = _order_tl_tr_br_bl(refined)
+    # NOTE: refined corners are ALREADY in TL/TR/BR/BL order by geometric
+    # construction (pairs list = top∩left, top∩right, bottom∩right,
+    # bottom∩left). The sum/diff-based _order_tl_tr_br_bl call we used
+    # to do here was buggy for rectangles rotated > ~22.5°: it computes
+    # TR=argmin(x-y) and BL=argmax(x-y), which swaps TR and BL on
+    # heavily-tilted papers (verified on Obama portrait in
+    # quick_lecun_LSO_ep01, ~30° rotation). Result was a bowtie quad
+    # that failed _is_convex even though all 4 selected lines were
+    # correct. Trust the construction order.
 
     # 8. Sanity gates.
     if not _is_convex(refined):
@@ -499,7 +506,7 @@ def refine_paper_quad_to_edges(
                   f"got={refined_area/max(coarse_area,1):.2f}×, fallback=None",
                   flush=True)
         return None
-    iou = _quad_iou(_order_tl_tr_br_bl(coarse_corners), refined, (H, W))
+    iou = _quad_iou(coarse_corners, refined, (H, W))
 
     if debug_dir is not None:
         final_viz = frame_bgr.copy()
