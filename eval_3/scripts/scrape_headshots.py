@@ -76,7 +76,10 @@ CANDIDATE_CAP      = 60        # at most this many per celeb before filter
 MIN_SHORT_SIDE_PX  = 512       # min(w, h) — covers any reasonable headshot
 MIN_AR             = 0.5       # 1:2 portrait extreme
 MAX_AR             = 1.6       # ~5:4 landscape extreme
-FACE_AREA_FRAC_MIN = 0.10      # face bbox area / image area >= 10%
+FACE_AREA_FRAC_MIN = 0.05      # face bbox area / image area >= 5%. Loosened
+                                # from 0.10 — famous people's photos are often
+                                # 3/4-body event shots where the face occupies
+                                # 5-15% of the frame; 0.10 over-rejected.
 PHASH_THRESHOLD    = 6         # imagehash Hamming distance for "duplicate"
 USER_AGENT         = "LeMonkey-Eval3/0.2 (https://github.com/Ace3Z/LeMonkey)"
 TMDB_BEARER        = os.environ.get("TMDB_BEARER", "")
@@ -382,18 +385,44 @@ def passes_basic_filters(cand: Candidate) -> tuple[bool, str]:
     return True, "ok"
 
 
-def download(cand: Candidate, timeout: int = 25) -> bool:
-    """Fetch the image bytes; update width/height. Returns success."""
-    try:
-        r = requests.get(cand.url, headers={"User-Agent": USER_AGENT}, timeout=timeout)
-        if r.status_code != 200:
-            return False
-        cand.raw_bytes = r.content
-        with Image.open(io.BytesIO(cand.raw_bytes)) as im:
-            cand.width, cand.height = im.size
-    except Exception:
-        return False
-    return True
+def download(cand: Candidate, timeout: int = 25, max_retries: int = 3) -> tuple[bool, str]:
+    """Fetch the image bytes; update width/height. Returns (success, reason).
+    Retries on 429 / 503 with exponential backoff (Wikipedia/Commons rate-limits
+    individual IPs after ~30 quick requests; canonical mitigation per
+    https://api.wikimedia.org/wiki/Documentation/Getting_started/Rate_limits)."""
+    backoff = 1.0
+    for attempt in range(max_retries + 1):
+        try:
+            r = requests.get(cand.url, headers={"User-Agent": USER_AGENT},
+                              timeout=timeout, allow_redirects=True)
+            if r.status_code == 429 or r.status_code == 503:
+                if attempt < max_retries:
+                    # Honor Retry-After if present, else exponential backoff.
+                    ra = r.headers.get("Retry-After", "")
+                    delay = float(ra) if ra.isdigit() else backoff
+                    time.sleep(delay)
+                    backoff *= 2
+                    continue
+                return False, f"http_{r.status_code}_after_retry"
+            if r.status_code != 200:
+                return False, f"http_{r.status_code}"
+            if len(r.content) < 1024:
+                return False, f"body_tiny_{len(r.content)}b"
+            cand.raw_bytes = r.content
+            with Image.open(io.BytesIO(cand.raw_bytes)) as im:
+                cand.width, cand.height = im.size
+        except requests.exceptions.Timeout:
+            if attempt < max_retries:
+                time.sleep(backoff); backoff *= 2; continue
+            return False, "timeout"
+        except requests.exceptions.ConnectionError as e:
+            if attempt < max_retries:
+                time.sleep(backoff); backoff *= 2; continue
+            return False, f"conn_err_{type(e).__name__}"
+        except Exception as e:
+            return False, f"err_{type(e).__name__}"
+        return True, "ok"
+    return False, "unreachable"
 
 
 def passes_post_download_filters(cand: Candidate, face_app) -> tuple[bool, str, float]:
@@ -409,16 +438,22 @@ def passes_post_download_filters(cand: Candidate, face_app) -> tuple[bool, str, 
         faces = face_app.get(bgr)
     except Exception as e:
         return False, f"decode_err_{type(e).__name__}", 0.0
-    if len(faces) != 1:
-        return False, f"n_faces_{len(faces)}", 0.0
+    if len(faces) == 0:
+        return False, "n_faces_0", 0.0
+    # v2: drop the "exactly 1 face" rule. For famous people, many photos are
+    # group/event shots with the subject's face being the largest. Pick the
+    # largest face — the ArcFace anchor filter downstream verifies identity
+    # so a wrong-person largest-face gets rejected there.
+    faces.sort(key=lambda fa: (fa.bbox[2] - fa.bbox[0]) * (fa.bbox[3] - fa.bbox[1]),
+               reverse=True)
     f = faces[0]
     x1, y1, x2, y2 = f.bbox
     fw, fh = x2 - x1, y2 - y1
     face_area_frac = (fw * fh) / (cand.width * cand.height)
     if face_area_frac < FACE_AREA_FRAC_MIN:
-        return False, f"face_too_small_{face_area_frac:.2f}", face_area_frac
+        return False, f"face_too_small_{face_area_frac:.2f}_(of{len(faces)})", face_area_frac
     cand.arcface = f.normed_embedding.astype(np.float32)
-    return True, "ok", float(face_area_frac)
+    return True, f"ok_(of{len(faces)})", float(face_area_frac)
 
 
 TRUSTED_SOURCES = {"wikidata_p18", "wikipedia_lead", "commons", "tmdb"}
@@ -581,13 +616,27 @@ def process_celeb(name: str, out_root: Path, force: bool = False) -> dict:
     print(f"  {len(pre_pass)}/{len(cands)} passed pre-download filter", flush=True)
 
     # ── download (skip if already preloaded by icrawler fallback)
+    # Small per-request pacing to stay under Wikipedia/Commons rate limit
+    # (~5000 req/h with proper UA; the 429s we hit are upload.wikimedia.org
+    # per-IP, not the API).
     downloaded: list[Candidate] = []
+    dl_fail_reasons: dict[str, int] = {}
     for c in pre_pass:
-        if c.raw_bytes is not None or download(c):
+        if c.raw_bytes is not None:
+            downloaded.append(c); continue
+        ok, reason = download(c)
+        if ok:
             downloaded.append(c)
         else:
-            _drop_meta(c, out_dir, "download_failed")
-    print(f"  {len(downloaded)}/{len(pre_pass)} downloaded", flush=True)
+            dl_fail_reasons[reason] = dl_fail_reasons.get(reason, 0) + 1
+            _drop_meta(c, out_dir, f"download_{reason}")
+        # 100ms pacing — at 10 req/s we'd need ~30s per celeb of pure
+        # download time but stay polite. Wikipedia/Commons specifically
+        # recommends spacing requests when iterating an API.
+        time.sleep(0.1)
+    fail_summary = ", ".join(f"{k}:{v}" for k, v in dl_fail_reasons.items()) or "no_failures"
+    print(f"  {len(downloaded)}/{len(pre_pass)} downloaded "
+          f"(failures: {fail_summary})", flush=True)
 
     # ── post-download filter (face detection)
     face_app = _face_app()
