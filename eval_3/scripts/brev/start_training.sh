@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Launch the π0.5 Eval 3 training as a transient systemd user service.
+# Launch the SmolVLA Eval 3 training as a transient systemd user service.
 # This places it in /user.slice/user-1001.slice (which is lingered),
 # guaranteeing survival across SSH disconnect, laptop close, etc.
 #
@@ -46,14 +46,14 @@ if ps -ef | grep "lerobot-train" | grep -v grep >/dev/null; then
   sleep 2
 fi
 
-rm -f ~/outputs/train/pi05_eval3.log
+rm -f ~/outputs/train/smolvla_eval3.log
 
 # 4. Launch as a transient user service inside user-1001.slice.
 echo "==> launching $UNIT as a transient user service"
 systemd-run \
   --user \
   --unit="$UNIT" \
-  --description="LeRobot π0.5 Eval 3 training (Coke-on-celebrity)" \
+  --description="LeRobot SmolVLA Eval 3 training (image-as-prompt Coke-on-celebrity)" \
   --property=Type=simple \
   --property=KillMode=control-group \
   --property=KillSignal=SIGTERM \

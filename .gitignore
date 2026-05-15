@@ -63,3 +63,4 @@ eval_3/__pycache__/
 
 # claude code agent state
 .claude/
+secrets/

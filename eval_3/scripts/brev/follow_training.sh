@@ -5,7 +5,7 @@
 #   ./follow_training.sh /path/to/file.log # follow another log
 set -u
 
-LOG="${1:-$HOME/outputs/train/pi05_eval3.log}"
+LOG="${1:-$HOME/outputs/train/smolvla_eval3.log}"
 
 B=$(tput bold 2>/dev/null || true)
 R=$(tput setaf 1 2>/dev/null || true)
