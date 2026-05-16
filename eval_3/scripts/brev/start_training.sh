@@ -58,6 +58,7 @@ systemd-run \
   --property=KillMode=control-group \
   --property=KillSignal=SIGTERM \
   --property=Restart=no \
+  --property=LimitNOFILE=524288 \
   bash ~/run_training.sh
 
 # 5. Give it a moment to start, then verify cgroup.

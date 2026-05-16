@@ -9,9 +9,13 @@
 # 2506.01844, canonical configuration_smolvla.py).
 #
 # Key diffs vs eval_2's recipe:
-#   - dual image input        (observation.images.{camera1,reference})
-#   - empty_cameras=0          (we supply exactly the 2 cameras we declare,
-#                                vs eval_2's 1 supplied / 3 expected → 2)
+#   - dual image input         (camera1 = wrist webcam; camera2 = reference photo
+#                                stream after --rename_map from
+#                                observation.images.reference. empty_cameras=1
+#                                fills the unused camera3 slot. The SmolVLA
+#                                base policy hard-expects 3 cameras
+#                                (camera1/2/3); the rename + empty_cameras=1
+#                                give it exactly that.)
 #   - add_image_special_tokens=true   (BOI/EOI separators between the
 #                                cameras so the LM decoder can tell them apart;
 #                                mirrors Interleave-VLA §A.1)
@@ -23,17 +27,43 @@
 #   - optimizer_lr=5e-5        (half the LeRobot default 1e-4; protects
 #                                pretrained features when unfreezing both
 #                                VLM and SigLIP — Interleave-VLA recipe)
-#   - batch_size=96            (start safe; H100 80GB has headroom for 128
-#                                with gradient checkpointing + bfloat16, but
-#                                unfrozen SigLIP eats activation memory)
+#   - use_amp=true             (bf16 mixed precision. SmolVLAConfig has no
+#                                `gradient_checkpointing` or `dtype` flag, so
+#                                AMP is the available memory-saving knob.)
+#   - batch_size=64            (Measured empirically 2026-05-15 on RTX PRO 6000
+#                                97 GB: bs=64 uses 82.8/97 GB (85 %) with GPU
+#                                util at 100 %. bs=80 OOMs. The unfrozen
+#                                VLM+SigLIP activation memory is the bottleneck.
+#                                Step rate ≈ 1.0 s/step at bs=64 → 30k steps
+#                                ≈ 8.3 h total.)
 #   - steps=30000              (cosine endpoint at canonical scheduler_decay_steps)
 #   - dataset.image_transforms.enable=true  (no flips; affine ±5° kept
 #                                because prompts never reference position)
+#   - PYTORCH_ALLOC_CONF=expandable_segments:True
+#                              (mitigates allocator fragmentation that surfaces
+#                                near the VRAM ceiling. PyTorch emitted this
+#                                exact recommendation in the bs=96 OOM probe.)
+#   - dataset.video_backend=pyav  (Replaces lerobot's default torchcodec.
+#                                Empirically 2026-05-15: torchcodec leaks ~35 GB
+#                                per DataLoader worker over ~30 min of training
+#                                because decoder contexts aren't freed across
+#                                episode boundaries when iterating 8390 unique
+#                                mp4 files. dmesg showed single pt_data_worker
+#                                hitting anon-rss=34.9 GB with num_workers=4 and
+#                                17.9 GB with num_workers=8 — leak is per-worker.
+#                                pyav is older + libav-based + well-tested.)
+#   - num_workers=8            (Bumped back to 8 with pyav backend in place. The
+#                                leak was per-worker in torchcodec, so with pyav
+#                                no-leak expected → 8 workers max-parallelism is
+#                                fine. If pyav also leaks, drop stepwise: 8→4→2.)
 set -e
 
 source ~/miniconda3/etc/profile.d/conda.sh
 conda activate lemonkey
 cd ~/LeMonkey
+
+# Memory-allocator tweak — see header.
+export PYTORCH_ALLOC_CONF=expandable_segments:True
 
 mkdir -p ~/outputs/train
 
@@ -48,16 +78,17 @@ python -u "$(which lerobot-train)" \
   --policy.train_expert_only=false \
   --policy.freeze_vision_encoder=false \
   --policy.add_image_special_tokens=true \
-  --policy.empty_cameras=0 \
+  --policy.empty_cameras=1 \
   --policy.optimizer_lr=5e-5 \
   --policy.scheduler_warmup_steps=1000 \
-  --policy.gradient_checkpointing=true \
-  --policy.dtype=bfloat16 \
+  --policy.use_amp=true \
   --policy.device=cuda \
   --dataset.repo_id=local/so101_eval3_all \
   --dataset.root=/home/shadeform/LeMonkey/datasets/eval3_merged \
+  --dataset.video_backend=pyav \
   --dataset.image_transforms.enable=true \
-  --batch_size=96 \
+  --rename_map='{"observation.images.reference": "observation.images.camera2"}' \
+  --batch_size=64 \
   --steps=30000 \
   --save_freq=5000 \
   --num_workers=8 \
