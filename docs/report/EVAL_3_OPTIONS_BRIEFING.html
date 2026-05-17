@@ -1,0 +1,665 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LeMonkey Eval 3 — Options Briefing</title>
+<script>
+  MathJax = {
+    tex: { inlineMath: [['$', '$'], ['\\(', '\\)']], displayMath: [['$$', '$$'], ['\\[', '\\]']] },
+    svg: { fontCache: 'global' }
+  };
+</script>
+<script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+<style>
+  :root {
+    --bg: #fdfdfb;
+    --text: #1a1a1a;
+    --muted: #5a5a5a;
+    --link: #0a4f9a;
+    --link-hover: #062f5e;
+    --border: #e0ddd6;
+    --code-bg: #f5f3ef;
+    --header-bg: #2b2b2b;
+    --header-text: #f5f3ef;
+    --confirm: #1e7a30;
+    --warn: #b07a18;
+    --refute: #b22a2a;
+    --note-bg: #fff8e6;
+    --note-border: #d4a847;
+    --quote-bg: #f7f4ec;
+    --quote-border: #b0a888;
+    --table-stripe: #faf8f3;
+  }
+  * { box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+    line-height: 1.6;
+    color: var(--text);
+    background: var(--bg);
+    margin: 0;
+    padding: 0;
+  }
+  .header {
+    background: var(--header-bg);
+    color: var(--header-text);
+    padding: 2rem 1.5rem;
+    border-bottom: 4px solid #4a4a4a;
+  }
+  .header h1 { margin: 0 0 0.5rem 0; font-size: 1.8rem; }
+  .header .subtitle { color: #c9c6bd; font-size: 1rem; font-weight: 400; }
+  .container {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 1.5rem;
+  }
+  h2 { border-bottom: 2px solid var(--border); padding-bottom: 0.4rem; margin-top: 2.5rem; }
+  h3 { color: #333; margin-top: 1.8rem; }
+  h4 { color: #444; margin-top: 1.2rem; }
+  a { color: var(--link); text-decoration: none; }
+  a:hover { color: var(--link-hover); text-decoration: underline; }
+  p { margin: 0.6rem 0; }
+  ul, ol { padding-left: 1.5rem; }
+  li { margin: 0.3rem 0; }
+
+  /* TOC */
+  .toc {
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    padding: 1rem 1.5rem;
+    margin: 1.5rem 0;
+    border-radius: 4px;
+  }
+  .toc h3 { margin-top: 0; }
+  .toc ol { margin: 0.5rem 0; }
+
+  /* Code */
+  code {
+    font-family: "SF Mono", Monaco, "Cascadia Code", Consolas, monospace;
+    font-size: 0.88em;
+    background: var(--code-bg);
+    padding: 0.1rem 0.35rem;
+    border-radius: 3px;
+  }
+  pre {
+    background: var(--code-bg);
+    border-left: 4px solid var(--border);
+    padding: 0.9rem 1rem;
+    overflow-x: auto;
+    border-radius: 4px;
+    font-size: 0.85em;
+  }
+  pre code { background: transparent; padding: 0; font-size: 1em; }
+
+  /* Tables */
+  table {
+    border-collapse: collapse;
+    width: 100%;
+    margin: 1rem 0;
+    font-size: 0.92em;
+  }
+  th, td {
+    border: 1px solid var(--border);
+    padding: 0.55rem 0.7rem;
+    text-align: left;
+    vertical-align: top;
+  }
+  th { background: var(--code-bg); font-weight: 600; }
+  tr:nth-child(even) td { background: var(--table-stripe); }
+  table .num { text-align: right; font-variant-numeric: tabular-nums; }
+
+  /* Status indicators */
+  .ok { color: var(--confirm); font-weight: 600; }
+  .warn { color: var(--warn); font-weight: 600; }
+  .err { color: var(--refute); font-weight: 600; }
+  .tag {
+    display: inline-block;
+    padding: 0.1rem 0.5rem;
+    border-radius: 3px;
+    font-size: 0.78em;
+    font-weight: 600;
+    margin-right: 0.3rem;
+  }
+  .tag-track-a { background: #e3f0e6; color: #1e7a30; border: 1px solid #1e7a30; }
+  .tag-track-b { background: #f0e6f0; color: #6b1e6b; border: 1px solid #6b1e6b; }
+  .tag-track-c { background: #f0e6e6; color: #b22a2a; border: 1px solid #b22a2a; }
+  .tag-track-d { background: #e6e6f0; color: #1e3a6b; border: 1px solid #1e3a6b; }
+  .tag-skip { background: #ededed; color: #555; border: 1px solid #999; }
+
+  /* Notes / callouts */
+  .note {
+    background: var(--note-bg);
+    border-left: 4px solid var(--note-border);
+    padding: 0.8rem 1rem;
+    margin: 1rem 0;
+    border-radius: 0 4px 4px 0;
+  }
+  .note .note-title {
+    font-weight: 700;
+    color: #6b4f10;
+    display: block;
+    margin-bottom: 0.3rem;
+  }
+  blockquote {
+    background: var(--quote-bg);
+    border-left: 4px solid var(--quote-border);
+    margin: 1rem 0;
+    padding: 0.7rem 1rem;
+    color: #2a2a2a;
+    font-style: italic;
+  }
+
+  /* Mechanism box */
+  .mechanism {
+    border: 1px solid var(--border);
+    border-left: 4px solid var(--link);
+    padding: 0.8rem 1.2rem;
+    margin: 1.2rem 0;
+    border-radius: 4px;
+    background: #fcfcfa;
+  }
+  .mechanism h3 {
+    margin-top: 0;
+    color: var(--link);
+  }
+
+  /* Option block */
+  .option {
+    border-top: 1px solid var(--border);
+    padding-top: 1rem;
+    margin-top: 1.4rem;
+  }
+  .option h3 { margin-top: 0; }
+  .option .meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.8rem;
+    font-size: 0.88em;
+    color: var(--muted);
+    margin: 0.4rem 0 0.6rem 0;
+  }
+  .option .meta span { white-space: nowrap; }
+
+  /* Equation centering */
+  .eq {
+    text-align: center;
+    margin: 1.2rem 0;
+    overflow-x: auto;
+  }
+
+  /* Print styles */
+  @media print {
+    .header { background: white; color: black; border-bottom: 2px solid black; }
+    a { color: black; text-decoration: underline; }
+    pre, code { background: #f5f3ef !important; }
+    .container { max-width: none; }
+  }
+
+  /* Responsive */
+  @media (max-width: 640px) {
+    body { font-size: 0.95rem; }
+    .header h1 { font-size: 1.4rem; }
+    .container { padding: 1rem; }
+    th, td { padding: 0.35rem 0.4rem; font-size: 0.85em; }
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="container" style="padding: 0;">
+    <h1>LeMonkey Eval 3 — Options Briefing</h1>
+    <div class="subtitle">Team decision doc for which training tracks to run · ETH Robot Learning FS26 Project 1</div>
+  </div>
+</div>
+
+<div class="container">
+
+<div class="note">
+  <span class="note-title">⚠ Read first: terminology</span>
+  Throughout this document we use the names <code>camera1</code> and <code>camera2</code>. Their meaning is:
+  <ul>
+    <li><strong><code>camera1</code></strong> = the actual wrist-camera video recorded during human teleoperation of the SO-101 robot. This is the live robot view that shows the workspace with the three printed celebrity portraits during a demo.</li>
+    <li><strong><code>camera2</code></strong> = a <em>constant-frame video stream</em> we constructed where every frame is the same static reference photo of the target celebrity. We use video format because LeRobot's data pipeline expects video, but it is fundamentally just a single still image repeated for the duration of the episode.</li>
+  </ul>
+  This distinction matters for the failure-mode discussion below — <code>camera2</code> reaches the model as a separate camera observation rather than being inlined inside the language prompt.
+</div>
+
+<div class="toc">
+  <h3>Contents</h3>
+  <ol>
+    <li><a href="#failure">Why v1 failed</a></li>
+    <li><a href="#mechanisms">The 8 protective mechanisms (M1–M8)</a></li>
+    <li><a href="#options">All 17 training options</a></li>
+    <li><a href="#matrix">Decision matrix</a></li>
+    <li><a href="#scenarios">Budget scenarios &amp; recommendations</a></li>
+    <li><a href="#open">Open team question</a></li>
+    <li><a href="#cites">Citations</a></li>
+  </ol>
+</div>
+
+<h2 id="failure">§1 · Why v1 failed</h2>
+
+<p>SmolVLA-450M was trained for the Eval 3 face-matching task (place coke can on the celebrity portrait specified by name and a reference photo). The smoke-test on the deploy laptop on 2026-05-17 revealed that the trained policy <strong>fails</strong>: it places the can on the wrong portrait, falling back to positional priors instead of conditioning on identity.</p>
+
+<p>Empirical findings:</p>
+<ul>
+  <li>The pipeline runs end-to-end (no crashes, no OOM, no timing issues).</li>
+  <li>The <code>camera2</code> reference photo is verified to reach the model (instrumented at <code>prepare_images()</code>).</li>
+  <li>The wrist-camera (<code>camera1</code>) aim is verified identical to training distribution.</li>
+  <li><strong>Failure mode: positional shortcut.</strong> Rotating Swift's portrait through left/middle/right physical positions confirms the can lands at the same physical spot regardless of which celebrity is there. The model is not conditioning actions on identity.</li>
+</ul>
+
+<p>Two compounding gaps explain this:</p>
+
+<ul>
+  <li><strong>(G1) Domain gap.</strong> Training-time reference photos (in <code>camera2</code>) are magazine/web style. Eval-day workspace shows paper printouts photographed through a wrist cam. Print-and-Scan face-recognition literature measures this transformation at +5.6–16.0% FMR shift on ArcFace verification.</li>
+  <li><strong>(G2) Representation gap.</strong> SmolVLA's vision tower compresses each image into <strong>64 tokens via 2×2 pixel-shuffle</strong> (SmolVLM §3.1). For a face occupying ~30% of the frame, that is only ~10–20 identity-bearing tokens. SigLIP was pretrained for image-text alignment, not face-discriminative geometry.</li>
+</ul>
+
+<p>Plus we discovered <strong>6 additional protective mechanisms</strong> we under-applied from the very papers we cited (see §2).</p>
+
+<h2 id="mechanisms">§2 · The 8 protective mechanisms</h2>
+
+<p>Each mechanism is a research-published intervention that could be added to a training recipe to address a specific failure mode. The architectures (SmolVLA, Pi0.5) can be combined with any subset.</p>
+
+<div class="mechanism">
+  <h3>M1 · Frozen 3-layer MLP projector + Backbone2Enc injection</h3>
+  <p><strong>Source.</strong> "Don't Blind Your VLA" (<a href="https://arxiv.org/html/2510.25616v1">arXiv 2510.25616</a>), Tables 5 and 6.</p>
+  <p><strong>Plain-language description.</strong> We need a small module that maps the VLA's internal features into the same space as a teacher encoder's features so we can compare them with a cosine loss. The mapping is a small MLP. The paper proves two non-obvious points:</p>
+  <ol>
+    <li><strong>The MLP must be frozen.</strong> Initialise it once, then set <code>requires_grad=False</code>. Otherwise the model "cheats" by adjusting the MLP instead of fixing the VLA's internal state. Table 6: frozen 0.61 vs trainable 0.54 on semantic OOD.</li>
+    <li><strong>The loss must be injected at a mid-LLM layer (Backbone2Enc), not at the vision encoder output (Enc2Enc).</strong> Table 5: Backbone2Enc 0.61 vs Enc2Enc 0.55 on the semantic axis (the vision and execution axes are tied or statistically indistinguishable).</li>
+  </ol>
+  <p><strong>Architecture (code-verified at <a href="https://github.com/CognitiveAISystems/BlindVLA/blob/main/openvla/vla-scripts/finetune_align.py"><code>finetune_align.py:326-338</code></a>):</strong></p>
+<pre><code>nn.Sequential(
+    nn.LayerNorm(hidden_size),
+    nn.Linear(hidden_size, 2048),
+    nn.SiLU(),
+    nn.Dropout(0.1),
+    nn.Linear(2048, 2048),
+    nn.SiLU(),
+    nn.Dropout(0.1),
+    nn.Linear(2048, z_dim),   # z_dim = teacher feature dim (512 for ArcFace)
+)</code></pre>
+  <p><strong>Cost.</strong> ~1 day engineering + 0 extra Brev (folds into M2's training run).</p>
+  <p><strong>Validation status.</strong> <span class="ok">✓</span> Confirmed verbatim by V2 audit. Table 5 and Table 6 numbers verified; code line numbers verified.</p>
+</div>
+
+<div class="mechanism">
+  <h3>M2 · Cosine alignment loss against a frozen vision teacher</h3>
+  <p><strong>Source.</strong> "Don't Blind Your VLA" Equation 9.</p>
+  <p><strong>Plain-language description.</strong> Train the VLA's vision features to match a frozen "teacher" encoder's features. The teacher knows things the VLA doesn't (e.g., ArcFace knows face identity). This is the actual loss term that makes M1 work.</p>
+  <p><strong>Exact loss:</strong></p>
+  <div class="eq">
+    $$\mathcal{L}_{\text{align}} \;=\; -\frac{1}{k} \sum_{j=1}^{k} \cos\!\big(\,\text{F.normalize}(u_j),\; \text{F.normalize}(z_j)\,\big)$$
+    $$\mathcal{L}_{\text{total}} \;=\; \mathcal{L}_{\text{action}} \;+\; \lambda \cdot \mathcal{L}_{\text{align}}, \qquad \lambda = 0.2$$
+  </div>
+  <p>where $u_j$ are projected student patch features, $z_j$ are corresponding teacher patch features, $k$ is the number of aligned patches.</p>
+  <p><strong>Key details:</strong></p>
+  <ul>
+    <li>Cosine, not L2 or InfoNCE. Paper Table 8: cosine 0.61/0.72/0.39 &gt; L2 0.54/0.63/0.34 &gt; InfoNCE 0.57/0.64/0.36. Statistical significance p&lt;0.01 holds on the <strong>semantic and vision</strong> OOD axes only; on the execution axis p=0.05 (borderline).</li>
+    <li><code>F.normalize</code> is explicit in the code, then dot product (NOT <code>F.cosine_similarity</code>). Verified at <code>finetune_align.py:420-428</code>.</li>
+    <li>$\lambda = 0.2$, constant from step 0. Verified at <code>finetune_align.py:311</code>.</li>
+    <li>Patch-level, not CLS-level.</li>
+  </ul>
+  <p><strong>Headline empirical impact (Table 1, mean ± SD):</strong></p>
+  <table>
+    <tr><th>Method</th><th class="num">Semantic OOD</th><th class="num">Vision OOD</th><th class="num">Execution OOD</th></tr>
+    <tr><td>Default SFT</td><td class="num">0.49 ± 0.02</td><td class="num">0.74 ± 0.02</td><td class="num">0.28 ± 0.02</td></tr>
+    <tr><td>Freeze encoder</td><td class="num">0.03 ± 0.01</td><td class="num">0.05 ± 0.01</td><td class="num">0.01 ± 0.01</td></tr>
+    <tr><td><strong>Align (theirs)</strong></td><td class="num"><strong>0.61 ± 0.01</strong></td><td class="num"><strong>0.83 ± 0.03</strong></td><td class="num"><strong>0.35 ± 0.02</strong></td></tr>
+  </table>
+  <p><strong>+12 pp on semantic OOD, +9 pp on vision OOD.</strong></p>
+  <p><strong>Teacher choice for our task.</strong> Their best teacher is C-RADIOv3 (a general vision foundation model). For face matching we will use <strong>ArcFace</strong> (<code>buffalo_l</code>/<code>w600k_r50</code>, 512-dim) instead — task-specific. This is a first-mover combination (no published paper does ArcFace→SigLIP distillation), but the recipe transfers in principle. We will mask-gate the loss to face patches only (via RetinaFace masks computed offline).</p>
+  <p><strong>Cost.</strong> Combined with M1 — ~1 day engineering + ~1.5-3h Brev fine-tune.</p>
+  <p><strong>Validation status.</strong> <span class="ok">✓</span> Equation 9 confirmed verbatim by V2 audit. Code lines verified. Table numbers verified.</p>
+</div>
+
+<div class="mechanism">
+  <h3>M3 · Stop-gradient between action expert and VLM</h3>
+  <p><strong>Source.</strong> Pi0.5 Knowledge Insulation (<a href="https://arxiv.org/html/2505.23705v1">arXiv 2505.23705</a>), Equations 5 and 6.</p>
+  <p><strong>Plain-language description.</strong> When the action expert reads from the VLM via cross-attention, the gradients flowing backward from the action-prediction loss should NOT update the VLM. The action expert can <em>read</em> VLM features but cannot <em>perturb</em> them. This prevents the VLM's pretrained knowledge from drifting during robot fine-tune.</p>
+  <p><strong>Exact mechanism.</strong> When the action expert attends to the VLM backbone (subscript $b$), both the keys $K_b$ and values $V_b$ are wrapped in $\text{sg}(\cdot)$ (PyTorch's <code>detach()</code>). Self-attention within the VLM ($P_{bb}$) is untouched.</p>
+  <p>Eq. 5 (attention pattern, action-expert row only shown):</p>
+  <div class="eq">
+    $$\text{softmax}\big(\, Q_a \cdot \text{sg}(K_b)^T \quad Q_a \cdot K_a^T \,\big)$$
+  </div>
+  <p>Eq. 6 (value computation for the action expert):</p>
+  <div class="eq">
+    $$E_a \;=\; P_{ab} \cdot \text{sg}(V_b) \;+\; P_{aa} \cdot V_a$$
+  </div>
+  <p><strong>Empirical impact (validated):</strong></p>
+  <ul>
+    <li>Frozen VLM = <strong>0% success</strong> on items-in-drawer task. Verbatim from §4 line 284: <em>"current VLMs are not pre-trained with robotics data. As a result, their representations, when frozen, are insufficient for training highly performant policies, as we show in our experiments, cf. Fig. 4a and Fig. 8 (0% performance)."</em></li>
+    <li>Joint training (no stop-gradient, which is our v1 setup) <strong>performs significantly worse</strong> than KI on action success AND collapses language following. Body text confirms direction; exact bar heights are visual reads from Figs 4a/4b/6a.</li>
+    <li>π₀ needs <strong>7.5× more steps</strong> to match KI. Verbatim from Fig. 6 caption: <em>"π₀ trains significantly slower, requiring 7.5 times as many training steps to reach a similar performance."</em></li>
+  </ul>
+  <p><strong>Cost.</strong> Multi-day engineering. Requires modifying SmolVLA's <code>embed_prefix</code> and <code>forward</code> to insert <code>detach()</code> calls on cross-attention K and V from VLM to action expert. Not currently exposed in lerobot 0.5.1.</p>
+  <p><strong>Validation status.</strong> <span class="ok">✓</span> Eqs. 5-6 confirmed verbatim by V1 audit. Frozen-VLM 0% verbatim. 7.5× speedup verbatim. Specific bar-height percentages flagged as visual reads.</p>
+</div>
+
+<div class="mechanism">
+  <h3>M4 · FAST-token cross-entropy loss through the VLM</h3>
+  <p><strong>Source.</strong> Pi0.5-KI §5.1.</p>
+  <p><strong>Plain-language description.</strong> Even though the action expert outputs continuous actions via flow-matching, the VLM is also trained to predict a <em>discretised</em> version of the action sequence as a sequence of language-like tokens (FAST tokens). This gives the VLM a supervised signal that ties its representations to robot actions, without polluting the action expert.</p>
+  <p><strong>Exact mechanism.</strong> Eq. 4 includes an autoregressive token-prediction term:</p>
+  <div class="eq">
+    $$\mathcal{L}_{\text{CO-VLA}} \;=\; \mathbb{E}\!\left[ -\sum_j M_j^\ell \log p_\theta(\hat{\ell}_{j+1} \mid x_{1:j}) \;+\; \alpha \cdot M^{\text{act}} \cdot \|\omega - a_{1:H} - f_\theta^a(a_{1:H}^{\tau,\omega})\|^2 \right]$$
+  </div>
+  <p>where $\hat{\ell}$ contains <em>"both text (language) tokens and FAST tokenized action tokens"</em>. $M^\ell$ and $M^{\text{act}}$ are per-sample masks. With M3's gradient stop in place, $\alpha = 1$.</p>
+  <p><strong>Empirical impact.</strong> Verbatim from §5.1: <em>"The autoregressive objective is only used at training time as a representation learning objective, which enables the model to train much faster."</em> This is the lever that produces the 7.5× speedup from M3.</p>
+  <p><strong>Cost.</strong> Multi-day engineering. SmolVLA's training forward computes only flow-matching MSE — no LM head exposed for next-token CE loss.</p>
+  <p><strong>Validation status.</strong> <span class="ok">✓</span> §5.1 mechanism confirmed verbatim.</p>
+</div>
+
+<div class="mechanism">
+  <h3>M5 · Web / VQA co-training</h3>
+  <p><strong>Source.</strong> Pi0.5 paper (<a href="https://arxiv.org/abs/2504.16054">arXiv 2504.16054</a>) + <a href="https://www.pi.website/blog/pi05">Pi0.5 blog</a>.</p>
+  <p><strong>Plain-language description.</strong> Mix non-robot data into the robot fine-tune to preserve the VLM's pretrained world knowledge. Pi0.5's first-phase training mixture is <strong>97.6% non-mobile-manipulator data</strong> — robot from other embodiments, plus image-text pairs from the web.</p>
+  <p><strong>Empirical impact.</strong> Pi0.5 blog verbatim: removing web data drops OOD object recognition from 94% to 74% on the object-into-drawer eval. <strong>−20 pp on OOD object recognition</strong> — the closest published analog to our face-name binding task.</p>
+  <p><strong>Cost.</strong> Two ways:</p>
+  <ol>
+    <li><strong>Full co-training</strong> (proper way): mixed-batch training of robot + VQA data with per-sample loss masking. Blocked by <code>MultiLeRobotDataset = NotImplementedError</code> in lerobot 0.5.1. <strong>3-5 days engineering.</strong></li>
+    <li><strong>Sequential VLM warm-start</strong> (cheap proxy): pretrain just the VLM on VQA pairs in plain HuggingFace <code>transformers</code>, then use the warm VLM as the init for the SmolVLA / Pi0.5 fine-tune. Sidesteps the LeRobot blocker. ~3-6h Brev + 1 day engineering.</li>
+  </ol>
+  <p><strong>Validation status.</strong> <span class="ok">✓</span> 97.6% verbatim from Pi0.5 §I. <span class="ok">✓</span> 94→74% verbatim from blog (note: only in blog text, not in arXiv paper body text).</p>
+</div>
+
+<div class="mechanism">
+  <h3>M6 · Reference image inlined IN the language token stream</h3>
+  <p><strong>Source.</strong> Interleave-VLA (<a href="https://arxiv.org/abs/2505.02152">arXiv 2505.02152</a>), §3.2.</p>
+  <p><strong>Plain-language description.</strong> Instead of passing the reference photo as a separate camera observation (which is what we did via <code>camera2</code>), the reference image is inserted INSIDE the language prompt — interleaved between text tokens that reference it. This lets the language model directly ground a noun phrase ("Yann LeCun") to the visual content of the reference image via positional adjacency.</p>
+  <p><strong>Exact mechanism (paper §3.2 L184-186):</strong></p>
+  <ul>
+    <li>The prompt is a sequence $I = (l_1, I_1, l_2, I_2, \ldots)$ — alternating text segments $l_i$ and image tensors $I_i$.</li>
+    <li>Example prompt: <code>"Place [image1] into [image2]."</code> where the bracket is replaced by image tokens at the right position in the text stream.</li>
+    <li><strong>The paper does NOT define specific token strings.</strong> Concrete tokens come from the underlying VLM (e.g., PaliGemma's <code>&lt;image&gt;</code> soft tokens). Earlier internal drafts of our research notes invented <code>&lt;BOI&gt;</code>/<code>&lt;EOI&gt;</code> tokens that are not in the paper.</li>
+  </ul>
+  <p><strong>What our current SmolVLA does (code-verified at <code>modeling_smolvla.py:626-705</code>):</strong> The prefix order is <code>[img1_tokens, img2_tokens, ..., language_tokens, state_tokens]</code>. Language is appended as a single block AFTER all images. SmolVLA's <code>add_image_special_tokens</code> flag only wraps each individual image with SmolVLM's <code>&lt;global-img&gt;</code> / <code>&lt;end_of_utterance&gt;</code> tokens. <strong>It cannot interleave images between text segments.</strong></p>
+  <div class="note">
+    <span class="note-title">⚠ Honest caveat</span>
+    The conclusion that the 2nd-camera approach <em>fails</em> compared to the inlined approach is <strong>our hypothesis</strong>, not paper-tested. Interleave-VLA never tested the 2nd-camera variant head-to-head nor explicitly argued against it. The mechanism finding (interleaved ≠ 2nd-camera) is code-verified; the head-to-head comparison is not.
+  </div>
+  <p><strong>Empirical impact (Interleave-VLA Table 1, validated):</strong></p>
+  <ul>
+    <li>Semantic L1 (novel object, known category): π₀ 26.7 → Interleave-VLA 63.7 (~2.4×)</li>
+    <li>Semantic L2 (novel category): 21.0 → 53.0 (~2.5×)</li>
+    <li>Real FANUC OOD: π₀ w/PT mean ~28% → Interleave-VLA w/PT mean ~58% across 5 OOD object axes (~2×)</li>
+  </ul>
+  <p><strong>Scale caveat.</strong> Tested only at ≥3.3B params (π₀-PaliGemma, OpenVLA + InternVL2.5-8B). The phrase "model-agnostic" appears 4× in the paper but with <strong>zero sub-1B evidence</strong>.</p>
+  <p><strong>Cost.</strong> Multi-day engineering. Requires processor changes in <code>processor_smolvla.py</code> (insert image tokens INTO the text token stream) plus <code>embed_prefix</code> modifications.</p>
+  <p><strong>Validation status.</strong> <span class="ok">✓</span> Mechanism confirmed by V3 audit (code-verified). <span class="err">✗</span> BOI/EOI token notation was fabricated — corrected. <span class="err">✗</span> Original Semantic L1 number (30.2→55.7) was wrong; actual is 26.7→63.7 — corrected. <span class="err">✗</span> Original Real-FANUC "13→71" was not in Table 2 — corrected to ~28%→~58%. <span class="warn">⚠</span> 2nd-camera-vs-inlined comparison is our hypothesis.</p>
+</div>
+
+<div class="mechanism">
+  <h3>M7 · 3-5 reference photos per object, sampled per step</h3>
+  <p><strong>Source.</strong> Interleave-VLA Table 4.</p>
+  <p><strong>Plain-language description.</strong> Use multiple reference photos per celebrity, sampled randomly at each training step. Mix task-specific crops (from trajectory frames) with internet-source photos of the same person.</p>
+  <p><strong>Empirical impact (Table 4 verbatim):</strong></p>
+  <table>
+    <tr><th>Reference source</th><th class="num">Score 1</th><th class="num">Score 2</th></tr>
+    <tr><td>Internet-only</td><td class="num">59.2</td><td class="num">69.1</td></tr>
+    <tr><td>Task-specific-only</td><td class="num">67.5</td><td class="num">67.1</td></tr>
+    <tr><td><strong>Mixed (both sources)</strong></td><td class="num"><strong>71.0</strong></td><td class="num"><strong>71.7</strong></td></tr>
+  </table>
+  <p>Paper §3.3 explicit: cropped-only "lacks diversity," internet-only "lacks task relevance" — combination is required for full OOD gain.</p>
+  <p><strong>Cost.</strong> ~3-4h engineering. Dataset-side change to expand the 192-celeb bank from 1 photo/celeb to 3-5 photos/celeb (we have ≥5 photos for most celebs already) and modify the dataloader to sample one per training step.</p>
+  <p><strong>Validation status.</strong> <span class="ok">✓</span> Table 4 numbers verified verbatim. Mechanism verified.</p>
+</div>
+
+<div class="mechanism">
+  <h3>M8 · Bbox-grounding co-fine-tune at 10:1 robot:VL</h3>
+  <p><strong>Source.</strong> ObjectVLA (<a href="https://arxiv.org/html/2502.19250v1">arXiv 2502.19250</a>), §3.2-3.3, §4.1.2.</p>
+  <p><strong>Plain-language description.</strong> Mix a vision-language task into the robot fine-tune: given an image of an object, predict the bounding box of that object. The "language" output is the bounding-box coordinates as text. The same bbox prediction is injected as a reasoning prefix in the robot trajectories.</p>
+  <p><strong>Exact recipe (paper §3.2-3.3 verbatim):</strong></p>
+  <ul>
+    <li><strong>VL pair format:</strong> <code>(image, "Detecting the bounding box of &lt;object&gt;.", "(x1,y1),(x2,y2)")</code></li>
+    <li><strong>Robot:VL ratio: 10:1</strong></li>
+    <li><strong>Dataset size:</strong> 100 objects × 20 images/object = 2 000 VL pairs</li>
+    <li><strong>Grounding-token injection in robot prompts:</strong> <code>&lt;object_ref_start&gt;name&lt;object_ref_end&gt;&lt;box_start&gt;(x1,y1),(x2,y2)&lt;box_end&gt;</code> then the action chunk</li>
+    <li><strong>Training:</strong> 8× A800, <strong>Adam</strong> (not AdamW), LR 2e-5 constant, batch 128, 50k steps</li>
+  </ul>
+  <p><strong>Empirical impact (§4.1.2 verbatim):</strong></p>
+  <table>
+    <tr><th>Configuration</th><th class="num">ID success</th><th class="num">OOD success (100 objects)</th></tr>
+    <tr><td><strong>ObjectVLA full recipe</strong></td><td class="num"><strong>100%</strong></td><td class="num"><strong>64%</strong></td></tr>
+    <tr><td>Without bbox-grounding co-train</td><td class="num">100%</td><td class="num">19%</td></tr>
+    <tr><td>Without any VL co-train (DiVLA baseline)</td><td class="num">—</td><td class="num">8% (random)</td></tr>
+  </table>
+  <p>The bbox-grounding co-train carries <strong>45 percentage points</strong> of OOD performance. <strong>This is the largest single-mechanism gain in the literature we surveyed.</strong></p>
+  <p><strong>Cost.</strong> Two ways:</p>
+  <ol>
+    <li><strong>Full co-training</strong> (proper): requires multi-dataset training infra. Same LeRobot blocker as M5. 3-5 days engineering.</li>
+    <li><strong>Prompt-relabel proxy</strong> (cheap): precompute the face bbox per reference photo offline (via RetinaFace), inject it as text in the existing prompts. Example: <code>"&lt;ref&gt; shows Yann LeCun in bbox (12,15)-(245,230). Set the coke down on his picture."</code> ~6h engineering. Weakened version — may or may not transfer.</li>
+  </ol>
+  <p><strong>Validation status.</strong> <span class="ok">✓</span> All numbers verbatim per V4 audit. <span class="err">✗</span> Original "AdamW" was wrong — corrected to Adam.</p>
+</div>
+
+<h3>Summary of mechanisms</h3>
+<table>
+  <tr>
+    <th>M</th><th>What</th><th>Source</th><th>Headline gain (cited)</th><th>Cost (eng + Brev)</th>
+  </tr>
+  <tr><td>M1</td><td>Frozen 3-layer MLP at Backbone2Enc</td><td>Blind-VLA T5+T6</td><td>−7pp if trainable; −6pp on semantic if Enc2Enc</td><td>1d + 0</td></tr>
+  <tr><td>M2</td><td>Cosine alignment loss vs frozen teacher</td><td>Blind-VLA Eq 9</td><td>+12pp semantic OOD (vs default SFT)</td><td>1d + 2h</td></tr>
+  <tr><td>M3</td><td>Stop-gradient action↔VLM</td><td>KI Eqs 5-6</td><td>KI ≫ joint &gt; frozen (=0%); 7.5× speedup</td><td>multi-day + 0</td></tr>
+  <tr><td>M4</td><td>FAST-token CE loss on VLM</td><td>KI §5.1</td><td>Enables M3's effectiveness</td><td>multi-day + 0</td></tr>
+  <tr><td>M5</td><td>Web / VQA co-train</td><td>Pi0.5 blog</td><td>+20pp OOD object recognition (94→74% ablation)</td><td>3-5d full / 1d proxy</td></tr>
+  <tr><td>M6</td><td>Ref image inlined in language stream</td><td>Interleave-VLA §3.2</td><td>+1.8-2.5× OOD (only ≥3.3B tested)</td><td>1-2d + 0</td></tr>
+  <tr><td>M7</td><td>3-5 ref photos/object, sampled per step</td><td>Interleave-VLA T4</td><td>Mixed 71 &gt; Task-only 67 &gt; Internet-only 59</td><td>3-4h + 0</td></tr>
+  <tr><td>M8</td><td>Bbox-grounding co-train at 10:1</td><td>ObjectVLA §4.1.2</td><td>+45pp OOD (100→19% without; 100→64% with)</td><td>3-5d full / 6h proxy</td></tr>
+</table>
+
+<h2 id="options">§3 · All 17 training options</h2>
+
+<p>Each option combines an architecture × a protocol × a subset of M1-M8.</p>
+
+<div class="option">
+  <h3>Option 0 — Ship as-is</h3>
+  <div class="meta"><span>Mechanisms: none</span><span>Brev: $0</span><span>Bonus: +20</span><span><span class="tag tag-skip">Baseline only</span></span></div>
+  <p>Use <code>HBOrtiz/smolvla_eval3</code> exactly as-is. No retraining. Empirically fails (positional shortcut). Comparison floor only (~31 pts expected).</p>
+</div>
+
+<div class="option">
+  <h3>Option 1 — SmolVLA + reference recuration only</h3>
+  <div class="meta"><span>Mechanisms: M7 (partial)</span><span>Brev: $0</span><span>Bonus: +20</span><span><span class="tag tag-track-a">Add-on</span></span></div>
+  <p>Filter the 192-celeb bank for enrollment-quality photos (NIST FRVT / ISO 19794-5 standards: pose ≤±15°, inter-eye ≥60px, plain background). Pre-crop offline. Ship as static asset table. Pure inference-time fix. Likely +0-2 rollouts alone but free to add to anything.</p>
+</div>
+
+<div class="option">
+  <h3>Option 2 — SmolVLA + print-domain augmentation on <code>camera2</code></h3>
+  <div class="meta"><span>Mechanisms: none (domain coverage)</span><span>Brev: $15</span><span>Bonus: +20</span><span><span class="tag tag-track-a">Add-on</span></span></div>
+  <p>Augraphy-inspired print emulation (Lab gamut → Floyd-Steinberg dither → Perlin grain → blur → JPEG) on <code>camera2</code> at training time with p=0.7. Re-fine-tune from 30k for 5-10k steps. Direct fix for (G1) domain gap. RoboEngine paper explicitly warns: <em>"Methods even directly modify the scene using random images or texture…fail to respect physical constraints, leading to degenerated real-world performance due to distribution shifts."</em></p>
+</div>
+
+<div class="option">
+  <h3>Option 3 — SmolVLA + ArcFace cosine distillation only</h3>
+  <div class="meta"><span>Mechanisms: M1 + M2</span><span>Brev: $15</span><span>Bonus: +20</span><span><span class="tag tag-track-a">Add-on</span></span></div>
+  <p>Add Blind-VLA's auxiliary cosine loss at λ=0.2. Frozen 3-layer MLP projector. Mid-LLM (Backbone2Enc) injection. Mask-gated to face patches via RetinaFace. ArcFace <code>buffalo_l</code> teacher. Directly fixes (G2) representation gap. Bundle with Options 1 + 2.</p>
+</div>
+
+<div class="option">
+  <h3>Option 4 — VLM-only VQA warm-start (cheap M5)</h3>
+  <div class="meta"><span>Mechanisms: M5 (sequential proxy)</span><span>Brev: $25</span><span>Bonus: +20</span><span><span class="tag tag-track-a">Helps everything</span></span></div>
+  <p>Pretrain SmolVLM2-500M on face-VQA pairs <code>(face_crop, "Who is this?", "Yann LeCun")</code> from the 192-celeb bank using plain HuggingFace <code>transformers.Trainer</code>. Sidesteps LeRobot's <code>MultiLeRobotDataset</code> blocker. Then start the SmolVLA fine-tune from the warm VLM. Cheap, works regardless of protocol.</p>
+</div>
+
+<div class="option">
+  <h3>Option 5 — Bbox prompt-relabel (cheap M8)</h3>
+  <div class="meta"><span>Mechanisms: M8 (text proxy)</span><span>Brev: $25</span><span>Bonus: +20</span><span><span class="tag tag-track-a">Strongest single-mechanism signal</span></span></div>
+  <p>Rewrite training prompts to include the celebrity's face bounding box in <code>camera2</code>. Precompute bboxes once with RetinaFace. Example new prompt: <code>"&lt;ref&gt; shows Yann LeCun in bbox (12,15)-(245,230). Set the coke down on his picture."</code> Cheapest path to the largest published single-mechanism gain (45pp in ObjectVLA's ablation).</p>
+</div>
+
+<div class="option" style="border-left: 6px solid var(--confirm); padding-left: 1rem;">
+  <h3>Option 6 — SmolVLA-boost-v2 (Track A v2) <span style="font-size: 0.7em; background: var(--confirm); color: white; padding: 0.15rem 0.5rem; border-radius: 3px;">PRIMARY</span></h3>
+  <div class="meta"><span>Mechanisms: M1 + M2 + M5-proxy + M7 + M8-proxy</span><span>Brev: ~$30</span><span>Bonus: +20</span><span><span class="tag tag-track-a">Track A</span></span></div>
+  <p>Stack Options 1 + 2 + 3 + 5 plus lower LR to 2.5e-5 plus tighten hue jitter to ±0.02. Resume from 30k for 10-15k more steps. Addresses both domain gap (G1) AND representation gap (G2). Keeps the +20 bonus. Cheapest of the committed tracks.</p>
+</div>
+
+<div class="option">
+  <h3>Option 7 — Option 6 + true Interleave-VLA inlining</h3>
+  <div class="meta"><span>Mechanisms: + M6</span><span>Brev: $30</span><span>Bonus: +20</span><span><span class="tag tag-skip">Follow-up</span></span></div>
+  <p>Option 6 plus modify <code>processor_smolvla.py</code> + <code>embed_prefix</code> in <code>modeling_smolvla.py:626-705</code> so the prefix becomes <code>[language_with_inlined_images, state]</code> instead of <code>[images, language, state]</code>. Fixes the architectural deviation that V3 audit identified as most likely root cause of v1's failure. <strong>1-2 days engineering.</strong> Track A-2 if Option 6 underperforms.</p>
+</div>
+
+<div class="option">
+  <h3>Option 8 — Option 6 + VLM warm-start</h3>
+  <div class="meta"><span>Mechanisms: Option 6 + M5</span><span>Brev: ~$45</span><span>Bonus: +20</span><span><span class="tag tag-track-a">Max-effort SmolVLA</span></span></div>
+  <p>Run VLM-only VQA pretrain (Option 4) first, then Option 6 fine-tune from the warm VLM checkpoint. Strongest bonus-preserving combination (5 of 8 mechanisms covered).</p>
+</div>
+
+<div class="option" style="border-left: 6px solid var(--refute); padding-left: 1rem;">
+  <h3>Option 9 — Pi0.5 + image-as-prompt (vanilla, Track C)</h3>
+  <div class="meta"><span>Mechanisms: none (pure capacity bet)</span><span>Brev: ~$150</span><span>Bonus: +16</span><span><span class="tag tag-track-c">Reconsider</span></span></div>
+  <p>Train <code>lerobot/pi05_base</code> on our existing image-as-prompt dataset. Just swap architectures. PaliGemma vision tower is bigger than SmolVLM's. <strong>Strictly weaker than Option 10</strong> for similar Brev cost — recommend dropping in favor of 10.</p>
+</div>
+
+<div class="option" style="border-left: 6px solid var(--link); padding-left: 1rem;">
+  <h3>Option 10 — Pi0.5 + ArcFace distillation (Track B)</h3>
+  <div class="meta"><span>Mechanisms: M1 + M2</span><span>Brev: ~$160</span><span>Bonus: +16</span><span><span class="tag tag-track-b">Capacity hedge</span></span></div>
+  <p>Option 9 plus port the Blind-VLA alignment loss recipe to Pi0.5's PaliGemma vision tower. Combines capacity bet (Pi0.5) AND representation fix (ArcFace distill). Strictly stronger than Option 9 for similar cost. Best Pi0.5 option for the budget.</p>
+</div>
+
+<div class="option">
+  <h3>Option 11 — Pi0.5 + true KI recipe</h3>
+  <div class="meta"><span>Mechanisms: M3 + M4 + M5 (all full)</span><span>Brev: ~$160</span><span>Bonus: +16</span><span><span class="tag tag-skip">Skip — eng-blocked</span></span></div>
+  <p>Implement KI's full mechanism: <code>sg(K_b)</code>, <code>sg(V_b)</code> in cross-attention, FAST-token CE loss, web/VQA co-train at Pi0.5's mixture ratio. <strong>3-5 days engineering</strong> across multiple code paths. Not feasible in deadline.</p>
+</div>
+
+<div class="option">
+  <h3>Option 12 — Pi0.5 + name-only (pre-pivot plan)</h3>
+  <div class="meta"><span>Mechanisms: none</span><span>Brev: ~$140</span><span>Bonus: +16</span><span><span class="tag tag-skip">Pivot test</span></span></div>
+  <p>Train Pi0.5 with text-only prompts ("Place the coke on Yann LeCun"). No <code>camera2</code> reference stream. Banks on PaliGemma's WebLI prior. The original team plan before the 2026-05-09 pivot. Epistemically valuable but lower priority than Option 10.</p>
+</div>
+
+<div class="option">
+  <h3>Option 13 — Pi0.5 + name-only + VLM warm-start</h3>
+  <div class="meta"><span>Mechanisms: M5 warm-start</span><span>Brev: ~$165</span><span>Bonus: +16</span><span><span class="tag tag-track-b">Best text-only</span></span></div>
+  <p>Option 12 plus VLM warm-start (Option 4) on PaliGemma-3B for celeb-name binding. Highest-capacity text-only option. Best choice if TAs require text-only.</p>
+</div>
+
+<div class="option">
+  <h3>Option 14 — SmolVLA + name-only + VLM warm-start</h3>
+  <div class="meta"><span>Mechanisms: M5 warm-start</span><span>Brev: ~$50</span><span>Bonus: +20</span><span><span class="tag tag-track-a">Text-only insurance</span></span></div>
+  <p>Text-only variant of Track A. Drop the <code>camera2</code> reference stream entirely, name-only prompts, with VQA pretrain on SmolVLM2-500M. Bonus-preserving text-only option.</p>
+</div>
+
+<div class="option" style="border-left: 6px solid var(--confirm); padding-left: 1rem;">
+  <h3>Option 15 — SmolVLA 3-celeb baseline (Track D) <span style="font-size: 0.7em; background: var(--confirm); color: white; padding: 0.15rem 0.5rem; border-radius: 3px;">SAFETY NET</span></h3>
+  <div class="meta"><span>Mechanisms: none</span><span>Brev: ~$35</span><span>Bonus: +20</span><span><span class="tag tag-track-d">Floor</span></span></div>
+  <p>Filter merged dataset to just Swift/Obama/LeCun episodes (178 base teleops). Name-only prompts. Train SmolVLA from <code>lerobot/smolvla_base</code>. <code>--policy.empty_cameras=2</code>. Concedes the 3 OOD eval runs by design but maximises reliability on the 6 IID runs.</p>
+</div>
+
+<div class="option">
+  <h3>Option 16 — Pi0.5 + everything (M1-M8 all-in)</h3>
+  <div class="meta"><span>Mechanisms: M1-M8 (all)</span><span>Brev: ~$170</span><span>Bonus: +16</span><span><span class="tag tag-skip">Skip — eng-blocked</span></span></div>
+  <p>Track A v2's full mechanism stack ported to Pi0.5 + true KI + true Interleave-VLA + true bbox co-train. <strong>3-5 days engineering across 4 code paths.</strong> Not feasible.</p>
+</div>
+
+<h2 id="matrix">§4 · Decision matrix</h2>
+
+<table>
+  <tr><th>#</th><th>Option</th><th>Mechanisms</th><th>Eng</th><th class="num">Brev $</th><th>Bonus</th><th>Verdict</th></tr>
+  <tr><td>0</td><td>Ship as-is</td><td>—</td><td>0</td><td class="num">$0</td><td>+20</td><td>Baseline</td></tr>
+  <tr><td>1</td><td>Ref recuration only</td><td>M7p</td><td>4h</td><td class="num">$0</td><td>+20</td><td>Add-on</td></tr>
+  <tr><td>2</td><td>Print augmentation only</td><td>—</td><td>6h</td><td class="num">$15</td><td>+20</td><td>Add-on</td></tr>
+  <tr><td>3</td><td>ArcFace distill only</td><td>M1+M2</td><td>1d</td><td class="num">$15</td><td>+20</td><td>Add-on</td></tr>
+  <tr><td>4</td><td>VLM warm-start</td><td>M5p</td><td>1d</td><td class="num">$25</td><td>+20</td><td>Helps everything</td></tr>
+  <tr><td>5</td><td>Bbox prompt-relabel</td><td>M8p</td><td>4h</td><td class="num">$25</td><td>+20</td><td>Largest single signal</td></tr>
+  <tr style="background: #e3f0e6;"><td><strong>6</strong></td><td><strong>SmolVLA-boost-v2 (Track A)</strong></td><td>M1+M2+M5p+M7+M8p</td><td>1.5d</td><td class="num">$30</td><td>+20</td><td><strong>Primary</strong></td></tr>
+  <tr><td>7</td><td>+ True Interleave-VLA</td><td>+ M6</td><td>2-3d</td><td class="num">$30</td><td>+20</td><td>Follow-up</td></tr>
+  <tr><td>8</td><td>+ VLM warm-start</td><td>+ M5</td><td>2d</td><td class="num">$45</td><td>+20</td><td>Max-effort SmolVLA</td></tr>
+  <tr><td>9</td><td>Pi0.5 + image-as-prompt</td><td>—</td><td>6h</td><td class="num">$150</td><td>+16</td><td>Skip (10 is stronger)</td></tr>
+  <tr style="background: #f0e6f0;"><td><strong>10</strong></td><td><strong>Pi0.5 + ArcFace distill (Track B)</strong></td><td>M1+M2</td><td>2d</td><td class="num">$160</td><td>+16</td><td><strong>Capacity hedge</strong></td></tr>
+  <tr><td>11</td><td>Pi0.5 + true KI</td><td>M3+M4+M5</td><td>3-5d</td><td class="num">$160</td><td>+16</td><td>Skip (eng-blocked)</td></tr>
+  <tr><td>12</td><td>Pi0.5 + name-only</td><td>—</td><td>6h</td><td class="num">$140</td><td>+16</td><td>Pivot test</td></tr>
+  <tr><td>13</td><td>Pi0.5 + name-only + VLM warm-start</td><td>M5p</td><td>1.5d</td><td class="num">$165</td><td>+16</td><td>Best text-only</td></tr>
+  <tr><td>14</td><td>SmolVLA + name-only + VLM warm-start</td><td>M5p</td><td>1.5d</td><td class="num">$50</td><td>+20</td><td>Text-only insurance</td></tr>
+  <tr style="background: #e6e6f0;"><td><strong>15</strong></td><td><strong>SmolVLA 3-celeb baseline (Track D)</strong></td><td>—</td><td>6h</td><td class="num">$35</td><td>+20</td><td><strong>Safety net</strong></td></tr>
+  <tr><td>16</td><td>Pi0.5 + everything</td><td>M1-M8</td><td>3-5d</td><td class="num">$170</td><td>+16</td><td>Skip (eng-blocked)</td></tr>
+</table>
+
+<p><em>"p" suffix = proxy implementation (cheaper but weaker than the published mechanism)</em>.</p>
+
+<h2 id="scenarios">§5 · Budget scenarios &amp; recommendations</h2>
+
+<p>Remaining Brev budget ≈ $130. The committed 4 tracks total ~$370 — over budget. Three concrete scenarios:</p>
+
+<h3>Scenario A — Original 4 tracks (~$370, over budget)</h3>
+<p>Track A (Option 6) + Track B (Option 10) + Track C (Option 9) + Track D (Option 15). Needs either a budget extension or dropping a track.</p>
+
+<h3>Scenario B — Drop Track C, keep 3 tracks (~$225)</h3>
+<p>Track A + Track D + Track B. Rationale: Option 10 (Pi0.5+ArcFace) is strictly stronger than Option 9 (Pi0.5 vanilla) for similar Brev cost. We lose the "pure capacity test" but gain a track that includes a surgical fix. Still ~$95 over the remaining $130 budget.</p>
+
+<h3>Scenario C — Minimum viable 2 tracks (~$65, fits budget)</h3>
+<p>Track A (Option 6) + Track D (Option 15). Both bonus-preserving. No Pi0.5 capacity test. Mitigation: add Option 4 (VLM warm-start) at ~$25 — boosts both A and D, total $90 still under budget.</p>
+
+<h3>Scenario D — Text-only branch (if TAs reject image-as-prompt)</h3>
+<p>Option 14 (SmolVLA + name-only + VLM warm-start) + Option 15 (Track D) + optionally Option 13 (Pi0.5 + name-only + VLM warm-start). Triggered by the TA permission question (§6).</p>
+
+<h2 id="open">§6 · Open team question</h2>
+
+<div class="note">
+  <span class="note-title">⚠ Unresolved — must clarify before final commitment</span>
+  The official spec says the prompt is text-only: <em>"Place the coke on [celebrity name]"</em>. Our image-as-prompt protocol requires us to look up a reference photo internally from a name→photo asset table and feed it as <code>camera2</code>. The TAs may or may not consider this protocol-compliant.<br><br>
+  <strong>Action:</strong> Someone Slack the TAs with the question:<br>
+  <em>"For Eval 3, may our policy take a reference image of the named celebrity as a 2nd camera input (looked up internally from a pre-built name→photo asset table that ships with the policy)? Or must the policy take only the text prompt with no auxiliary lookups?"</em><br><br>
+  If allowed → scenarios A/B/C above apply.<br>
+  If disallowed → pivot to scenario D (text-only branch).
+</div>
+
+<h2 id="cites">§7 · Citations (primary sources, all audit-verified)</h2>
+
+<h3>VLA papers</h3>
+<ul>
+  <li><strong>SmolVLA</strong> — <a href="https://arxiv.org/abs/2506.01844">arXiv 2506.01844</a></li>
+  <li><strong>Pi0.5</strong> — <a href="https://arxiv.org/abs/2504.16054">arXiv 2504.16054</a> + <a href="https://www.pi.website/blog/pi05">pi.website/blog/pi05</a></li>
+  <li><strong>Pi0.5-KI</strong> — <a href="https://arxiv.org/html/2505.23705v1">arXiv 2505.23705</a></li>
+  <li><strong>Interleave-VLA</strong> — <a href="https://arxiv.org/abs/2505.02152">arXiv 2505.02152</a></li>
+  <li><strong>SmolVLM</strong> — <a href="https://arxiv.org/html/2504.05299v1">arXiv 2504.05299</a></li>
+</ul>
+
+<h3>Training-technique papers</h3>
+<ul>
+  <li><strong>"Don't Blind Your VLA"</strong> — <a href="https://arxiv.org/html/2510.25616v1">arXiv 2510.25616</a></li>
+  <li><strong>BlindVLA reference code</strong> — <a href="https://github.com/CognitiveAISystems/BlindVLA/blob/main/openvla/vla-scripts/finetune_align.py">github.com/CognitiveAISystems/BlindVLA</a></li>
+  <li><strong>ObjectVLA</strong> — <a href="https://arxiv.org/html/2502.19250v1">arXiv 2502.19250</a></li>
+  <li><strong>ArcFace</strong> — <a href="https://arxiv.org/abs/1801.07698">arXiv 1801.07698</a></li>
+</ul>
+
+<h3>Augmentation papers</h3>
+<ul>
+  <li><strong>Print-and-Scan morph attacks</strong> — <a href="https://arxiv.org/html/2404.06559v2">arXiv 2404.06559</a></li>
+  <li><strong>Augraphy paper-emulation</strong> — <a href="https://arxiv.org/abs/2208.14558">arXiv 2208.14558</a></li>
+  <li><strong>RoboEngine</strong> — <a href="https://arxiv.org/abs/2503.18738">arXiv 2503.18738</a></li>
+  <li><strong>LIBERO-Plus</strong> — <a href="https://arxiv.org/abs/2510.13626">arXiv 2510.13626</a></li>
+  <li><strong>GenAug</strong> — <a href="https://arxiv.org/abs/2302.06671">arXiv 2302.06671</a></li>
+  <li><strong>ROSIE</strong> — <a href="https://arxiv.org/abs/2302.11550">arXiv 2302.11550</a></li>
+</ul>
+
+<h3>Biometric standards</h3>
+<ul>
+  <li><strong>NIST FRVT Quality</strong> — <a href="https://pages.nist.gov/frvt/html/frvt_quality.html">pages.nist.gov/frvt/html/frvt_quality</a></li>
+  <li><strong>ISO/IEC 19794-5:2011</strong> — <a href="https://www.iso.org/standard/50867.html">iso.org/standard/50867</a></li>
+  <li><strong>InsightFace</strong> — <a href="https://github.com/deepinsight/insightface">github.com/deepinsight/insightface</a></li>
+  <li><strong>MagFace</strong> — <a href="https://arxiv.org/abs/2103.06627">arXiv 2103.06627</a></li>
+</ul>
+
+<h3>Audit trail</h3>
+<p>Every claim in this briefing was verified by two waves of parallel research agents:</p>
+<ol>
+  <li><strong>Wave 1 (4 deep-readers):</strong> extract reproducibility-level details from each paper.</li>
+  <li><strong>Wave 2 (4 skeptical fact-checkers):</strong> attempt to disprove the first wave's claims by reading primary sources directly.</li>
+</ol>
+<p>Per-claim audit verdicts (<span class="ok">✓ confirmed</span> / <span class="warn">⚠ unverified or visual-read</span> / <span class="err">✗ refuted/corrected</span>) are in the companion document <a href="EVAL_3_RESEARCH_REPORT.html">EVAL_3_RESEARCH_REPORT</a> §P2.7b. Corrections applied: dropped fabricated <code>&lt;BOI&gt;</code>/<code>&lt;EOI&gt;</code> token names from Interleave-VLA framing; corrected Semantic L1 numbers (26.7→63.7 not 30.2→55.7); dropped Real-FANUC 13→71 5.5× claim that was not in Table 2; fixed ObjectVLA optimizer (Adam not AdamW); restored "even" in RoboEngine quote; softened KI bar-height percentages to "visual reads from figure images"; dropped Stable Diffusion attribution to GenAug; dropped OWL-ViT attribution to ROSIE.</p>
+
+<hr style="margin-top: 3rem; border: none; border-top: 1px solid var(--border);">
+<p style="text-align: center; color: var(--muted); font-size: 0.85em; margin: 1.5rem 0;">
+  LeMonkey · ETH Robot Learning FS26 Project 1 · Eval 3 Options Briefing<br>
+  Last updated: 2026-05-18 · Document source: <code>docs/report/EVAL_3_OPTIONS_BRIEFING.md</code>
+</p>
+
+</div>
+</body>
+</html>
