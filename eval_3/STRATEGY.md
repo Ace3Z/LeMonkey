@@ -154,6 +154,89 @@ Remaining budget ~$130 after current spending. We will exceed this if we run all
 
 ---
 
+## 7b. Track A v2 — design after deep paper readings + validation audit (2026-05-17 evening)
+
+After 7 research agents (4 deep-reads + 4 skeptical validators) audited the v1 Track A design, several mechanisms are confirmed missing from v1 that were bundled with the papers we cited. See [`docs/report/EVAL_3_RESEARCH_REPORT.md` §P2](../docs/report/EVAL_3_RESEARCH_REPORT.md) for the per-paper deep-dive and §P2.7b for the validation audit.
+
+### Components added to Track A v2
+
+**A1. Reference photo recuration** (unchanged from v1 design)
+Quality filter per NIST FRVT / ISO 19794-5; head+shoulders crop offline; ship as static asset table. ~4h.
+
+**A2. Print-domain augmentation on camera2** (unchanged from v1 design)
+Augraphy-inspired Lab gamut → Floyd-Steinberg dither → Perlin grain → JPEG, p=0.7. ~6h eng.
+
+**A3. ArcFace cosine distillation** — refined from V2 validation
+- Loss: BlindVLA equation 9, **`F.normalize` then dot product then `mean()` then negate**. λ=0.2 from step 0 (constant).
+- **Frozen 3-layer MLP projector** (LayerNorm → Linear(hidden, 2048) → SiLU → Dropout(0.1) → Linear(2048, 2048) → SiLU → Dropout(0.1) → Linear(2048, 512)). Frozen from step 0 — paper Table 6: trainable projector becomes a shortcut.
+- **Injection at Backbone2Enc mid-LLM layer** (NOT Enc2Enc / SigLIP output). For SmolVLA's truncated 16-layer SmolLM2, inject at layer 7-8 (mid-network).
+- Mask-gated to face patches only (RetinaFace masks precomputed offline). Pooled-student variant for the single-embedding ArcFace teacher.
+- Camera2-only (preserve camera1 manipulation grounding).
+- Code template: [`finetune_align.py`](https://github.com/CognitiveAISystems/BlindVLA/blob/main/openvla/vla-scripts/finetune_align.py) lines 310-338 + 417-420.
+- Caveat: cosine > L2 with p<0.01 holds on semantic + vision axes only; execution axis p=0.05. Track separately on validation.
+
+**A4. Diversify reference photos per celeb** (NEW from V1 agent finding)
+- 3-5 photos per celeb in the bank, sampled randomly per training step
+- Mirrors Interleave-VLA Table 4 (Mixed 71.0/71.7 > Task-only 67.5/67.1 > Internet-only 59.2/69.1)
+- Dataset-side change only. ~3h eng.
+
+**A5. ObjectVLA-style bbox-grounding via prompt relabel** (NEW from V4 agent — strongest single mechanism)
+- ObjectVLA verbatim numbers: 100% ID → 19% OOD without bbox grounding; 100% → 64% with. (Verbatim §4.1.1-4.1.2.)
+- Their training mix: **10:1 robot:VL** with VL pairs being `(image, "Detecting the bounding box of <object>.", "(x1,y1),(x2,y2)")`. (Verbatim §3.2-3.3.)
+- LeRobot 0.5.1 lacks multi-dataset co-training (`MultiLeRobotDataset = NotImplementedError`), so we use a **prompt-relabel proxy**: precompute the face bbox per reference photo offline; inject it as text in the prompt. Example: `"<ref> shows Yann LeCun in bbox (12,15)-(245,230). Set the coke down on his picture."` ~6h eng.
+- Optimizer for ObjectVLA was **Adam (NOT AdamW)**, LR 2e-5, bs 128, 50k steps. For Track A v2 we keep SmolVLA's AdamW (different model regime).
+
+**A6. Lower LR to 2.5e-5** (NEW from V1 agent)
+- We unfroze both VLM AND SigLIP at LR 5e-5. No source paper unfroze both at that LR.
+- Halve to 2.5e-5 to protect pretrained features.
+
+**A7. Tighten color jitter** (NEW from V1 agent)
+- Default SmolVLA `image_transforms` includes hue jitter ±0.05 — perturbs skin tones.
+- Reduce to ±0.02 or disable.
+
+### Components deferred to Track A-2 (follow-up)
+
+**True Interleave-VLA inline-in-language protocol.** Verified by V3 validation that SmolVLA's prefix is `[images, language, state]` (cannot interleave images between text segments via `add_image_special_tokens` alone). However, the V3 audit also clarifies that **whether the 2nd-camera approach is "invalid" vs the inlined-prompt approach is OUR hypothesis, not paper-tested** — Interleave-VLA never tested the 2nd-camera variant. So we treat true Interleave-VLA as a high-value follow-up to validate the hypothesis, not as an established prerequisite.
+
+Implementing it requires substantial changes:
+- `processor_smolvla.py` — insert `<BOI> image_tokens <EOI>` tokens INTO the text token stream during processor
+- `modeling_smolvla.py:626-705` `embed_prefix` — change concat order from `[images, language, state]` to `[language_with_inlined_images, state]`
+- Multi-day eng work
+
+**KI gradient stop + FAST-token loss.** Verified by V1 — paper Eqs. 5-6 verbatim. Requires forward-pass changes (add `sg(·)` wrapping cross-attention K/V from VLM to action expert; expose LM head for FAST-token cross-entropy). Multi-day eng.
+
+**Web/VQA co-training.** Verified by V1 — Pi0.5 blog 94% → 74% OOD without web data. Blocked by `MultiLeRobotDataset` in our pinned LeRobot.
+
+### Track B v2 (Pi0.5 + ArcFace distillation)
+
+Port A3 (frozen 3-layer MLP at Backbone2Enc) to Pi0.5's PaliGemma vision tower. Same loss equation, same λ=0.2, same teacher.
+
+For Pi0.5 specifically, also adopt at training time:
+- `train_expert_only=false` (KI-validated)
+- `freeze_vision_encoder=false` (BlindVLA-validated)
+- LR 2.5e-5 (Pi0.5 default is 2.5e-5 per `configuration_pi05.py` — keep)
+- Gradient checkpointing + bf16 + compile_model
+- bs=16-24 (VRAM-bounded on RTX PRO 6000)
+
+### Track C v2 (Pi0.5 vanilla IaP)
+
+No surgical fixes. Pure capacity bet. Isolates the "scale solves it" hypothesis.
+
+### Track D v2 (3-celeb baseline)
+
+Unchanged from v1: SmolVLA from `lerobot/smolvla_base` on 178 base teleops, name-only prompts, `--policy.empty_cameras=2`. ~6h Brev.
+
+### Updated risk register additions
+
+| Risk | Probability | Impact | Mitigation |
+|---|---|---|---|
+| Track A v2's ObjectVLA prompt-relabel is weaker than true bbox co-train | medium | A v2 underperforms; ObjectVLA's published gain (45pp) may not transfer | Visual gate on the bbox prompts; ablation toggle on the relabel |
+| Backbone2Enc injection at layer 7-8 of SmolLM2 is research-grade extrapolation | medium | Wrong layer choice could underperform Enc2Enc | Test 2-3 layers (5, 8, 12) in parallel — `align_layers` is configurable |
+| Pooled-student ArcFace adaptation underperforms patch-level | medium | A3 underperforms | A/B against the per-face-patch broadcast variant |
+| Print augmentation parameters don't match our specific printer | low-medium | A v2 refs look wrong | Calibration print + ArcFace cosine probe before scaling (mandatory per CLAUDE.md §7) |
+
+---
+
 ## 8. Cross-references
 
 - [`/TODO.md`](../TODO.md) — operational checklist

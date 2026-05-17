@@ -25,25 +25,51 @@
 
 ---
 
-## Track A — SmolVLA-boost-v2
+## Track A — SmolVLA-boost-v2 (UPDATED 2026-05-17 evening after deep-read audit)
 
-**Goal:** Resume from the current 30k checkpoint (`HBOrtiz/smolvla_eval3`) for 10-15k more steps with three additions: (a) re-curated reference photos, (b) print-domain augmentation on camera2, (c) ArcFace cosine distillation on camera2.
+**Goal:** Resume from the current 30k checkpoint (`HBOrtiz/smolvla_eval3`) for 10-15k more steps with **seven additions** (was three in v1 design). See [`eval_3/STRATEGY.md` §7b](eval_3/STRATEGY.md) for the per-component reasoning chain and [`docs/report/EVAL_3_RESEARCH_REPORT.md` §P2.7b](docs/report/EVAL_3_RESEARCH_REPORT.md) for the validation audit results.
 
 **Subtasks (do in order):**
 
+### A1. Reference photo recuration (~4h eng)
 - [ ] `eval_3/aug/curate_references.py` — face-quality filter + head+shoulders crop on the 192-celeb bank
+
+### A2. Print-domain augmentation on camera2 (~6h eng)
 - [ ] `eval_3/aug/print_simulate.py` — Augraphy-inspired print-emulation operator (Lab gamut → FS dither → Perlin grain → blur → JPEG)
 - [ ] `eval_3/aug/dbg/dbg_print_aug_grid.py` — visual sample generator (4×4 grid: clean / aug / real-print). **User-gate before kicking off training.**
+- [ ] Calibration print + ArcFace cosine probe (CLAUDE.md §7 mandatory gate)
+
+### A3. ArcFace cosine distillation (~1 day eng)
 - [ ] `eval_3/aug/cache_arcface_embeddings.py` — precompute `buffalo_l` embeddings + RetinaFace masks; store under each variant dir
-- [ ] Policy patch in `third_party/lerobot/src/lerobot/policies/smolvla/smolvlm_with_expert.py:179` — `embed_image` returns pre-connector `last_hidden_state`
+- [ ] Policy patch in `third_party/lerobot/src/lerobot/policies/smolvla/smolvlm_with_expert.py:179` — `embed_image` returns mid-LLM hidden state at layer 7-8 (NOT pre-connector SigLIP output, per V2 Table 5 validation)
 - [ ] Policy patch in `third_party/lerobot/src/lerobot/policies/smolvla/modeling_smolvla.py:355,404,626` — wire mask + cached embedding through `prepare_images`/`embed_prefix`; add `0.2 * align_loss` to `forward`
-- [ ] New module `third_party/lerobot/src/lerobot/policies/smolvla/face_align_projector.py` — 2-layer MLP (1152 → 2048 → 512)
-- [ ] `eval_3/scripts/brev/run_training_boost_v2.sh` — Brev launch script
-- [ ] Visual gate via `dbg_print_aug_grid.py` — user approval before launch
-- [ ] Brev launch (~5h)
+- [ ] New module `third_party/lerobot/src/lerobot/policies/smolvla/face_align_projector.py` — **3-layer MLP, FROZEN** (LayerNorm → Linear(hidden, 2048) → SiLU → Dropout(0.1) → Linear(2048, 2048) → SiLU → Dropout(0.1) → Linear(2048, 512)). Set `requires_grad=False` after init.
+- [ ] **Layer-choice ablation toggle**: try align_layers ∈ {5, 8, 12} of SmolLM2's 16. Layer 8 is the mid-network default.
+
+### A4. Diversify reference photos per celeb (~3h eng) — **NEW from V1 audit**
+- [ ] `eval_3/aug/expand_celeb_refs.py` — produce 3-5 face-quality-passing photos per celeb; modify dataset loader to sample one per training step
+- [ ] Update `eval_3/aug/cache_arcface_embeddings.py` to cache per-photo embeddings
+
+### A5. ObjectVLA-style bbox-grounding via prompt relabel (~6h eng) — **NEW from V4 audit, strongest single mechanism (45pp gap)**
+- [ ] `eval_3/aug/compute_face_bboxes.py` — precompute face bbox per reference photo using RetinaFace
+- [ ] `eval_3/aug/relabel_prompts_with_bbox.py` — relabel 50% of training prompts to inject bbox: `"<ref> shows {NAME} in bbox ({x1},{y1})-({x2},{y2}). Set the coke down on his/her picture."`
+- [ ] Validate prompt distribution remains balanced
+
+### A6. Lower learning rate to 2.5e-5 (config-only)
+- [ ] Update `eval_3/scripts/brev/run_training_boost_v2.sh` with `--policy.optimizer_lr=2.5e-5`
+
+### A7. Tighten color jitter (config-only)
+- [ ] Disable hue jitter or reduce to ±0.02 (default ±0.05 perturbs skin tones)
+
+### Launch
+- [ ] `eval_3/scripts/brev/run_training_boost_v2.sh` — Brev launch script with all 7 components
+- [ ] Visual gates via `dbg_print_aug_grid.py` AND validation set ArcFace cosine probe — user approval before launch
+- [ ] Brev launch (~5h, possibly 6-7h with the extra components)
 - [ ] Push checkpoint to `HBOrtiz/smolvla_eval3_boost_v2`
 
 **Dependencies:** none — can start now.
+
+**Track A-2 follow-up (deferred):** True Interleave-VLA inline-in-language protocol. Requires processor + embed_prefix changes (multi-day). Activate ONLY if Track A v2 fails to lift face-matching success.
 
 ---
 
