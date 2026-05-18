@@ -209,6 +209,8 @@ def main() -> None:
                              "(e.g. '.toy' → train.toy.jsonl, val.toy.jsonl). "
                              "Overridden by --smoke. Default: '' (train.jsonl).")
     parser.add_argument("--wandb-project", default="lemonkey-eval3-smolvlm")
+    parser.add_argument("--run-name", type=str, default=None,
+                        help="wandb run name. Default: derived from out-dir basename.")
     args = parser.parse_args()
 
     if args.out_dir is None:
@@ -259,7 +261,8 @@ def main() -> None:
         fp16=False,
         gradient_checkpointing=False if args.smoke else True,
         report_to=("none" if args.smoke else "wandb"),
-        run_name=f"smolvlm-celeb-lora{'-smoke' if args.smoke else ''}",
+        run_name=(args.run_name if args.run_name
+                  else f"smolvlm-celeb-{args.out_dir.name}{'-smoke' if args.smoke else ''}"),
         remove_unused_columns=False,
         max_steps=10 if args.smoke else -1,
         dataloader_num_workers=0,
