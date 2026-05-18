@@ -442,12 +442,74 @@ The `<image>` token in every prompt is replaced at processor time with the camer
 
 ---
 
+## 7d. Locked-in plan — 5-person sprint (2026-05-18, supersedes §7c)
+
+**§7c is DEAD.** The TA (Carl Brander) ruled on 2026-05-18 08:38 CEST that the policy
+must take `scene_camera + text + proprioception` as input only — no reference-image
+lookup, no asset-table tricks. M6 (Interleave-VLA inline reference image) and M7
+(diverse reference photos per step) both require the reference channel at inference,
+so they are **forbidden** for Eval 3. The M6 SmolVLA implementation we shipped at
+[commit b50b76a](https://github.com/Ace3Z/LeMonkey/commit/b50b76a) is parked
+(config-gated, default off).
+
+The new plan is the **5-person, 4-day sprint** documented in full in
+[`docs/report/EVAL_3_FINAL_PLAN.html`](../docs/report/EVAL_3_FINAL_PLAN.html), with
+per-person assignments and copy-paste training commands in [`/TODO.md`](../TODO.md).
+
+### Mechanism status (post-ruling)
+
+| Mech | Status | Notes |
+|---|---|---|
+| M1 (frozen MLP projector) | ALIVE | Training-only. No inference input. |
+| M2 (ArcFace cosine alignment at Backbone2Enc layer 7/8) | ALIVE | Operates on **camera1** wrist view. Training-time distillation only. **More important now** since model must read identity from wrist alone. |
+| M3 (Pi0.5-KI stop-gradient on K_b/V_b) | ALIVE | Gradient-flow control. |
+| M4-lite (FAST CE on VLM LM head, λ=0.1) | ALIVE | Training-only loss. Risk mitigation for M3-without-M4. |
+| **M5 (VLM warm-start on celeb VQA)** | **PROMOTED — load-bearing** | Carl's recommendation = M5. **Hans has already done this**: LoRA on SmolVLM2-500M with VGGFace2 VQA. Pushed as `HansOrtiz/smolvlm2_celeb_warm`. |
+| M6 (inline reference image in language) | **DEAD** | Requires reference image input → forbidden. |
+| M7 (3–5 reference photos sampled per step) | **DEAD** | Requires reference image input → forbidden. |
+| M8 (ObjectVLA bbox-grounding co-train) | deferred | Training-only; reserve for follow-up if Track A/C underperforms on localisation. |
+
+### The 3 tracks (input contract: camera1 + state + text only)
+
+| Track | Owner | Backbone | Recipe | Bonus | Brev |
+|---|---|---|---|---|---|
+| **A** | Hans | SmolVLA-450M | `vlm_model_name=HansOrtiz/smolvlm2_celeb_warm`, `train_expert_only=True`, `freeze_vision_encoder=True`, `empty_cameras=1`, lr 5e-5, 30k steps | **+20** | ~6 h |
+| **B** | Roham | Pi0.5-3B | `lerobot/pi05_base`, `train_expert_only=True`, `freeze_vision_encoder=True`, `empty_cameras=3`, lr 1e-5, bs 24, 30k steps | +16 | ~24 h |
+| **C** | Sejohn | SmolVLA-450M | `lerobot/smolvla_base` vanilla, defaults, no warm-VLM | **+20** | ~6 h |
+| D (opt) | Mahbod | tooling | M2 ArcFace distillation toolkit, drop-in patch for SmolVLA; activate only if A/C show weak face discrimination on Day-2 Strix test | — | ~6 h if applied |
+| — | Darius | Strix testing | 3-rollout protocol per checkpoint + Day-4 9-rollout dry-run | — | — |
+
+### Dataset
+
+All tracks load **`HBOrtiz/so101_eval3_track3_v3_baseline`** (178 base + 9,216 aug =
+9,394 eps, 14.3 GB, pushed 2026-05-18 23:00 CEST). The reference camera channel is
+present in the schema but ignored at training via `--policy.empty_cameras=N`.
+
+See [`docs/EVAL_3_DATASETS.md`](../docs/EVAL_3_DATASETS.md) for the full HF artifact
+list including what's deprecated.
+
+### What §7d supersedes from §7c
+
+- §7c **Track 1** (SmolVLA + M1+M2+M3+M6+M7+M4-lite) → simplified to §7d **Track A**
+  (SmolVLA + Hans's M5 warm-VLM only). M2 distillation moved to optional Track D.
+- §7c **Track 2** (Pi0.5 + same mechanisms) → simplified to §7d **Track B** (Pi0.5
+  vanilla + frozen VLM, no M5 unless Day-3 fallback fires).
+- §7c **Track 3** (SmolVLA 3-celeb + M6) → renamed to §7d **Track C**, M6 removed
+  (forbidden), still the safety floor.
+- M6 SmolVLA implementation (Interleave-VLA inline) → parked.
+- M7 (multi-photo reference sampling) → parked.
+
+---
+
 ## 8. Cross-references
 
-- [`/TODO.md`](../TODO.md) — operational checklist
-- [`docs/EVAL_3_OPTIONS.md`](../docs/EVAL_3_OPTIONS.md) — full 15-option enumeration with reasoning per option
+- [`/TODO.md`](../TODO.md) — operational checklist (4-day sprint plan)
+- [`docs/report/EVAL_3_FINAL_PLAN.html`](../docs/report/EVAL_3_FINAL_PLAN.html) — **the canonical 4-day plan** (post-TA-ruling, 5-person)
+- [`docs/EVAL_3_DATASETS.md`](../docs/EVAL_3_DATASETS.md) — HF artifacts (datasets + models) and importance ranking
+- [`docs/EVAL_3_OPTIONS.md`](../docs/EVAL_3_OPTIONS.md) — full 15-option enumeration with reasoning per option (pre-ruling)
+- [`docs/report/EVAL_3_OPTIONS_BRIEFING.html`](../docs/report/EVAL_3_OPTIONS_BRIEFING.html) — TA ruling + text-only pivot (post-ruling, supersedes §7c)
 - [`docs/report/EVAL_3_RESEARCH_REPORT.md`](../docs/report/EVAL_3_RESEARCH_REPORT.md) — definitive research synthesis (7-agent triangulation)
-- [`eval_3/aug/RESEARCH_v3_face_matching_rescue.md`](aug/RESEARCH_v3_face_matching_rescue.md) — image-as-prompt branch deep dive
+- [`eval_3/aug/RESEARCH_v3_face_matching_rescue.md`](aug/RESEARCH_v3_face_matching_rescue.md) — image-as-prompt branch deep dive (historical, pre-ruling)
 - [`eval_3/aug/STRATEGY_v3.md`](aug/STRATEGY_v3.md) — v3 augmentation pipeline strategy (training data construction)
 - [`eval_3/README.md`](README.md) — original Eval 3 plan + architecture decision
 - [`docs/VLA_ARCHITECTURES.md`](../docs/VLA_ARCHITECTURES.md) — architecture inventory and knob taxonomy

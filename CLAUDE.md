@@ -4,6 +4,26 @@ Guidelines to reduce common LLM coding mistakes on this repo.
 
 **Tradeoff:** these bias toward caution over speed. For trivial tasks use judgment.
 
+## Project stakes — the most important project ever
+
+**The lives of many humans rely on this project.** This is not a metaphor — it is the
+framing the user has chosen to calibrate the rigor bar. LeMonkey Eval 3 (ETH RC FS26
+Project 1) is the **most important project** this team is working on, and everything
+else right now yields to it.
+
+Concretely, this means:
+
+- **No confident guesses.** If a numerical default, paper-cited mechanism, library
+  API, model checkpoint, or config flag is uncertain, **verify before writing the
+  code** (see §8).
+- **No silent fallbacks.** Any fallback path emits a `[WARN]` (see §5).
+- **No "good enough" when measurement is cheap.** If we can triple-check a load-
+  bearing claim, we triple-check it (see §9).
+- **No plausible-looking code without verification.** If we cite a paper's Eq. 9,
+  open the paper. If we use a library's `XConfig`, open the source.
+- **Default to rigour.** Speed is secondary to correctness. A working result we can't
+  defend is not a result.
+
 ## 0. Always read TODO.md first
 
 `/TODO.md` at the repo root is the **operational source of truth** for what's being worked on right now. Read it at the start of every session. It points to the active tracks, their subtasks, and dependencies. Update it when you complete a subtask. Never start meaningful work without checking it first — duplicate effort and missed dependencies have been the failure mode every time we've skipped this.
@@ -113,6 +133,66 @@ pipeline, the following are **non-negotiable**:
 The user has stated this is the most important project they're working on.
 Behave accordingly: thorough, careful, validated. Speed is secondary to
 correctness.
+
+## 8. Verify before using
+
+*If unsure, research online or read the source first. Don't guess from training memory.*
+
+Before using a library API, model checkpoint, config flag, or tool invocation you
+are not certain about:
+
+- Use WebSearch or WebFetch to consult current docs.
+- Check the version we are actually installing before writing code against it.
+- Read the library source for the function you're about to call. The LeRobot,
+  HuggingFace transformers, peft, and InsightFace ecosystems move fast — a 2024
+  pattern may not match 2026 reality.
+- Prefer minimal, verified syntax over a clever pattern you half-remember.
+
+Applies especially to: LeRobot policy configs (SmolVLA, Pi0.5), the LeRobotDataset /
+aggregate_datasets toolchain, HuggingFace upload APIs, PEFT/LoRA wrappers, InsightFace
+ArcFace embedding APIs, and any new VLA paper code we adapt.
+
+## 9. Cross-validate with parallel agents
+
+*Non-trivial code or load-bearing claims get a second pair of eyes. Always.*
+
+For any non-trivial implementation — model architectures, training loops, dataset
+construction pipelines, eval harnesses, statistical analyses — and for any load-
+bearing numerical or methodological claim:
+
+- Spawn a parallel review agent (via the Agent tool) to read the code or audit the
+  claim for bugs, edge cases, and correctness.
+- For load-bearing pieces (the Track 3 augmentation pipeline, the model architecture
+  patches, the merger, dataset push), spawn two or three independent reviewers in
+  parallel and reconcile their findings.
+- Do not mark a task complete on "it compiled" or "the unit test passed." Reviewer
+  must sign off, or you must explicitly note "no review performed, here's why."
+- Config files, scaffolding, and trivial edits don't require this — use judgment.
+
+Precedent: see the 3-agent validation we ran 2026-05-18 on the M2+M3-without-M4
+soundness, the 3-celeb baseline combinatorics, and the M6 SmolVLA implementation
+feasibility — documented inline in [`eval_3/STRATEGY.md` §7c.1](eval_3/STRATEGY.md).
+
+## 10. Push, experiment logs, periodic status reports
+
+*Commits live on origin, not just locally. Findings persist as dated artifacts.*
+
+- **Push after every commit batch — including to `main`.** This repo is a small-team
+  project; no PR review required. `git push origin main` after committing is
+  authorized as a standing instruction. Never force-push. Never push to a branch
+  someone else is actively working on without coordinating.
+- **Always write findings, key takeaways, and research-report syntheses to
+  `docs/`.** Whenever a research agent returns, an experiment finishes, the plan is
+  recalibrated, or an insight is worth preserving across sessions, write it down
+  under `docs/report/` or `docs/experiments/`. The chat transcript is ephemeral; the
+  docs are durable. If you're about to share a finding only verbally, stop and
+  write it to `docs/` first.
+- **Experiment log.** Write findings for every meaningful test run, Brev training
+  job, Strix rollout, or visual gate into `docs/experiments/<YYYY-MM-DD>_<topic>.md`.
+  Cover: what you ran, what you measured, what surprised you, next steps.
+- **Status reports on cadence.** Every ~4 commits since the last report, write a
+  status report in `docs/report/<YYYY-MM-DD>_status.md` summarising what shipped,
+  outstanding items, any revised plan. When in doubt, write one.
 
 ---
 
