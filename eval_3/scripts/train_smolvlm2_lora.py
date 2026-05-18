@@ -147,10 +147,12 @@ class VLMCollator:
         return batch
 
 
-def attach_lora(model, verbose: bool = True):
+def attach_lora(model, rank: int = 16, alpha: int | None = None, verbose: bool = True):
+    if alpha is None:
+        alpha = rank * 2  # convention: alpha = 2 * rank
     config = LoraConfig(
-        r=16,
-        lora_alpha=32,
+        r=rank,
+        lora_alpha=alpha,
         lora_dropout=0.05,
         bias="none",
         task_type=TaskType.CAUSAL_LM,
@@ -195,6 +197,11 @@ def main() -> None:
     parser.add_argument("--batch-size", type=int, default=2)
     parser.add_argument("--grad-accum", type=int, default=8)
     parser.add_argument("--lr", type=float, default=1e-4)
+    parser.add_argument("--lora-rank", type=int, default=16,
+                        help="LoRA rank. Higher = more capacity for face→name bindings. "
+                             "Try 32 or 64 for 100s of identities.")
+    parser.add_argument("--lora-alpha", type=int, default=None,
+                        help="LoRA alpha. Default: 2 * rank (convention).")
     parser.add_argument("--smoke", action="store_true",
                         help="Use train.smoke.jsonl, 1 epoch, batch=1, no wandb")
     parser.add_argument("--data-suffix", type=str, default="",
@@ -222,7 +229,7 @@ def main() -> None:
     print(f"[train] loading processor + model ({MODEL_ID})...")
     processor = AutoProcessor.from_pretrained(MODEL_ID)
     model = AutoModelForImageTextToText.from_pretrained(MODEL_ID, torch_dtype=dtype)
-    model = attach_lora(model)
+    model = attach_lora(model, rank=args.lora_rank, alpha=args.lora_alpha)
 
     print(f"[train] building datasets...")
     train_ds = build_dataset(train_path)
