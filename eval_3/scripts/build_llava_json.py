@@ -106,7 +106,7 @@ def build_per_identity_splits(
     max_identities: int | None,
     seed: int,
     min_train_per_id: int = 3,
-) -> tuple[list[dict], list[dict]]:
+) -> tuple[list[dict], list[dict], list[dict]]:
     """Recommended mode: same identities in train and val, different images.
 
     Min-train-guarantee split: train always gets at least `min_train_per_id`
@@ -130,7 +130,7 @@ def build_per_identity_splits(
         sub = sub.head(max_identities)
 
     train_rows, val_rows = [], []
-    skipped_val_for_small = 0
+    skipped_val: list[dict] = []
     for _, row in sub.iterrows():
         paths = list(row["image_paths"])
         n_total = n_train_per_id + n_val_per_id
@@ -145,7 +145,11 @@ def build_per_identity_splits(
         train_split = chosen[:train_take]
         val_split = chosen[train_take:train_take + val_take]
         if val_take == 0 and n_val_per_id > 0:
-            skipped_val_for_small += 1
+            skipped_val.append({
+                "class_id": row["class_id"],
+                "name": name,
+                "n_images": len(paths),
+            })
 
         for p in train_split:
             train_rows.append(make_row(row["class_id"], name, p, rng))
@@ -153,10 +157,10 @@ def build_per_identity_splits(
             val_rows.append(make_row(row["class_id"], name, p, rng))
     rng.shuffle(train_rows)
     rng.shuffle(val_rows)
-    if skipped_val_for_small > 0:
-        print(f"[json] note: {skipped_val_for_small} identities got 0 val examples "
+    if skipped_val:
+        print(f"[json] note: {len(skipped_val)} identities got 0 val examples "
               f"(n_images ≤ min_train_per_id={min_train_per_id})")
-    return train_rows, val_rows
+    return train_rows, val_rows, skipped_val
 
 
 def write_jsonl(rows: list[dict], path: Path) -> None:
@@ -244,8 +248,9 @@ def main() -> None:
               f"non-toy + {len(toy_df)} toy = {len(df)} total identities")
     print()
 
+    skipped_val: list[dict] = []
     if args.val_strategy == "per-identity":
-        train_rows, val_rows = build_per_identity_splits(
+        train_rows, val_rows, skipped_val = build_per_identity_splits(
             df, args.train_imgs_per_id, args.val_imgs_per_id,
             args.max_identities, args.seed,
             min_train_per_id=args.min_train_per_id,
@@ -285,6 +290,20 @@ def main() -> None:
         path_overlap = train_paths & val_paths
         assert len(path_overlap) == 0, \
             f"per-identity strategy: image paths must be disjoint, got {len(path_overlap)} overlapping"
+
+    # Always write a log of skipped-from-val identities (empty file if none) so
+    # users can audit exactly which IDs contribute zero val signal.
+    log_dir = args.out_dir / "logs"
+    log_dir.mkdir(parents=True, exist_ok=True)
+    skipped_path = log_dir / f"skipped_val_ids{suf}.txt"
+    with open(skipped_path, "w") as f:
+        f.write(f"# Identities skipped from val (n_images <= min_train_per_id={args.min_train_per_id})\n")
+        f.write(f"# Generated for: train{suf}.jsonl / val{suf}.jsonl  ({args.val_strategy} strategy)\n")
+        f.write(f"# Count: {len(skipped_val)}\n")
+        f.write(f"# Format: class_id\\tname\\tn_images\n")
+        for r in sorted(skipped_val, key=lambda x: (x["n_images"], x["class_id"])):
+            f.write(f"{r['class_id']}\t{r['name']}\t{r['n_images']}\n")
+    print(f"[json] skipped-val log: {len(skipped_val)} ids → {skipped_path}")
 
     print("\n[json] sample train rows (first 3):")
     for r in train_rows[:3]:
