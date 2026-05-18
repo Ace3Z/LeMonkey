@@ -19,7 +19,10 @@
 set -euo pipefail
 
 OUT_DIR="${OUT_DIR:-outputs/pi05_track_B}"
-DATASET="${DATASET:-HBOrtiz/so101_eval3_track3_v3_baseline}"
+# Pi0.5 reads exact-quantile stats from the dedicated pi05 dataset repo
+# (the SmolVLA baseline uses approximate quantiles in stats.json which is
+# fine for MEAN_STD normalization but NOT for Pi0.5's QUANTILES mode).
+DATASET="${DATASET:-HBOrtiz/so101_eval3_track3_v3_pi05}"
 PUSH_REPO="${PUSH_REPO:-HBOrtiz/pi05_eval3_track_B}"
 STEPS="${STEPS:-30000}"
 BATCH_SIZE="${BATCH_SIZE:-24}"

@@ -1,6 +1,6 @@
 # Track B — Pi0.5 (PaliGemma-2B + Gemma-300M expert)
 
-**Owner:** Roham · **Branch:** `track-b-pi05` · **Dataset:** [`HBOrtiz/so101_eval3_track3_v3_baseline`](https://huggingface.co/datasets/HBOrtiz/so101_eval3_track3_v3_baseline) · **Output:** `HBOrtiz/pi05_eval3_track_B` · **Bonus:** +16 · **Brev:** ~24 h on RTX PRO 6000 Blackwell
+**Owner:** Roham · **Branch:** `track-b-pi05` · **Dataset:** [`HBOrtiz/so101_eval3_track3_v3_pi05`](https://huggingface.co/datasets/HBOrtiz/so101_eval3_track3_v3_pi05) · **Output:** `HBOrtiz/pi05_eval3_track_B` · **Bonus:** +16 · **Brev:** ~24 h on RTX PRO 6000 Blackwell
 
 This document is the **load-bearing source of truth for Track B**. It supersedes the
 generic Track B description in [`docs/report/EVAL_3_FINAL_PLAN.html`](../../docs/report/EVAL_3_FINAL_PLAN.html#tracks)
@@ -149,7 +149,7 @@ lerobot-train \
     --peft.lora_alpha=32 \
     --peft.lora_dropout=0.05 \
     \
-    --dataset.repo_id=HBOrtiz/so101_eval3_track3_v3_baseline \
+    --dataset.repo_id=HBOrtiz/so101_eval3_track3_v3_pi05 \
     --dataset.rename_map='{"observation.images.camera1":"observation.images.right_wrist_0_rgb"}' \
     \
     --batch_size=24 \
@@ -187,11 +187,13 @@ lerobot-train \
 
 ## 5 · Pre-flight checklist (must be true before launching)
 
-- [ ] **Quantile stats recomputed** — `augment_dataset_quantile_stats.py` finished with `--overwrite`. Verify via `python -c "import json; print(json.load(open('.../meta/stats.json'))['action']['q01'])"` and check the values look plausible.
-- [ ] **Dataset re-pushed to HF** — after quantile recompute, re-run `eval_3/scripts/push_dataset_to_hf.py --local /home/rohamzn/ETH_Uni/LeMonkey/datasets/eval3_track3_v3_merged --repo HBOrtiz/so101_eval3_track3_v3_baseline`. This overwrites the on-hub `meta/stats.json`.
-- [ ] **Brev VM provisioned** with RTX PRO 6000 Blackwell, conda `lemonkey` env, lerobot in editable mode, this repo synced via `eval_3/scripts/brev/sync_to_brev.sh`.
-- [ ] **HF tokens** for both push (dataset re-push) and pull (training reads from hub) available on the Brev VM.
-- [ ] **WandB / tensorboard** logging is set up if we want to monitor (optional but recommended for 24h runs).
+- [x] **Quantile stats recomputed** — done via `eval_3/scripts/fast_recompute_quantiles.py` (27 s for 5M frames; the upstream `augment_dataset_quantile_stats.py` was loading mp4 frames sequentially with an ETA of ~12 days, so we wrote a focused action+state-only recompute since Pi0.5 only quantile-normalises those features).
+- [x] **Dataset pushed to a Pi0.5-specific HF repo** — pushed to `HBOrtiz/so101_eval3_track3_v3_pi05` (separate from the SmolVLA baseline repo so we don't risk overwriting stats Hans / Sejohn are reading). Verified live at [huggingface.co/datasets/HBOrtiz/so101_eval3_track3_v3_pi05](https://huggingface.co/datasets/HBOrtiz/so101_eval3_track3_v3_pi05).
+- [ ] **Brev VM provisioned** with RTX PRO 6000 Blackwell (96 GB), conda `lemonkey` env, lerobot in editable mode, this repo synced via `eval_3/scripts/brev/sync_to_brev.sh`.
+- [ ] **HF token** available on the Brev VM at `~/LeMonkey/secrets/huggingface/token_hbortiz` so the policy push at end of training works.
+- [ ] **(optional)** WandB or tensorboard logging configured.
+
+See [`eval_3/tracks/TRACK_B_BREV_HANDOVER.md`](TRACK_B_BREV_HANDOVER.md) for step-by-step Brev setup.
 
 ---
 
