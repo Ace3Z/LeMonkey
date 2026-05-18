@@ -89,6 +89,8 @@ from pathlib import Path
 
 import cv2
 import numpy as np
+import pickle
+import pycocotools.mask as mask_util
 
 # ─── Local imports — reuse helpers from 4_inpaint_video.py + generate_aug_v3.py
 _HERE = Path(__file__).resolve().parent
@@ -96,14 +98,19 @@ _spec4 = _ilu.spec_from_file_location("_v4", str(_HERE / "4_inpaint_video.py"))
 _v4 = _ilu.module_from_spec(_spec4); _spec4.loader.exec_module(_v4)
 _specv3 = _ilu.spec_from_file_location("_v3", str(_HERE / "generate_aug_v3.py"))
 _v3 = _ilu.module_from_spec(_specv3); _specv3.loader.exec_module(_v3)
+_spec_vio = _ilu.spec_from_file_location("_video_io", str(_HERE / "_video_io.py"))
+_vio = _ilu.module_from_spec(_spec_vio); _spec_vio.loader.exec_module(_vio)
 
 face_centered_aspect_crop = _v4.face_centered_aspect_crop
-render_variant            = _v4.render_variant
+replace_portrait          = _v4.replace_portrait
+encode_video              = _v4.encode_video
+_mean_lum_ratio_v9        = _v4._mean_lum_ratio_v9
 hardlink_meta             = _v4.hardlink_meta
 find_video                = _v4.find_video
 load_photo_bank           = _v4.load_photo_bank
 decode_layout             = _v4.decode_layout
 assign_celebs_to_portraits = _v4.assign_celebs_to_portraits
+ensure_h264               = _vio.ensure_h264
 
 write_reference_video = _v3.write_reference_video
 slug_to_name          = _v3.slug_to_name
@@ -291,7 +298,124 @@ def build_distractor_combos(
     return rng.sample(full_combos, K)
 
 
+# ─── Per-base-episode disk cache ─────────────────────────────────────────
+# What we cache PER BASE (persists across all augmentation runs):
+#   <base_ep>/portrait_masks.pkl          (already exists from stage 2 — RLE format)
+#   <base_ep>/portrait_corners.json       (already exists from stage 3)
+#   <base_ep>/portrait_seeds.json         (already exists from stage 2)
+#   <base_ep>/frame_0.png                 (already exists)
+#   <base_ep>/aug_cache_masks_decoded.npz NEW — pre-decoded uint8 binary masks
+#                                         (RLE→binary decode is ~1.6s/variant
+#                                         × K variants; this caches it once)
+#
+# What we cache PER PROCESS, in memory:
+#   - portrait_masks.pkl loaded once per base
+#   - decoded source frames (~500 MB per base — too big for disk cache)
+#   - decoded masks dict (loaded from aug_cache_masks_decoded.npz on first
+#     use, kept in memory for the duration of this base's variants)
+def load_or_build_decoded_masks(
+    base_ep: Path, masks_pkl: Path | None,
+) -> dict[int, dict[int, np.ndarray]]:
+    """Return {fi: {pid_int: H×W uint8 binary mask}}.
+
+    On first call for a base, decodes from portrait_masks.pkl (RLE) and
+    writes a compressed npz cache. Subsequent calls (re-runs) load directly
+    from the npz — bypassing the ~1.6s RLE-decode per variant.
+
+    Keyed by string "f{fi}_p{pid}" inside the npz so individual entries can
+    be looked up without loading the whole archive.
+    """
+    if masks_pkl is None or not masks_pkl.is_file():
+        return {}
+    cache_npz = base_ep / "aug_cache_masks_decoded.npz"
+    if cache_npz.is_file():
+        try:
+            data = np.load(cache_npz, allow_pickle=False)
+            decoded: dict[int, dict[int, np.ndarray]] = {}
+            for k in data.files:
+                # key format: "f{fi:06d}_p{pid:02d}"
+                fi = int(k[1:7]); pid = int(k[9:])
+                decoded.setdefault(fi, {})[pid] = data[k]
+            return decoded
+        except Exception as e:
+            print(f"  [WARN] failed reading mask cache {cache_npz}: {e}; rebuilding", flush=True)
+    # Build cache from RLE
+    with open(masks_pkl, "rb") as f:
+        cache = pickle.load(f)
+    rle_per_frame = cache.get("masks", {})
+    decoded: dict[int, dict[int, np.ndarray]] = {}
+    to_save: dict[str, np.ndarray] = {}
+    for fi, pid_masks in rle_per_frame.items():
+        decoded[fi] = {}
+        for pid_int, payload in pid_masks.items():
+            if "rle" not in payload:
+                continue
+            m = mask_util.decode(payload["rle"]).astype(np.uint8)
+            if m.ndim == 3:
+                m = m[:, :, 0]
+            decoded[fi][pid_int] = m
+            to_save[f"f{int(fi):06d}_p{int(pid_int):02d}"] = m
+    if to_save:
+        try:
+            np.savez_compressed(cache_npz, **to_save)
+        except Exception as e:
+            print(f"  [WARN] failed writing mask cache {cache_npz}: {e}", flush=True)
+    return decoded
+
+
 # ─── Per-base-episode renderer ───────────────────────────────────────────
+def _composite_variant_from_cache(
+    cached_frames: list[np.ndarray],
+    cached_masks_decoded: dict[int, dict[int, np.ndarray]],
+    corners_data: dict,
+    pid_photos: dict[str, np.ndarray],
+    frame_0: np.ndarray | None,
+    out_video: Path,
+    fps: int,
+    work_dir: Path,
+) -> int:
+    """Composite ONE variant using pre-decoded frames + pre-decoded masks.
+    Inherent per-variant cost: warp + Reinhard + seamlessClone per portrait
+    per frame, plus PNG write + ffmpeg encode. Per-base cost is fully
+    amortized by the caller."""
+    work_dir.mkdir(parents=True, exist_ok=True)
+    n_frames = corners_data["n_frames"]
+    written = 0
+    for fi, src_frame in enumerate(cached_frames):
+        if fi >= n_frames:
+            break
+        out = src_frame
+        for pid_str, photo in pid_photos.items():
+            pid_int = int(pid_str)
+            mask = cached_masks_decoded.get(fi, {}).get(pid_int)
+            rec = corners_data["portraits"][pid_str].get(str(fi))
+            if rec is None or rec.get("corners") is None:
+                continue
+            if mask is None:
+                print(
+                    f"[WARN] per_frame_mask_missing: expected=portrait_masks.pkl["
+                    f"frame={fi}][pid={pid_int}], got=None, "
+                    f"fallback=fillPoly_from_corners (per-frame occlusion lost)",
+                    flush=True,
+                )
+                H, W = src_frame.shape[:2]
+                mask = np.zeros((H, W), dtype=np.uint8)
+                pts = np.asarray(rec["corners"], dtype=np.int32)
+                cv2.fillPoly(mask, [pts], 1)
+            corners = np.asarray(rec["corners"], dtype=np.float32)
+            lum_ratio = None
+            if frame_0 is not None:
+                ratio = _mean_lum_ratio_v9(src_frame, frame_0, mask)
+                lum_ratio = np.full(src_frame.shape[:2], ratio, dtype=np.float32)
+            out = replace_portrait(out, mask, photo, corners, lum_ratio=lum_ratio)
+        cv2.imwrite(str(work_dir / f"f{fi:06d}.png"), out)
+        written += 1
+    encode_video(work_dir, out_video, fps=fps)
+    for p in work_dir.glob("f*.png"):
+        p.unlink()
+    return written
+
+
 def render_base_ep_variants(
     base_ep: Path,
     variants: list[dict],
@@ -303,8 +427,11 @@ def render_base_ep_variants(
     force: bool = False,
     debug: bool = False,
 ) -> list[dict]:
-    """Render all assigned variants for one base teleop. Re-uses corners +
-    masks loaded ONCE here, instead of per-variant."""
+    """Render all assigned variants for one base teleop. Per-base work
+    (corners load, masks_pkl load, video decode) is done ONCE here and
+    reused across all K variants — that's what makes the tuple-driven
+    pipeline cheap at K=64 distractor combos per tuple.
+    """
     corners_data = json.loads((base_ep / "portrait_corners.json").read_text())
     masks_pkl: Path | None = base_ep / "portrait_masks.pkl"
     if not masks_pkl.is_file():
@@ -323,6 +450,32 @@ def render_base_ep_variants(
     src_video = find_video(base_ep)
     frame_0_path = base_ep / "frame_0.png"
     frame_0_img = cv2.imread(str(frame_0_path)) if frame_0_path.is_file() else None
+
+    # ── per-base CACHE — three layers (all loaded/built ONCE here, then
+    # reused for every variant of this base):
+    #   (a) decoded source frames (in memory)
+    #   (b) decoded masks dict (in memory, backed by on-disk
+    #       aug_cache_masks_decoded.npz — built first time, reloaded subsequent
+    #       runs to bypass ~1.6s RLE decode per variant)
+    #   (c) portrait_corners.json + portrait_seeds.json (already in memory above)
+    t_cache = time.time()
+    n_frames_expected = corners_data["n_frames"]
+    cached_masks_decoded = load_or_build_decoded_masks(base_ep, masks_pkl)
+    t_masks = time.time() - t_cache
+    cached_frames: list[np.ndarray] = []
+    cap = cv2.VideoCapture(str(ensure_h264(src_video)))
+    while True:
+        ok, fr = cap.read()
+        if not ok:
+            break
+        cached_frames.append(fr)
+        if len(cached_frames) >= n_frames_expected:
+            break
+    cap.release()
+    cache_s = time.time() - t_cache
+    print(f"   cache: {len(cached_frames)} frames + {sum(len(v) for v in cached_masks_decoded.values())} masks ready "
+          f"in {cache_s:.2f}s (masks={t_masks:.2f}s, decode={cache_s-t_masks:.2f}s); "
+          f"reused across {len(variants)} variants this run", flush=True)
 
     work_dir = Path("/tmp") / f"_aug_t3_{base_ep.name}_{time.time_ns()}"
     work_dir.mkdir(parents=True, exist_ok=True)
@@ -394,11 +547,11 @@ def render_base_ep_variants(
             ref_candidates = [p for p in bank[target_full] if p != target_photo]
             ref_photo = rng.choice(ref_candidates) if ref_candidates else target_photo
 
-            # 3. Inpaint
-            n_written = render_variant(
-                src_video, corners_data, masks_pkl, pid_photos,
-                out_video=var_video, fps=fps, work_dir=work_dir,
+            # 3. Inpaint — uses pre-decoded source frames + pre-decoded masks
+            n_written = _composite_variant_from_cache(
+                cached_frames, cached_masks_decoded, corners_data, pid_photos,
                 frame_0=frame_0_img,
+                out_video=var_video, fps=fps, work_dir=work_dir,
             )
             # 4. Reference video
             write_reference_video(ref_photo, n_written, fps, ref_video)
@@ -495,6 +648,11 @@ def main() -> int:
                    help="DEBUG/SMOKE: cap K to this many distractor combos per tuple")
     p.add_argument("--limit-base-eps", type=int, default=None,
                    help="DEBUG: only process the first N base teleops after grouping")
+    p.add_argument("--worker-id", type=int, default=0,
+                   help="This worker's id, 0-indexed (use with --num-workers for parallel runs)")
+    p.add_argument("--num-workers", type=int, default=1,
+                   help="Total number of parallel workers. Each worker processes the "
+                        "subset of base teleops where sorted_index %% num_workers == worker_id.")
     p.add_argument("--seed", type=int, default=42)
     p.add_argument("--fps", type=int, default=30)
     p.add_argument("--force", action="store_true")
@@ -572,6 +730,13 @@ def main() -> int:
     for v in variants_to_render:
         by_base[v["base_ep"]].append(v)
     ordered_bases = sorted(by_base.keys(), key=lambda p: p.name)
+    if args.num_workers > 1:
+        if not (0 <= args.worker_id < args.num_workers):
+            raise SystemExit(f"--worker-id={args.worker_id} must be in [0, {args.num_workers})")
+        ordered_bases = [b for i, b in enumerate(ordered_bases)
+                          if i % args.num_workers == args.worker_id]
+        print(f"  worker {args.worker_id}/{args.num_workers}: handling "
+              f"{len(ordered_bases)} bases (one stripe of the sorted list)", flush=True)
     if args.limit_base_eps is not None:
         ordered_bases = ordered_bases[: args.limit_base_eps]
     print(f"\nplanning {len(variants_to_render)} total variants across {len(ordered_bases)} base teleops"
