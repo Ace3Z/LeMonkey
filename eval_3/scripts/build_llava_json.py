@@ -105,17 +105,24 @@ def build_per_identity_splits(
     n_val_per_id: int,
     max_identities: int | None,
     seed: int,
+    min_train_per_id: int = 3,
 ) -> tuple[list[dict], list[dict]]:
     """Recommended mode: same identities in train and val, different images.
 
-    For each identity in the manifest (both hearfool train/ and val/ are used —
-    no point wasting data), sample (n_train_per_id + n_val_per_id) images, take
-    the first n_train_per_id for train and the next n_val_per_id for val.
+    Min-train-guarantee split: train always gets at least `min_train_per_id`
+    images per identity (when available). Val gets whatever is safely left
+    over, capped at n_val_per_id.
 
-    Val loss now measures "did the LoRA learn to name an identity it WAS
-    trained on" — the actually-meaningful signal for SFT progress.
+    Example for min_train=3, val_cap=2:
+        n=2  → train=2, val=0  (skipped from val — single image can't reliably
+                                  teach face→name, val signal on 1 image is noise)
+        n=3  → train=3, val=0
+        n=4  → train=3, val=1
+        n=8  → train=6, val=2
+        n=29 → train=27, val=2
 
-    If an identity has fewer than 2 images, it goes entirely into train (no val).
+    Val loss measures "did the LoRA learn to name an identity it WAS trained on"
+    — the actually-meaningful signal for SFT progress.
     """
     rng = random.Random(seed)
     sub = df.copy()
@@ -123,26 +130,32 @@ def build_per_identity_splits(
         sub = sub.head(max_identities)
 
     train_rows, val_rows = [], []
+    skipped_val_for_small = 0
     for _, row in sub.iterrows():
         paths = list(row["image_paths"])
         n_total = n_train_per_id + n_val_per_id
         chosen = rng.sample(paths, k=min(n_total, len(paths)))
         name = clean_name(row["name"])
-        # If only 1 image, train-only. Otherwise reserve ≥1 for val if val asked.
-        if len(chosen) == 1 or n_val_per_id == 0:
-            train_split = chosen
-            val_split: list[str] = []
-        else:
-            n_val_take = min(n_val_per_id, len(chosen) - 1)
-            n_train_take = len(chosen) - n_val_take
-            train_split = chosen[:n_train_take]
-            val_split = chosen[n_train_take:n_train_take + n_val_take]
+
+        # Min-train guarantee: reserve at least min_train_per_id for training.
+        # Val gets the leftover, capped at n_val_per_id. If n_images <= min_train,
+        # this ID contributes zero val examples.
+        val_take = min(n_val_per_id, max(0, len(chosen) - min_train_per_id))
+        train_take = len(chosen) - val_take
+        train_split = chosen[:train_take]
+        val_split = chosen[train_take:train_take + val_take]
+        if val_take == 0 and n_val_per_id > 0:
+            skipped_val_for_small += 1
+
         for p in train_split:
             train_rows.append(make_row(row["class_id"], name, p, rng))
         for p in val_split:
             val_rows.append(make_row(row["class_id"], name, p, rng))
     rng.shuffle(train_rows)
     rng.shuffle(val_rows)
+    if skipped_val_for_small > 0:
+        print(f"[json] note: {skipped_val_for_small} identities got 0 val examples "
+              f"(n_images ≤ min_train_per_id={min_train_per_id})")
     return train_rows, val_rows
 
 
@@ -163,6 +176,10 @@ def main() -> None:
                         help="default: <data-root>/manifests")
     parser.add_argument("--train-imgs-per-id", type=int, default=100)
     parser.add_argument("--val-imgs-per-id", type=int, default=30)
+    parser.add_argument("--min-train-per-id", type=int, default=3,
+                        help="Per-identity strategy only: minimum training images per "
+                             "identity. Val gets at most --val-imgs-per-id from the "
+                             "leftover. IDs with n_images ≤ this get 0 val examples.")
     parser.add_argument("--max-identities", type=int, default=None,
                         help="Cap on identities per split (use small value for smoke tests)")
     parser.add_argument("--out-suffix", type=str, default="",
@@ -231,6 +248,7 @@ def main() -> None:
         train_rows, val_rows = build_per_identity_splits(
             df, args.train_imgs_per_id, args.val_imgs_per_id,
             args.max_identities, args.seed,
+            min_train_per_id=args.min_train_per_id,
         )
     else:  # disjoint
         train_rows, val_rows = build_disjoint_splits(
