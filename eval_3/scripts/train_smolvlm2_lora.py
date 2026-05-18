@@ -197,13 +197,20 @@ def main() -> None:
     parser.add_argument("--lr", type=float, default=1e-4)
     parser.add_argument("--smoke", action="store_true",
                         help="Use train.smoke.jsonl, 1 epoch, batch=1, no wandb")
+    parser.add_argument("--data-suffix", type=str, default="",
+                        help="Suffix on input JSONL filenames "
+                             "(e.g. '.toy' → train.toy.jsonl, val.toy.jsonl). "
+                             "Overridden by --smoke. Default: '' (train.jsonl).")
     parser.add_argument("--wandb-project", default="lemonkey-eval3-smolvlm")
     args = parser.parse_args()
 
     if args.out_dir is None:
         args.out_dir = args.data_root.parent / "lora_celeb_v0"
 
-    suf = ".smoke" if args.smoke else ""
+    if args.smoke:
+        suf = ".smoke"
+    else:
+        suf = args.data_suffix
     train_path = args.data_root / f"train{suf}.jsonl"
     val_path = args.data_root / f"val{suf}.jsonl"
     print(f"[train] data: {train_path}")
