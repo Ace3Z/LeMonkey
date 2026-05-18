@@ -33,11 +33,20 @@ import sys
 from pathlib import Path
 
 
-def discover_episode_dirs(base_root: Path, aug_root: Path) -> list[Path]:
+def discover_episode_dirs(
+    base_root: Path,
+    aug_root: Path,
+    aug_pattern: str = "__var",
+) -> list[Path]:
     """Yield (base teleops in alphabetical order) then (augmented variants
     in alphabetical order). The base teleops being first means episode_index
     0..(N_base-1) is base, and N_base..end is augmented — useful for any
-    later analysis."""
+    later analysis.
+
+    `aug_pattern` distinguishes variant naming conventions:
+        "__var"  → original v3 aug pipeline (eval3_aug_v3/quick_*__varNN)
+        "__t3_"  → Track 3 v3 pipeline      (eval3_track3_aug/quick_*__t3_NNNN_vXX)
+    """
     base = []
     if base_root.is_dir():
         base = sorted(p for p in base_root.iterdir()
@@ -46,7 +55,7 @@ def discover_episode_dirs(base_root: Path, aug_root: Path) -> list[Path]:
     aug = []
     if aug_root.is_dir():
         aug = sorted(p for p in aug_root.iterdir()
-                       if p.is_dir() and "__var" in p.name
+                       if p.is_dir() and aug_pattern in p.name
                        and (p / "meta" / "info.json").is_file())
     return base + aug
 
@@ -74,7 +83,10 @@ def main() -> int:
                    help="Root containing 179 base teleop episode dirs")
     p.add_argument("--aug-root", type=Path,
                    default=Path("datasets/eval3_aug_v3"),
-                   help="Root containing 4017 augmented variant dirs")
+                   help="Root containing augmented variant dirs")
+    p.add_argument("--aug-pattern", default="__var",
+                   help="Substring identifying augmented variants. "
+                        "'__var' for v3 aug; '__t3_' for Track 3 aug.")
     p.add_argument("--dst", type=Path,
                    default=Path("datasets/eval3_merged"),
                    help="Output dir for the merged dataset")
@@ -88,7 +100,7 @@ def main() -> int:
     args = p.parse_args()
 
     # 1. Discover all episode dirs
-    ep_dirs = discover_episode_dirs(args.base_root, args.aug_root)
+    ep_dirs = discover_episode_dirs(args.base_root, args.aug_root, args.aug_pattern)
     if not ep_dirs:
         print(f"ERROR: no episode dirs found under {args.base_root} or "
               f"{args.aug_root}", file=sys.stderr)
