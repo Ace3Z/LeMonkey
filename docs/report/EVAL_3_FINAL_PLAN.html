@@ -290,7 +290,6 @@
     <li><a href="#data">Dataset preparation</a></li>
     <li><a href="#testing">Strix testing protocol</a></li>
     <li><a href="#decisions">Decisions we need to lock NOW</a></li>
-    <li><a href="#risks">Risks &amp; mitigations</a></li>
     <li><a href="#cites">Sources cited</a></li>
   </ol>
 </div>
@@ -319,10 +318,10 @@
 </div>
 
 <div class="person">
-  <h4><span class="tag tag-darius">Darius</span><span class="role">— Track D: M2 ArcFace cosine distillation toolkit (drop-in patch)</span></h4>
+  <h4><span class="tag tag-darius">Darius</span><span class="role">— Strix deployment + eval-day dry-run coordination</span></h4>
   <ul>
-    <li>Day 2: implement three scripts/modules so we can <em>add</em> face-discriminative supervision to Track A or B if their Day-2 Strix test shows weak face discrimination. <strong>Don't launch training yet — be ready to.</strong></li>
-    <li>Day 3 decision: if A or B underperforms, hand off to Roham/Hans to re-train with M2 enabled (~6 h additional Brev).</li>
+    <li>Day 2 onwards: each track checkpoint that finishes training gets deployed to Strix by Darius. Standard protocol: 3 rollouts per checkpoint (1 TOY / 1 held-out IID / 1 OOD), record videos, write 1-line verdict per rollout into a shared sheet.</li>
+    <li>Day 4: full dry-run on the best candidate(s) — 9 rollouts mirroring eval-day mix. Pick final ship checkpoint.</li>
   </ul>
 </div>
 
@@ -336,10 +335,10 @@
 </div>
 
 <div class="person">
-  <h4><span class="tag tag-mahbod">Mahbod</span><span class="role">— Strix deployment + eval-day dry-run coordination</span></h4>
+  <h4><span class="tag tag-mahbod">Mahbod</span><span class="role">— Track D: M2 ArcFace cosine distillation toolkit on SmolVLA (drop-in patch)</span></h4>
   <ul>
-    <li>Day 2 onwards: each track checkpoint that finishes training gets deployed to Strix by Mahbod. Standard protocol: 3 rollouts per checkpoint (1 TOY / 1 held-out IID / 1 OOD), record videos, write 1-line verdict per rollout into a shared sheet.</li>
-    <li>Day 4: full dry-run on the best candidate(s) — 9 rollouts mirroring eval-day mix. Pick final ship checkpoint.</li>
+    <li>Day 2: implement three scripts/modules so we can <em>add</em> face-discriminative supervision to Track A or C (SmolVLA backbones) if their Day-2 Strix test shows weak face discrimination. <strong>Don't launch training yet — be ready to.</strong></li>
+    <li>Day 3 decision: if A or C underperforms on OOD, hand off to Hans/Sejohn to re-train with M2 enabled (~6 h additional Brev).</li>
   </ul>
 </div>
 
@@ -381,8 +380,8 @@
     </tr>
     <tr>
       <td><strong>D</strong> (optional)</td>
-      <td><span class="tag tag-darius">Darius</span></td>
-      <td>tooling</td>
+      <td><span class="tag tag-mahbod">Mahbod</span></td>
+      <td>tooling (SmolVLA)</td>
       <td>M2 ArcFace distillation, drop-in patch</td>
       <td>—</td>
       <td>—</td>
@@ -438,7 +437,7 @@
   --policy.repo_id=HBOrtiz/smolvla_eval3_track_A</code></pre>
     </li>
     <li><strong>Day 2 ~14:00:</strong> training finishes (~6 h). Verify it pushed to <code>HBOrtiz/smolvla_eval3_track_A</code>.</li>
-    <li><strong>Hand off to Mahbod</strong> for Strix deployment + 3-rollout test.</li>
+    <li><strong>Hand off to Darius</strong> for Strix deployment + 3-rollout test.</li>
   </ol>
 </div>
 
@@ -488,7 +487,7 @@
       <p><strong>LR note:</strong> 1e-5 (lower than Pi0.5's 2.5e-5 default) because we want the action-expert head + projections to update slowly, minimizing risk that small numerical drift indirectly perturbs PaliGemma's prior through the cross-attention path.</p>
       <p><strong>empty_cameras=3</strong> because Pi0.5 expects 4 robot cameras (top/wrist/left/right per Pi0.5 paper §3.1) and we have 1 wrist camera.</p>
     </li>
-    <li><strong>Day 3 morning:</strong> training finishes. Verify push. Hand off to Mahbod.</li>
+    <li><strong>Day 3 morning:</strong> training finishes. Verify push. Hand off to Darius.</li>
   </ol>
 
   <h4>Fallback path (Day 3 decision)</h4>
@@ -543,27 +542,28 @@
   --policy.push_to_hub=True \
   --policy.repo_id=HBOrtiz/smolvla_eval3_track_C_baseline</code></pre>
     </li>
-    <li><strong>Day 2 ~14:00:</strong> training finishes. Hand off to Mahbod.</li>
+    <li><strong>Day 2 ~14:00:</strong> training finishes. Hand off to Darius.</li>
   </ol>
 </div>
 
 <!-- ─── Track D ─────────────────────────────────────────────────── -->
 
 <div class="track optional">
-  <h3>Track D (optional, on standby) — M2 ArcFace cosine distillation toolkit</h3>
+  <h3>Track D (optional, on standby) — M2 ArcFace cosine distillation toolkit (SmolVLA-targeted)</h3>
   <div class="meta">
-    <span>owner: <span class="tag tag-darius">Darius</span></span>
+    <span>owner: <span class="tag tag-mahbod">Mahbod</span></span>
+    <span>target backbone: SmolVLA (applies cleanly to Track A or C)</span>
     <span>brev: 0 until activated</span>
-    <span>activation: only if Track A or B Strix tests show face confusion</span>
+    <span>activation: only if Track A or C Strix tests show face confusion (especially on OOD)</span>
   </div>
 
-  <p><strong>What this adds.</strong> An auxiliary training loss that distills <code>buffalo_l</code> ArcFace face embeddings into SmolLM2/PaliGemma's mid-LLM hidden state at the Backbone2Enc layer, forcing the VLM to develop face-discriminative features <em>from the wrist-camera view alone</em>. From BlindVLA ([arxiv 2510.25616](https://arxiv.org/abs/2510.25616) Eq. 9):</p>
+  <p><strong>What this adds.</strong> An auxiliary training loss that distills <code>buffalo_l</code> ArcFace face embeddings into SmolLM2's mid-LLM hidden state at the Backbone2Enc layer (layer 7 or 8 of the 16 truncated layers), forcing the VLM to develop face-discriminative features <em>from the wrist-camera view alone</em>. Targets SmolVLA specifically; the same recipe is portable to PaliGemma (Pi0.5) but Hans's warm-VLM has already done the face-binding work on the SmolVLA side, so M2 here acts as a finer-grained complement. From BlindVLA ([arxiv 2510.25616](https://arxiv.org/abs/2510.25616) Eq. 9):</p>
 
   <div class="eq">$$ L_{\text{align}} = -\frac{1}{k} \sum_{j=1}^{k} \cos\!\left(F.\text{normalize}\!\left(\text{MLP}(h_l)_j\right), F.\text{normalize}(z_j)\right), \quad \lambda = 0.2 $$</div>
 
   <p>where $h_l$ is the VLM's hidden state at the chosen layer (SmolLM2 layer 7/8 of 16; PaliGemma layer 10/12), $z$ is the cached <code>buffalo_l</code> embedding of the target face, and the MLP is frozen after init (BlindVLA Table 6 — trainable projector becomes a shortcut). Inference-time impact: <strong>zero</strong> (the loss only adds a gradient signal during training; the cached embeddings are pre-computed offline).</p>
 
-  <h4>Subtasks (Darius — Day 2)</h4>
+  <h4>Subtasks (Mahbod — Day 2)</h4>
   <ol class="subtasks">
     <li>
       <strong><code>eval_3/aug/cache_arcface_embeddings.py</code></strong> — walk every variant directory, read <code>augmentation.json["workspace_photos"][target_pid]</code>, compute the <code>buffalo_l</code> embedding for the target face, save as <code>aug_cache_target_arcface.npy</code> in each variant dir. ~2 h dev box.
@@ -583,11 +583,11 @@
             p.requires_grad = False  # M1 frozen projector</code></pre>
     </li>
     <li>
-      <strong>Patch modeling files at Backbone2Enc</strong> — expose the hidden state at the chosen layer (SmolLM2 layer 8 by default), compute $L_{\text{align}}$, add $0.2 \cdot L_{\text{align}}$ to the total loss in <code>forward()</code>. ~4 h eng.
+      <strong>Patch <code>third_party/lerobot/src/lerobot/policies/smolvla/modeling_smolvla.py</code> at Backbone2Enc</strong> — expose the hidden state at the chosen layer (SmolLM2 layer 8 by default), compute $L_{\text{align}}$, add $0.2 \cdot L_{\text{align}}$ to the total loss in <code>forward()</code>. ~4 h eng.
     </li>
   </ol>
 
-  <p><strong>Hold for Day 3 decision.</strong> Apply only if A or B shows face-discrimination weakness in Day-2 Strix test.</p>
+  <p><strong>Hold for Day 3 decision.</strong> Apply only if Track A or C shows face-discrimination weakness in the Day-2 Strix test. Hand off the patch to Hans (Track A) or Sejohn (Track C) for a 6 h re-train.</p>
 </div>
 
 <h2 id="warm">§3 · Hans's warm-VLM recipe (so we can mirror on PaliGemma if needed)</h2>
@@ -634,11 +634,11 @@
     <li><span class="time">06:00</span> · <span class="tag tag-roham">Roham</span> launches <strong>Track B (Pi0.5)</strong> on Brev. ~24 h, will finish ~06:00 Day 3.</li>
     <li><span class="time">07:00</span> · <span class="tag tag-hans">Hans</span> launches <strong>Track A (SmolVLA + warm-VLM)</strong>. ~6 h, will finish ~13:00.</li>
     <li><span class="time">07:00</span> · <span class="tag tag-sejohn">Sejohn</span> launches <strong>Track C (SmolVLA safety)</strong>. ~6 h, will finish ~13:00.</li>
-    <li><span class="time">07:00–18:00</span> · <span class="tag tag-darius">Darius</span> builds the M2 toolkit (ArcFace cache + frozen-projector module + modeling patches). End of day = ready to apply if needed.</li>
+    <li><span class="time">07:00–18:00</span> · <span class="tag tag-mahbod">Mahbod</span> builds the M2 toolkit on SmolVLA (ArcFace cache + frozen-projector module + <code>modeling_smolvla.py</code> patches). End of day = ready to apply if needed.</li>
     <li><span class="time">13:00–13:30</span> · Track A and C training done. Verify pushes.</li>
-    <li><span class="time">13:30–17:00</span> · <span class="tag tag-mahbod">Mahbod</span> deploys Track A + C checkpoints to Strix. 3-rollout test each (TOY / held-out IID / OOD). Records videos. Writes 1-line verdict per rollout.</li>
+    <li><span class="time">13:30–17:00</span> · <span class="tag tag-darius">Darius</span> deploys Track A + C checkpoints to Strix. 3-rollout test each (TOY / held-out IID / OOD). Records videos. Writes 1-line verdict per rollout.</li>
     <li><span class="time">17:00</span> · Team checkpoint call: review Track A + C results. Decide if M2 add-on needed.</li>
-    <li><span class="time">17:00–22:00</span> · If M2 needed: Darius hands off the patch to whichever owner re-launches with M2 enabled. Otherwise, all hands stand by for Track B.</li>
+    <li><span class="time">17:00–22:00</span> · If M2 needed: Mahbod hands off the patch to Hans (Track A) or Sejohn (Track C) to re-launch with M2 enabled. Otherwise, all hands stand by for Track B.</li>
   </ul>
 </div>
 
@@ -647,7 +647,7 @@
   <p class="time">Track B done; iteration based on findings. ~24 h elapsed.</p>
   <ul>
     <li><span class="time">06:00</span> · <span class="tag tag-roham">Roham</span> Track B training finishes. Verify push.</li>
-    <li><span class="time">06:00–10:00</span> · <span class="tag tag-mahbod">Mahbod</span> deploys Track B to Strix. 3-rollout test.</li>
+    <li><span class="time">06:00–10:00</span> · <span class="tag tag-darius">Darius</span> deploys Track B to Strix. 3-rollout test.</li>
     <li><span class="time">10:00</span> · Team decision point:
       <ul>
         <li>If <strong>any track has ≥7/9 expected score</strong> on the Day-2 test: lock it as the primary candidate; spend Day 3 polishing.</li>
@@ -663,7 +663,7 @@
   <h3>Day 4 — Thursday May 21</h3>
   <p class="time">Final dry-run + ship. ~12 h working time.</p>
   <ul>
-    <li><span class="time">08:00–12:00</span> · <span class="tag tag-mahbod">Mahbod</span> full eval-day dry-run on the top 1–2 candidates: 9 rollouts each (matching real eval mix: 3 TOY IID / 3 held-out IID / 3 OOD). Record videos.</li>
+    <li><span class="time">08:00–12:00</span> · <span class="tag tag-darius">Darius</span> full eval-day dry-run on the top 1–2 candidates: 9 rollouts each (matching real eval mix: 3 TOY IID / 3 held-out IID / 3 OOD). Record videos.</li>
     <li><span class="time">12:00</span> · Team picks the final checkpoint. Lock the inference recipe:
       <pre><code>policy = SmolVLAPolicy.from_pretrained("HBOrtiz/&lt;chosen-track&gt;")
 # OR
@@ -715,7 +715,7 @@ for root in (Path("datasets/eval3"), Path("datasets/eval3_track3_aug")):
 
 <p>Merge 178 base + 9,216 aug into a single LeRobot v3 dataset, push to <code>HBOrtiz/so101_eval3_track3_v3_baseline</code>. Drop the <code>observation.images.reference</code> stream from the schema (we ignore it at training, no need to ship it). Use the existing merge script: <code>python eval_3/aug/prep_for_merge.py --root datasets/eval3_track3_aug --base-root datasets/eval3 --drop-key observation.images.reference --push-to HBOrtiz/so101_eval3_track3_v3_baseline</code>.</p>
 
-<h2 id="testing">§6 · Strix testing protocol (Mahbod)</h2>
+<h2 id="testing">§6 · Strix testing protocol (Darius)</h2>
 
 <p>Every checkpoint that finishes training goes through identical paces. <strong>Don't deviate</strong> — comparability across tracks depends on protocol consistency.</p>
 
@@ -772,57 +772,7 @@ for root in (Path("datasets/eval3"), Path("datasets/eval3_track3_aug")):
   </tbody>
 </table>
 
-<h2 id="risks">§8 · Risks &amp; mitigations</h2>
-
-<table>
-  <thead><tr><th>Risk</th><th>Prob.</th><th>Impact</th><th>Mitigation</th></tr></thead>
-  <tbody>
-    <tr>
-      <td>Hans's warm-VLM doesn't transfer to camera1's scene context (faces seen through wrist-cam at ~30% frame coverage, vs VGGFace2's centered headshots)</td>
-      <td>medium</td>
-      <td>Track A underperforms; Track C carries the bonus</td>
-      <td>Track C is the same SmolVLA arch without the warm-start — if warm-start hurts, C wins. Both fit in compute budget so we always have the comparison.</td>
-    </tr>
-    <tr>
-      <td>Pi0.5's PaliGemma WebLI prior is too weak for our specific IID celebs (we never validated it under fine-tune)</td>
-      <td>medium</td>
-      <td>Track B underperforms; we lose the capacity bet</td>
-      <td>Day 3 fallback: mirror Hans's LoRA-VGGFace2 recipe on PaliGemma. Tight schedule but feasible. Or accept Track A/C as the ship.</td>
-    </tr>
-    <tr>
-      <td>Catastrophic forgetting in Pi0.5 despite <code>train_expert_only=True</code> (action loss flows back through cross-attention)</td>
-      <td>low</td>
-      <td>PaliGemma's celeb prior degrades during training</td>
-      <td>Low LR (1e-5) further reduces drift. M3 stop-gradient (Pi0.5-KI Eqs. 5–6) is natively part of pi05's code path — verify enabled in the checkpoint config.</td>
-    </tr>
-    <tr>
-      <td>Track 3 dataset has prompt re-label bugs (some episodes still have ref-only/counterfactual prompts)</td>
-      <td>low</td>
-      <td>Training sees nonsense prompts, hurts convergence</td>
-      <td>Sejohn's tonight sanity-check loader will catch this on 5 random episodes. If any fail the schema, halt training, re-run relabel pass.</td>
-    </tr>
-    <tr>
-      <td>Strix inference VRAM blows up for Pi0.5 (3B + ViT activations)</td>
-      <td>low–medium</td>
-      <td>Track B unshippable</td>
-      <td>Pi0.5 at bf16 ≈ 7 GB weights + ~3 GB KV cache + ~1 GB ViT acts ≈ 11–12 GB. Fits Strix 16 GB but tight. Mahbod verifies on Day 3 deploy.</td>
-    </tr>
-    <tr>
-      <td>Brev quota or VM availability blocks Day 2 launch</td>
-      <td>low</td>
-      <td>Schedule slip</td>
-      <td>Mahbod confirmed ~$200+ remaining. RTX PRO 6000 Blackwell instances typically available in EU regions. Backup region pre-identified.</td>
-    </tr>
-    <tr>
-      <td>All 3 tracks fail face discrimination (highly unlikely but possible)</td>
-      <td>very low</td>
-      <td>Eval-day catastrophe</td>
-      <td>Track C is closest to Eval-1/2 architecture which we know works on similar SO-101 tasks. Worst case 1-2/9 rollouts + 20 bonus ≈ 31 pts. Not zero.</td>
-    </tr>
-  </tbody>
-</table>
-
-<h2 id="cites">§9 · Sources cited</h2>
+<h2 id="cites">§8 · Sources cited</h2>
 
 <h4>Carl's ruling</h4>
 <ul>
