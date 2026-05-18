@@ -114,6 +114,8 @@ def build_per_identity_splits(
 
     Val loss now measures "did the LoRA learn to name an identity it WAS
     trained on" — the actually-meaningful signal for SFT progress.
+
+    If an identity has fewer than 2 images, it goes entirely into train (no val).
     """
     rng = random.Random(seed)
     sub = df.copy()
@@ -126,9 +128,18 @@ def build_per_identity_splits(
         n_total = n_train_per_id + n_val_per_id
         chosen = rng.sample(paths, k=min(n_total, len(paths)))
         name = clean_name(row["name"])
-        for p in chosen[:n_train_per_id]:
+        # If only 1 image, train-only. Otherwise reserve ≥1 for val if val asked.
+        if len(chosen) == 1 or n_val_per_id == 0:
+            train_split = chosen
+            val_split: list[str] = []
+        else:
+            n_val_take = min(n_val_per_id, len(chosen) - 1)
+            n_train_take = len(chosen) - n_val_take
+            train_split = chosen[:n_train_take]
+            val_split = chosen[n_train_take:n_train_take + n_val_take]
+        for p in train_split:
             train_rows.append(make_row(row["class_id"], name, p, rng))
-        for p in chosen[n_train_per_id:n_train_per_id + n_val_per_id]:
+        for p in val_split:
             val_rows.append(make_row(row["class_id"], name, p, rng))
     rng.shuffle(train_rows)
     rng.shuffle(val_rows)
@@ -163,6 +174,12 @@ def main() -> None:
                              "disjoint (legacy): hearfool's identity-disjoint partition — "
                              "structurally measures impossible zero-shot identification, "
                              "use only as an OOD probe.")
+    parser.add_argument("--toy", action="store_true",
+                        help="ONLY the toy identities (is_toy=True in manifest). "
+                             "For eval3_celebs: yann_lecun, barack_obama, taylor_swift.")
+    parser.add_argument("--fraction", type=float, default=1.0,
+                        help="Random fraction of identities to keep, in (0, 1]. "
+                             "Toy identities (is_toy=True) are ALWAYS included on top.")
     parser.add_argument("--seed", type=int, default=42)
     args = parser.parse_args()
 
@@ -178,6 +195,36 @@ def main() -> None:
     print(f"[json] strategy: {args.val_strategy}")
     if args.max_identities is not None:
         print(f"[json] max-identities: {args.max_identities} per split")
+
+    has_is_toy = "is_toy" in df.columns
+
+    # --toy: keep only is_toy=True identities (requires is_toy column in manifest)
+    if args.toy:
+        if not has_is_toy:
+            raise ValueError("--toy requires an 'is_toy' column in the manifest "
+                             "(use build_eval3_celebs_dataset.py)")
+        before = len(df)
+        df = df[df["is_toy"]].reset_index(drop=True)
+        print(f"[json] --toy: filtered to {len(df)}/{before} identities "
+              f"({sorted(df['class_id'].tolist())})")
+
+    # --fraction: random subset of non-toy identities; toy IDs ALWAYS kept
+    if not args.toy and args.fraction < 1.0:
+        if not (0.0 < args.fraction <= 1.0):
+            raise ValueError(f"--fraction must be in (0, 1], got {args.fraction}")
+        rng_frac = random.Random(args.seed)
+        if has_is_toy:
+            toy_df = df[df["is_toy"]]
+            pool_df = df[~df["is_toy"]]
+        else:
+            toy_df = df.iloc[0:0]
+            pool_df = df
+        n_keep = max(1, int(round(len(pool_df) * args.fraction)))
+        pool_idxs = rng_frac.sample(list(pool_df.index), k=n_keep)
+        kept_pool = pool_df.loc[pool_idxs]
+        df = pd.concat([toy_df, kept_pool]).reset_index(drop=True)
+        print(f"[json] --fraction {args.fraction}: kept {n_keep}/{len(pool_df)} "
+              f"non-toy + {len(toy_df)} toy = {len(df)} total identities")
     print()
 
     if args.val_strategy == "per-identity":
