@@ -62,3 +62,6 @@ eval_3/__pycache__/
 # claude code agent state
 .claude/
 secrets/
+
+# M2 toolkit derived artifacts (regeneratable, published to HF instead)
+eval_3/aug/stats/
