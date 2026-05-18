@@ -1,0 +1,871 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LeMonkey Eval 3 — Final 4-Day Plan (Text-Only, 5-Person Sprint)</title>
+<script>
+  MathJax = {
+    tex: { inlineMath: [['$', '$'], ['\\(', '\\)']], displayMath: [['$$', '$$'], ['\\[', '\\]']] },
+    svg: { fontCache: 'global' }
+  };
+</script>
+<script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+<style>
+  :root {
+    --bg: #fdfdfb;
+    --text: #1a1a1a;
+    --muted: #5a5a5a;
+    --link: #0a4f9a;
+    --link-hover: #062f5e;
+    --border: #e0ddd6;
+    --code-bg: #f5f3ef;
+    --header-bg: #1f3a5f;
+    --header-text: #f5f3ef;
+    --confirm: #1e7a30;
+    --warn: #b07a18;
+    --refute: #b22a2a;
+    --note-bg: #fff8e6;
+    --note-border: #d4a847;
+    --rule-bg: #fff3f0;
+    --rule-border: #c75b3f;
+    --quote-bg: #f7f4ec;
+    --quote-border: #b0a888;
+    --table-stripe: #faf8f3;
+  }
+  * { box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+    line-height: 1.6;
+    color: var(--text);
+    background: var(--bg);
+    margin: 0;
+    padding: 0;
+  }
+  .header {
+    background: var(--header-bg);
+    color: var(--header-text);
+    padding: 2rem 1.5rem;
+    border-bottom: 4px solid #4a4a4a;
+  }
+  .header h1 { margin: 0 0 0.5rem 0; font-size: 1.9rem; }
+  .header .subtitle { color: #c9c6bd; font-size: 1rem; font-weight: 400; }
+  .container { max-width: 940px; margin: 0 auto; padding: 1.5rem; }
+  h2 { border-bottom: 2px solid var(--border); padding-bottom: 0.4rem; margin-top: 2.5rem; }
+  h3 { color: #333; margin-top: 1.8rem; }
+  h4 { color: #444; margin-top: 1.2rem; }
+  a { color: var(--link); text-decoration: none; }
+  a:hover { color: var(--link-hover); text-decoration: underline; }
+  p { margin: 0.6rem 0; }
+  ul, ol { padding-left: 1.5rem; }
+  li { margin: 0.3rem 0; }
+
+  .toc {
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    padding: 1rem 1.5rem;
+    margin: 1.5rem 0;
+    border-radius: 4px;
+  }
+  .toc h3 { margin-top: 0; }
+  .toc ol { margin: 0.5rem 0; }
+
+  code {
+    font-family: "SF Mono", Monaco, "Cascadia Code", Consolas, monospace;
+    font-size: 0.88em;
+    background: var(--code-bg);
+    padding: 0.1rem 0.35rem;
+    border-radius: 3px;
+  }
+  pre {
+    background: var(--code-bg);
+    border-left: 4px solid var(--border);
+    padding: 0.9rem 1rem;
+    overflow-x: auto;
+    border-radius: 4px;
+    font-size: 0.84em;
+  }
+  pre code { background: transparent; padding: 0; font-size: 1em; }
+
+  table {
+    border-collapse: collapse;
+    width: 100%;
+    margin: 1rem 0;
+    font-size: 0.92em;
+  }
+  th, td {
+    border: 1px solid var(--border);
+    padding: 0.55rem 0.7rem;
+    text-align: left;
+    vertical-align: top;
+  }
+  th { background: var(--code-bg); font-weight: 600; }
+  tr:nth-child(even) td { background: var(--table-stripe); }
+
+  .ok { color: var(--confirm); font-weight: 600; }
+  .warn { color: var(--warn); font-weight: 600; }
+  .err { color: var(--refute); font-weight: 600; }
+  .tag {
+    display: inline-block;
+    padding: 0.12rem 0.55rem;
+    border-radius: 3px;
+    font-size: 0.78em;
+    font-weight: 600;
+    margin-right: 0.3rem;
+  }
+  .tag-roham  { background: #e0f0e6; color: #1a5a28; border: 1px solid #1e7a30; }
+  .tag-hans   { background: #ffe6dd; color: #8a3318; border: 1px solid #c75b3f; }
+  .tag-darius { background: #e0e6f5; color: #1a2f6b; border: 1px solid #0a4f9a; }
+  .tag-sejohn { background: #f5e6e0; color: #6b3a18; border: 1px solid #a85f30; }
+  .tag-mahbod { background: #f0e6f5; color: #5a1e6b; border: 1px solid #8a30a8; }
+  .tag-alive { background: #e3f0e6; color: #1e7a30; border: 1px solid #1e7a30; }
+  .tag-dead { background: #f0e0e0; color: #8a1818; border: 1px solid #b22a2a; }
+  .tag-park { background: #ededed; color: #555; border: 1px solid #999; }
+
+  /* TA ruling */
+  .ta-ruling {
+    background: var(--rule-bg);
+    border-left: 6px solid var(--rule-border);
+    padding: 1rem 1.3rem;
+    margin: 1.5rem 0;
+    border-radius: 0 6px 6px 0;
+  }
+  .ta-ruling .ruling-title {
+    font-weight: 700;
+    color: #8a2a16;
+    display: block;
+    margin-bottom: 0.4rem;
+    font-size: 1rem;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+  }
+  .ta-ruling blockquote {
+    background: white;
+    border-left: 3px solid var(--rule-border);
+    padding: 0.6rem 0.9rem;
+    margin: 0.5rem 0;
+    font-style: normal;
+    font-size: 0.93em;
+  }
+  .qauth {
+    display: block;
+    margin-top: 0.3rem;
+    color: var(--muted);
+    font-size: 0.85em;
+  }
+
+  .note {
+    background: var(--note-bg);
+    border-left: 4px solid var(--note-border);
+    padding: 0.8rem 1rem;
+    margin: 1rem 0;
+    border-radius: 0 4px 4px 0;
+  }
+  .note .note-title {
+    font-weight: 700;
+    color: #6b4f10;
+    display: block;
+    margin-bottom: 0.3rem;
+  }
+
+  /* Track block */
+  .track {
+    border: 1px solid var(--border);
+    border-left: 6px solid var(--link);
+    padding: 1rem 1.3rem;
+    margin: 1.5rem 0;
+    border-radius: 4px;
+    background: #fcfcfa;
+  }
+  .track h3 { margin-top: 0; }
+  .track .meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.8rem;
+    font-size: 0.86em;
+    color: var(--muted);
+    margin: 0.4rem 0 0.7rem 0;
+  }
+  .track .meta span { white-space: nowrap; }
+  .track.primary { border-left-color: var(--confirm); background: #f5fbf6; }
+  .track.priority { border-left-color: #b07a18; background: #fffbf2; }
+  .track.priority h3::before { content: "★ "; color: #b07a18; }
+  .track.optional { border-left-color: var(--muted); background: #fafafa; }
+  .track.optional h3::before { content: "◇ "; color: var(--muted); }
+
+  /* Subtask list */
+  .subtasks { padding-left: 1.4rem; }
+  .subtasks li { margin: 0.5rem 0; }
+  .subtasks li code { font-size: 0.92em; }
+  .subtasks .deliverable {
+    background: #f0f5fa;
+    border-left: 3px solid var(--link);
+    padding: 0.4rem 0.7rem;
+    margin: 0.4rem 0;
+    font-size: 0.92em;
+    border-radius: 0 3px 3px 0;
+  }
+  .subtasks .deliverable strong { color: var(--link); }
+
+  /* Day blocks */
+  .day {
+    border: 1px solid var(--border);
+    padding: 1rem 1.3rem;
+    margin: 1.2rem 0;
+    border-radius: 4px;
+  }
+  .day h3 { margin-top: 0; color: var(--header-bg); }
+  .day .time { font-family: "SF Mono", Monaco, monospace; font-size: 0.85em; color: var(--muted); }
+
+  /* Person card */
+  .person {
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 0.9rem 1.2rem;
+    margin: 0.8rem 0;
+    background: #fcfcfa;
+  }
+  .person h4 { margin-top: 0; margin-bottom: 0.3rem; }
+  .person h4 .role { font-weight: 400; color: var(--muted); font-size: 0.85em; margin-left: 0.4rem; }
+
+  .strike { text-decoration: line-through; color: #888; }
+
+  .eq {
+    text-align: center;
+    margin: 1.2rem 0;
+    overflow-x: auto;
+  }
+
+  @media print {
+    .header { background: white; color: black; border-bottom: 2px solid black; }
+    a { color: black; text-decoration: underline; }
+    pre, code { background: #f5f3ef !important; }
+    .container { max-width: none; }
+  }
+
+  @media (max-width: 640px) {
+    body { font-size: 0.95rem; }
+    .header h1 { font-size: 1.4rem; }
+    .container { padding: 1rem; }
+    th, td { padding: 0.35rem 0.4rem; font-size: 0.85em; }
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="container" style="padding: 0;">
+    <h1>LeMonkey Eval 3 — Final 4-Day Plan</h1>
+    <div class="subtitle">5-person sprint · text-only inputs (post-TA ruling) · 2026-05-18 21:00 CEST</div>
+  </div>
+</div>
+
+<div class="container">
+
+<div class="ta-ruling">
+  <span class="ruling-title">⚖ TA ruling recap — 2026-05-18 08:38</span>
+  <blockquote>
+    "we encourage (and enforce) you to do vanilla VLAs with a scene camera + text (+proprioception) as input only. But maybe you want to look into finetuning your VLM on celebrity image recognition and then use this VLM as a VLA on your task. This should work just as well."
+    <span class="qauth">— Carl Brander, TA</span>
+  </blockquote>
+  <p><strong>Verdict.</strong> The policy at inference time must take <code>scene_camera (=camera1, wrist) + text_prompt + proprioception</code> only — no reference-photo lookup, no asset-table tricks. Carl's suggested alternative (VLM warm-start on celeb recognition) is what we call <strong>M5</strong>, and Hans has <strong>already done this</strong> via LoRA fine-tuning of SmolVLM2 on VGGFace2. This document is the precise 4-day execution plan starting from where we are right now.</p>
+</div>
+
+<div class="note">
+  <span class="note-title">What's done as of writing</span>
+  <ul>
+    <li><strong>Track 3 augmentation:</strong> 9,200+ / 9,216 variants generated; finishing tonight ~21:10 CEST. 4-celeb-per-slot × 6 layouts × 8 photos × 64 distractor combos = the full enumeration of the visual scene space.</li>
+    <li><strong>Hans's warm-VLM (M5 mechanism done):</strong> SmolVLM2-500M truncated to 16 layers (matching SmolVLA), then LoRA fine-tuned on VGGFace2 (9,131 identities, 3.31M images) with VQA prompts ("Who is in this photo?", "Is this LeBron James?"). Empirically verified to recognize celebrity faces. Saves us ~1 day eng + ~4–6 h Brev that our M5 plan would have spent.</li>
+    <li><strong>Dataset re-use:</strong> The 9,394-episode aug dataset (178 base + 9,216 augmented) is built. All wrist-camera (<code>camera1</code>) videos are eval-day-valid — they show the printed faces the policy must learn to recognize from prompts alone.</li>
+  </ul>
+</div>
+
+<div class="toc">
+  <h3>Contents</h3>
+  <ol>
+    <li><a href="#team">The 5-person team</a></li>
+    <li><a href="#tracks">The 3 tracks (+1 optional)</a></li>
+    <li><a href="#warm">Hans's warm-VLM recipe (replicable)</a></li>
+    <li><a href="#timeline">Day-by-day 4-day timeline</a></li>
+    <li><a href="#data">Dataset preparation</a></li>
+    <li><a href="#testing">Strix testing protocol</a></li>
+    <li><a href="#decisions">Decisions we need to lock NOW</a></li>
+    <li><a href="#risks">Risks &amp; mitigations</a></li>
+    <li><a href="#cites">Sources cited</a></li>
+  </ol>
+</div>
+
+<h2 id="team">§1 · The 5-person team</h2>
+
+<p>Every person owns one main deliverable. Cross-help is welcome but ownership is unambiguous so we don't double-execute or miss handoffs.</p>
+
+<div class="person">
+  <h4><span class="tag tag-roham">Roham</span><span class="role">— Track B (Pi0.5-3B) + overall coordination + dataset push</span></h4>
+  <ul>
+    <li>Tonight: prompt-relabel pass + push merged Track 3 dataset to HF.</li>
+    <li>Day 2: train Pi0.5 on the merged dataset with <code>train_expert_only=True</code> (preserves PaliGemma's WebLI prior).</li>
+    <li>Day 3+: deploy Pi0.5 checkpoint to Strix for face-recognition test.</li>
+  </ul>
+</div>
+
+<div class="person">
+  <h4><span class="tag tag-hans">Hans</span><span class="role">— Track A (SmolVLA + his warm-VLM) — the strongest single bet</span></h4>
+  <ul>
+    <li>Tonight: push his warm-started SmolVLM2 to HF as <code>HansOrtiz/smolvlm2_celeb_warm</code> (the merged-LoRA state-dict, loadable via <code>AutoModel.from_pretrained</code>).</li>
+    <li>Tonight: send Roham his LoRA training script (in case we need to mirror the recipe on PaliGemma in Day 3 fallback).</li>
+    <li>Day 2: load his warm-VLM as SmolVLA's VLM backbone via <code>--policy.vlm_model_name</code>, train action expert only (<code>train_expert_only=True</code>) on the merged dataset.</li>
+    <li>Day 3+: deploy Track A checkpoint to Strix.</li>
+  </ul>
+</div>
+
+<div class="person">
+  <h4><span class="tag tag-darius">Darius</span><span class="role">— Track D: M2 ArcFace cosine distillation toolkit (drop-in patch)</span></h4>
+  <ul>
+    <li>Day 2: implement three scripts/modules so we can <em>add</em> face-discriminative supervision to Track A or B if their Day-2 Strix test shows weak face discrimination. <strong>Don't launch training yet — be ready to.</strong></li>
+    <li>Day 3 decision: if A or B underperforms, hand off to Roham/Hans to re-train with M2 enabled (~6 h additional Brev).</li>
+  </ul>
+</div>
+
+<div class="person">
+  <h4><span class="tag tag-sejohn">Sejohn</span><span class="role">— Track C (SmolVLA safety floor) + dataset validation</span></h4>
+  <ul>
+    <li>Tonight: once Roham pushes the merged dataset to HF, run a sanity loader on dev box: load 5 random episodes, verify camera1 mp4 is 538 frames, prompt is default-bucket, action chunks are float32, state is 6-dim.</li>
+    <li>Day 2: launch Track C (SmolVLA vanilla from <code>lerobot/smolvla_base</code>, default flags, no warm-VLM). ~6 h Brev. This is the bottom-of-net safety baseline.</li>
+    <li>Day 3+: deploy Track C checkpoint to Strix.</li>
+  </ul>
+</div>
+
+<div class="person">
+  <h4><span class="tag tag-mahbod">Mahbod</span><span class="role">— Strix deployment + eval-day dry-run coordination</span></h4>
+  <ul>
+    <li>Day 2 onwards: each track checkpoint that finishes training gets deployed to Strix by Mahbod. Standard protocol: 3 rollouts per checkpoint (1 TOY / 1 held-out IID / 1 OOD), record videos, write 1-line verdict per rollout into a shared sheet.</li>
+    <li>Day 4: full dry-run on the best candidate(s) — 9 rollouts mirroring eval-day mix. Pick final ship checkpoint.</li>
+  </ul>
+</div>
+
+<h2 id="tracks">§2 · The 3 tracks (+1 optional)</h2>
+
+<p>All four tracks consume the same merged dataset (<code>HBOrtiz/so101_eval3_track3_v3_baseline</code>) and produce the same inference contract: <code>observation.images.camera1 + observation.state + text_prompt</code>. The reference camera channel is zero-padded via <code>--policy.empty_cameras=N</code>.</p>
+
+<table>
+  <thead>
+    <tr><th>Track</th><th>Owner</th><th>Backbone</th><th>Approach</th><th>Bonus</th><th>Brev</th><th>Risk</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>A</strong></td>
+      <td><span class="tag tag-hans">Hans</span></td>
+      <td>SmolVLA-450M</td>
+      <td>Hans's warm-VLM frozen, action expert trains</td>
+      <td class="ok">+20</td>
+      <td>~6 h</td>
+      <td class="ok">low — Hans verified warm-VLM works on faces</td>
+    </tr>
+    <tr>
+      <td><strong>B</strong></td>
+      <td><span class="tag tag-roham">Roham</span></td>
+      <td>Pi0.5-3B (PaliGemma)</td>
+      <td>VLM frozen (preserves WebLI prior), action expert trains</td>
+      <td>+16</td>
+      <td>~24 h</td>
+      <td class="warn">medium — PaliGemma celeb prior untested at our scale</td>
+    </tr>
+    <tr>
+      <td><strong>C</strong></td>
+      <td><span class="tag tag-sejohn">Sejohn</span></td>
+      <td>SmolVLA-450M</td>
+      <td>Vanilla <code>smolvla_base</code>, defaults, no warm-VLM</td>
+      <td class="ok">+20</td>
+      <td>~6 h</td>
+      <td class="ok">low — proven recipe, no architectural changes</td>
+    </tr>
+    <tr>
+      <td><strong>D</strong> (optional)</td>
+      <td><span class="tag tag-darius">Darius</span></td>
+      <td>tooling</td>
+      <td>M2 ArcFace distillation, drop-in patch</td>
+      <td>—</td>
+      <td>—</td>
+      <td>n/a — held in reserve</td>
+    </tr>
+  </tbody>
+</table>
+
+<!-- ─── Track A ─────────────────────────────────────────────────── -->
+
+<div class="track primary">
+  <h3>Track A — SmolVLA + Hans's warm-VLM</h3>
+  <div class="meta">
+    <span>owner: <span class="tag tag-hans">Hans</span></span>
+    <span>backbone: <code>HansOrtiz/smolvlm2_celeb_warm</code> + <code>lerobot/smolvla_base</code></span>
+    <span>brev: ~6 h on RTX PRO 6000</span>
+    <span>bonus: +20</span>
+    <span>repo output: <code>HBOrtiz/smolvla_eval3_track_A</code></span>
+  </div>
+
+  <p><strong>Why this is our strongest single bet.</strong> Hans empirically validated that LoRA fine-tuning SmolVLM2-500M on VGGFace2 produces a VLM that recognizes celebrity faces. That is exactly the "M5 (VLM warm-start)" mechanism Carl recommended, done more thoroughly than our planned 30-celeb × 50-photo recipe (VGGFace2 is 9,131 identities × 3.31M images). When we plug this warm-VLM into SmolVLA with the VLM frozen, only the action expert needs to learn — and the existing celeb features are NOT corrupted by action-loss gradients.</p>
+
+  <h4>Subtasks (Hans)</h4>
+  <ol class="subtasks">
+    <li>
+      <strong>Tonight, ~21:30 CEST:</strong> push warm-VLM to HF.
+      <ul>
+        <li>If the LoRA adapter is unmerged: merge it into the base SmolVLM2-500M (<code>peft.PeftModel.merge_and_unload()</code>), then push.</li>
+        <li>Expected format: a HF model directory loadable by <code>AutoModelForCausalLM.from_pretrained("HansOrtiz/smolvlm2_celeb_warm")</code>.</li>
+        <li>Sanity check: load it on dev box, ask "Who is in this photo?" with a Swift/Obama/LeCun headshot; expect correct name. Paste 1-line confirm in Slack.</li>
+      </ul>
+      <div class="deliverable"><strong>Deliverable:</strong> <code>HansOrtiz/smolvlm2_celeb_warm</code> on Hugging Face, public.</div>
+    </li>
+    <li>
+      <strong>Tonight, after the above:</strong> share with Roham (a) the exact LoRA training script (rank, alpha, target modules, optimizer, steps), and (b) the VGGFace2-derived VQA dataset format. This is the fallback if Pi0.5 vanilla underperforms — we'll mirror the recipe on PaliGemma.
+      <div class="deliverable"><strong>Deliverable:</strong> <code>HansOrtiz/smolvlm2_celeb_warm/training_recipe.md</code> + the data-loader script.</div>
+    </li>
+    <li>
+      <strong>Day 2 morning:</strong> launch Track A training on Brev. Command (copy-paste):
+      <pre><code>lerobot-train \
+  --policy.type=smolvla \
+  --policy.pretrained_path=lerobot/smolvla_base \
+  --policy.vlm_model_name=HansOrtiz/smolvlm2_celeb_warm \
+  --policy.freeze_vision_encoder=True \
+  --policy.train_expert_only=True \
+  --policy.empty_cameras=1 \
+  --policy.optimizer_lr=5e-5 \
+  --policy.compile_model=False \
+  --dataset.repo_id=HBOrtiz/so101_eval3_track3_v3_baseline \
+  --batch_size=64 --steps=30000 \
+  --output_dir=outputs/smolvla_track_A \
+  --policy.push_to_hub=True \
+  --policy.repo_id=HBOrtiz/smolvla_eval3_track_A</code></pre>
+    </li>
+    <li><strong>Day 2 ~14:00:</strong> training finishes (~6 h). Verify it pushed to <code>HBOrtiz/smolvla_eval3_track_A</code>.</li>
+    <li><strong>Hand off to Mahbod</strong> for Strix deployment + 3-rollout test.</li>
+  </ol>
+</div>
+
+<!-- ─── Track B ─────────────────────────────────────────────────── -->
+
+<div class="track">
+  <h3>Track B — Pi0.5-3B (PaliGemma)</h3>
+  <div class="meta">
+    <span>owner: <span class="tag tag-roham">Roham</span></span>
+    <span>backbone: <code>lerobot/pi05_base</code></span>
+    <span>brev: ~24 h on RTX PRO 6000</span>
+    <span>bonus: +16</span>
+    <span>repo output: <code>HBOrtiz/pi05_eval3_track_B</code></span>
+  </div>
+
+  <p><strong>Why this is the capacity hedge.</strong> Pi0.5 is 3B params (6.6× SmolVLA) and PaliGemma was pretrained on WebLI — a 10B image-text web-scrape corpus where celebrities are densely represented. Freezing the VLM (<code>train_expert_only=True</code>) preserves this prior intact while the action expert learns the manipulation skill. <strong>Critical config:</strong> we deviate from Pi0.5's default (<code>train_expert_only=False, freeze_vision_encoder=False</code>) precisely because that default is what Hans saw cause catastrophic forgetting on SmolVLM ("the distribution started shifting too much"). π₀.5-KI paper Fig. 6(b) confirms the same: 94% → 74% OOD without web co-training. We're using the frozen-VLM workaround.</p>
+
+  <h4>Subtasks (Roham)</h4>
+  <ol class="subtasks">
+    <li>
+      <strong>Tonight, after aug finishes (~21:30 CEST):</strong> run prompt-relabel pass + merge + HF push (see <a href="#data">§5</a> for details).
+      <div class="deliverable"><strong>Deliverable:</strong> <code>HBOrtiz/so101_eval3_track3_v3_baseline</code> on HF.</div>
+    </li>
+    <li>
+      <strong>Tonight after dataset push:</strong> compute Pi0.5 quantile state/action stats on the new dataset:
+      <pre><code>python eval_3/aug/compute_quantile_stats.py \
+  --dataset HBOrtiz/so101_eval3_track3_v3_baseline \
+  --output  eval_3/aug/stats/track3_v3_quantile.json</code></pre>
+      <div class="deliverable"><strong>Deliverable:</strong> <code>track3_v3_quantile.json</code> committed to repo.</div>
+    </li>
+    <li>
+      <strong>Day 2 morning (early):</strong> launch Track B on Brev. ~24 h, so launching at 06:00 finishes ~06:00 Day 3.
+      <pre><code>lerobot-train \
+  --policy.type=pi05 \
+  --policy.pretrained_path=lerobot/pi05_base \
+  --policy.freeze_vision_encoder=True \
+  --policy.train_expert_only=True \
+  --policy.empty_cameras=3 \
+  --policy.optimizer_lr=1e-5 \
+  --policy.compile_model=True \
+  --policy.gradient_checkpointing=True \
+  --dataset.repo_id=HBOrtiz/so101_eval3_track3_v3_baseline \
+  --batch_size=24 --steps=30000 \
+  --output_dir=outputs/pi05_track_B \
+  --policy.push_to_hub=True \
+  --policy.repo_id=HBOrtiz/pi05_eval3_track_B</code></pre>
+      <p><strong>LR note:</strong> 1e-5 (lower than Pi0.5's 2.5e-5 default) because we want the action-expert head + projections to update slowly, minimizing risk that small numerical drift indirectly perturbs PaliGemma's prior through the cross-attention path.</p>
+      <p><strong>empty_cameras=3</strong> because Pi0.5 expects 4 robot cameras (top/wrist/left/right per Pi0.5 paper §3.1) and we have 1 wrist camera.</p>
+    </li>
+    <li><strong>Day 3 morning:</strong> training finishes. Verify push. Hand off to Mahbod.</li>
+  </ol>
+
+  <h4>Fallback path (Day 3 decision)</h4>
+  <p>If Track B's Day-3 Strix test shows weak face discrimination (wrong celeb chosen most of the time), the implication is PaliGemma's WebLI prior doesn't transfer to fine-grained celeb-on-printed-paper recognition. In that case:</p>
+  <ol>
+    <li>Mirror Hans's exact LoRA-on-VGGFace2 recipe on PaliGemma (Pi0.5's VLM backbone). Use his shared script as the template.</li>
+    <li>~10 h Brev for the LoRA warm-start.</li>
+    <li>Then re-launch Track B with the warm-started PaliGemma → ~24 h Brev (or shorter if we start with that as initial weights). Tight on Day 4 but feasible.</li>
+  </ol>
+</div>
+
+<!-- ─── Track C ─────────────────────────────────────────────────── -->
+
+<div class="track priority">
+  <h3>Track C — SmolVLA safety floor</h3>
+  <div class="meta">
+    <span>owner: <span class="tag tag-sejohn">Sejohn</span></span>
+    <span>backbone: <code>lerobot/smolvla_base</code> (vanilla)</span>
+    <span>brev: ~6 h on RTX PRO 6000</span>
+    <span>bonus: +20</span>
+    <span>repo output: <code>HBOrtiz/smolvla_eval3_track_C_baseline</code></span>
+  </div>
+
+  <p><strong>The bottom of the safety net.</strong> Identical recipe to Track A, but starts from <code>lerobot/smolvla_base</code> instead of Hans's warm-VLM. Pure vanilla SmolVLA on the augmented 3-celeb dataset. No M5, no M2, no anything. If everything else explodes, this checkpoint ships — because it has the same architecture that passed Eval 1 and Eval 2.</p>
+
+  <p>Worst-case scoring: 0/3 OOD + 6/9 IID + 20 bonus = (6/9) × 50 + 20 ≈ <strong>53 pts</strong>. Best-case: 0/3 OOD + 9/9 IID + 20 bonus = 50 + 20 = <strong>70 pts</strong>.</p>
+
+  <h4>Subtasks (Sejohn)</h4>
+  <ol class="subtasks">
+    <li>
+      <strong>Tonight, after Roham pushes the dataset:</strong> dev-box sanity loader — load 5 random episodes from HF, assert each has:
+      <ul>
+        <li><code>observation.images.camera1</code>: 538 frames, mp4, 480×640×3</li>
+        <li><code>observation.state</code>: shape (538, 6), float32</li>
+        <li><code>action</code>: shape (538, 6), float32</li>
+        <li><code>task</code>: a default-bucket prompt like <code>"Place the coke on Taylor Swift."</code> (no <code>"reference image"</code> or counterfactual phrasing)</li>
+      </ul>
+      <div class="deliverable"><strong>Deliverable:</strong> Slack confirmation "5/5 episodes pass schema check" before Day 2 launch.</div>
+    </li>
+    <li>
+      <strong>Day 2 morning:</strong> launch Track C on Brev. Same launch as Track A but without the warm-VLM override:
+      <pre><code>lerobot-train \
+  --policy.type=smolvla \
+  --policy.pretrained_path=lerobot/smolvla_base \
+  --policy.freeze_vision_encoder=True \
+  --policy.train_expert_only=True \
+  --policy.empty_cameras=1 \
+  --policy.optimizer_lr=5e-5 \
+  --dataset.repo_id=HBOrtiz/so101_eval3_track3_v3_baseline \
+  --batch_size=64 --steps=30000 \
+  --output_dir=outputs/smolvla_track_C \
+  --policy.push_to_hub=True \
+  --policy.repo_id=HBOrtiz/smolvla_eval3_track_C_baseline</code></pre>
+    </li>
+    <li><strong>Day 2 ~14:00:</strong> training finishes. Hand off to Mahbod.</li>
+  </ol>
+</div>
+
+<!-- ─── Track D ─────────────────────────────────────────────────── -->
+
+<div class="track optional">
+  <h3>Track D (optional, on standby) — M2 ArcFace cosine distillation toolkit</h3>
+  <div class="meta">
+    <span>owner: <span class="tag tag-darius">Darius</span></span>
+    <span>brev: 0 until activated</span>
+    <span>activation: only if Track A or B Strix tests show face confusion</span>
+  </div>
+
+  <p><strong>What this adds.</strong> An auxiliary training loss that distills <code>buffalo_l</code> ArcFace face embeddings into SmolLM2/PaliGemma's mid-LLM hidden state at the Backbone2Enc layer, forcing the VLM to develop face-discriminative features <em>from the wrist-camera view alone</em>. From BlindVLA ([arxiv 2510.25616](https://arxiv.org/abs/2510.25616) Eq. 9):</p>
+
+  <div class="eq">$$ L_{\text{align}} = -\frac{1}{k} \sum_{j=1}^{k} \cos\!\left(F.\text{normalize}\!\left(\text{MLP}(h_l)_j\right), F.\text{normalize}(z_j)\right), \quad \lambda = 0.2 $$</div>
+
+  <p>where $h_l$ is the VLM's hidden state at the chosen layer (SmolLM2 layer 7/8 of 16; PaliGemma layer 10/12), $z$ is the cached <code>buffalo_l</code> embedding of the target face, and the MLP is frozen after init (BlindVLA Table 6 — trainable projector becomes a shortcut). Inference-time impact: <strong>zero</strong> (the loss only adds a gradient signal during training; the cached embeddings are pre-computed offline).</p>
+
+  <h4>Subtasks (Darius — Day 2)</h4>
+  <ol class="subtasks">
+    <li>
+      <strong><code>eval_3/aug/cache_arcface_embeddings.py</code></strong> — walk every variant directory, read <code>augmentation.json["workspace_photos"][target_pid]</code>, compute the <code>buffalo_l</code> embedding for the target face, save as <code>aug_cache_target_arcface.npy</code> in each variant dir. ~2 h dev box.
+    </li>
+    <li>
+      <strong><code>eval_3/aug/face_align_projector.py</code></strong> — frozen 3-layer MLP module:
+      <pre><code>class FaceAlignProjector(nn.Module):
+    def __init__(self, in_dim: int, hidden: int = 2048, out_dim: int = 512):
+        super().__init__()
+        self.net = nn.Sequential(
+            nn.LayerNorm(in_dim),
+            nn.Linear(in_dim, hidden), nn.SiLU(), nn.Dropout(0.1),
+            nn.Linear(hidden, hidden), nn.SiLU(), nn.Dropout(0.1),
+            nn.Linear(hidden, out_dim),
+        )
+        for p in self.parameters():
+            p.requires_grad = False  # M1 frozen projector</code></pre>
+    </li>
+    <li>
+      <strong>Patch modeling files at Backbone2Enc</strong> — expose the hidden state at the chosen layer (SmolLM2 layer 8 by default), compute $L_{\text{align}}$, add $0.2 \cdot L_{\text{align}}$ to the total loss in <code>forward()</code>. ~4 h eng.
+    </li>
+  </ol>
+
+  <p><strong>Hold for Day 3 decision.</strong> Apply only if A or B shows face-discrimination weakness in Day-2 Strix test.</p>
+</div>
+
+<h2 id="warm">§3 · Hans's warm-VLM recipe (so we can mirror on PaliGemma if needed)</h2>
+
+<p>Hans's exact recipe, reconstructed from his Slack messages (please confirm before Roham mirrors on PaliGemma):</p>
+
+<ol>
+  <li><strong>Backbone:</strong> <code>HuggingFaceTB/SmolVLM2-500M-Video-Instruct</code>, truncated to the first 16 transformer layers (matching SmolVLA's <code>num_vlm_layers=16</code>). This is the published SmolVLA recipe per <a href="https://arxiv.org/abs/2506.01844">arxiv 2506.01844</a> Table 8 (N=L/2 best speed/quality).</li>
+  <li><strong>Dataset:</strong> VGGFace2 (<a href="https://arxiv.org/abs/1710.08092">arxiv 1710.08092</a>) — 9,131 identities, 3.31M images, curated from Google search for famous public figures. Swift/Obama/LeCun and all the OOD eval candidates (top-50 famous people per task spec) are essentially guaranteed to be in this set.</li>
+  <li><strong>VQA format:</strong> per-sample, draw uniformly from
+    <ul>
+      <li><code>"Who is in this photo?" → "<name>"</code></li>
+      <li><code>"Is this <name>?" → "Yes"</code> (50%) or <code>"No, this is <other>." </code> (50%)</li>
+    </ul>
+  </li>
+  <li><strong>Training method:</strong> LoRA (PEFT), not full SFT. Hans observed that full SFT causes catastrophic forgetting — attention shifts to fine-tuned classes, generic objects ("blue bowl") lose attention. This matches π₀.5-KI's published 94% → 74% OOD degradation. LoRA preserves the base capabilities.</li>
+  <li><strong>Rank / target modules:</strong> Hans to confirm exact values. Standard LoRA-for-VLM defaults are <code>r=16</code>, <code>alpha=32</code>, <code>target_modules=["q_proj","k_proj","v_proj","o_proj"]</code> on the LLM transformer blocks.</li>
+  <li><strong>Output:</strong> after fine-tuning, merge the LoRA adapter into the base weights (<code>model.merge_and_unload()</code>) so the result is a standard HuggingFace model loadable by <code>AutoModel.from_pretrained</code>. This is what gets pushed to <code>HansOrtiz/smolvlm2_celeb_warm</code>.</li>
+</ol>
+
+<p><strong>If we need to mirror on PaliGemma in Day 3:</strong> same dataset, same VQA templates, same LoRA-not-SFT principle. Target modules on PaliGemma's Gemma blocks. Estimated ~10 h Brev given PaliGemma is ~7× larger.</p>
+
+<h2 id="timeline">§4 · Day-by-day timeline</h2>
+
+<div class="day">
+  <h3>Day 1 — Tonight (Monday May 18, 21:00–02:00 CEST)</h3>
+  <p class="time">~5 h of wall time. Mostly dataset prep + handoffs.</p>
+  <ul>
+    <li><span class="time">21:10</span> · <span class="tag tag-roham">Roham</span> Track 3 aug finishes (last variant written).</li>
+    <li><span class="time">21:15–22:00</span> · <span class="tag tag-roham">Roham</span> runs prompt-relabel + merge pass over all 9,394 episodes. ~30 min walk.</li>
+    <li><span class="time">22:00–22:30</span> · <span class="tag tag-roham">Roham</span> pushes merged dataset → <code>HBOrtiz/so101_eval3_track3_v3_baseline</code>.</li>
+    <li><span class="time">~22:00</span> · <span class="tag tag-hans">Hans</span> pushes warm-VLM → <code>HansOrtiz/smolvlm2_celeb_warm</code>. Sanity-check it recognizes Swift/Obama/LeCun. Slack confirm.</li>
+    <li><span class="time">~22:00</span> · <span class="tag tag-hans">Hans</span> shares LoRA training script + dataset format with Roham.</li>
+    <li><span class="time">22:30–23:00</span> · <span class="tag tag-sejohn">Sejohn</span> dev-box dataset sanity check (5 random episodes). Slack confirm.</li>
+    <li><span class="time">23:00–23:30</span> · <span class="tag tag-roham">Roham</span> Pi0.5 quantile-stats computation. Push to repo.</li>
+    <li><span class="time">23:30–00:30</span> · <span class="tag tag-roham">Roham</span> writes + commits the three <code>run_training_track_{A,B,C}.sh</code> scripts.</li>
+  </ul>
+</div>
+
+<div class="day">
+  <h3>Day 2 — Tuesday May 19</h3>
+  <p class="time">First training launches; M2 toolkit prep. ~24 h elapsed.</p>
+  <ul>
+    <li><span class="time">06:00</span> · <span class="tag tag-roham">Roham</span> launches <strong>Track B (Pi0.5)</strong> on Brev. ~24 h, will finish ~06:00 Day 3.</li>
+    <li><span class="time">07:00</span> · <span class="tag tag-hans">Hans</span> launches <strong>Track A (SmolVLA + warm-VLM)</strong>. ~6 h, will finish ~13:00.</li>
+    <li><span class="time">07:00</span> · <span class="tag tag-sejohn">Sejohn</span> launches <strong>Track C (SmolVLA safety)</strong>. ~6 h, will finish ~13:00.</li>
+    <li><span class="time">07:00–18:00</span> · <span class="tag tag-darius">Darius</span> builds the M2 toolkit (ArcFace cache + frozen-projector module + modeling patches). End of day = ready to apply if needed.</li>
+    <li><span class="time">13:00–13:30</span> · Track A and C training done. Verify pushes.</li>
+    <li><span class="time">13:30–17:00</span> · <span class="tag tag-mahbod">Mahbod</span> deploys Track A + C checkpoints to Strix. 3-rollout test each (TOY / held-out IID / OOD). Records videos. Writes 1-line verdict per rollout.</li>
+    <li><span class="time">17:00</span> · Team checkpoint call: review Track A + C results. Decide if M2 add-on needed.</li>
+    <li><span class="time">17:00–22:00</span> · If M2 needed: Darius hands off the patch to whichever owner re-launches with M2 enabled. Otherwise, all hands stand by for Track B.</li>
+  </ul>
+</div>
+
+<div class="day">
+  <h3>Day 3 — Wednesday May 20</h3>
+  <p class="time">Track B done; iteration based on findings. ~24 h elapsed.</p>
+  <ul>
+    <li><span class="time">06:00</span> · <span class="tag tag-roham">Roham</span> Track B training finishes. Verify push.</li>
+    <li><span class="time">06:00–10:00</span> · <span class="tag tag-mahbod">Mahbod</span> deploys Track B to Strix. 3-rollout test.</li>
+    <li><span class="time">10:00</span> · Team decision point:
+      <ul>
+        <li>If <strong>any track has ≥7/9 expected score</strong> on the Day-2 test: lock it as the primary candidate; spend Day 3 polishing.</li>
+        <li>If <strong>no track is good enough</strong>: launch the Track B PaliGemma-warm-start variant (Hans's recipe mirrored on PaliGemma). ~10 h Brev for the warm-start + ~24 h Brev for the re-train... tight, must prioritize.</li>
+        <li>If <strong>Track A is good but face-confuses on OOD</strong>: apply M2 patch + re-train (~6 h Brev). Most likely re-iteration scenario.</li>
+      </ul>
+    </li>
+    <li><span class="time">10:00–22:00</span> · execute the chosen Day-3 iteration. Strix dry-run on whatever new checkpoint lands.</li>
+  </ul>
+</div>
+
+<div class="day">
+  <h3>Day 4 — Thursday May 21</h3>
+  <p class="time">Final dry-run + ship. ~12 h working time.</p>
+  <ul>
+    <li><span class="time">08:00–12:00</span> · <span class="tag tag-mahbod">Mahbod</span> full eval-day dry-run on the top 1–2 candidates: 9 rollouts each (matching real eval mix: 3 TOY IID / 3 held-out IID / 3 OOD). Record videos.</li>
+    <li><span class="time">12:00</span> · Team picks the final checkpoint. Lock the inference recipe:
+      <pre><code>policy = SmolVLAPolicy.from_pretrained("HBOrtiz/&lt;chosen-track&gt;")
+# OR
+policy = Pi05Policy.from_pretrained("HBOrtiz/&lt;chosen-track&gt;")
+# REQUIRED inference contract:
+input = {
+    "observation.images.camera1": wrist_video[-1],
+    "observation.state": robot_state,
+    "task": f"Place the coke on {target_celeb_name}.",
+}</code></pre>
+    </li>
+    <li><span class="time">12:00–17:00</span> · final checks: VRAM fits Strix 16 GB ✓, inference latency &lt; 20 s ✓, no <code>observation.images.reference</code> anywhere in the policy graph ✓.</li>
+    <li><span class="time">17:00</span> · everyone go home and sleep before eval day.</li>
+  </ul>
+</div>
+
+<h2 id="data">§5 · Dataset preparation (Roham, tonight)</h2>
+
+<h3>5.1 · Prompt-relabel pass</h3>
+
+<p>The 9,216 aug variants and 178 base teleops have prompts assigned per the original 75/15/10 mixture from the pre-ruling design (75% default + 15% ref-only + 10% counterfactual). The latter two buckets are <strong>invalid under text-only</strong> — they assumed a reference image. Re-label all sidecars to the default bucket only:</p>
+
+<pre><code># eval_3/scripts/relabel_prompts_v3.py — relabel sidecar.json + augmentation.json
+# to use the default-name prompt template, drop counterfactual + ref_only.
+import json, random
+from pathlib import Path
+
+DEFAULT_PARAPHRASES = [
+    "Place the coke on {name}.",
+    "Put the coke on {name}.",
+    "Place the can on the photo of {name}.",
+    "Set the coke down on {name}'s picture.",
+    "Put the can on {name}'s photo.",
+]
+SHORT_TO_FULL_NAME = {"swift": "Taylor Swift", "obama": "Barack Obama", "lecun": "Yann LeCun"}
+
+for root in (Path("datasets/eval3"), Path("datasets/eval3_track3_aug")):
+    for ep in root.iterdir():
+        if not (ep / "reference.json").is_file():
+            continue
+        sc = json.loads((ep / "reference.json").read_text())
+        full = SHORT_TO_FULL_NAME[sc["target_celeb"]]
+        rng = random.Random(hash(ep.name) % (2**32))
+        sc["prompt"] = rng.choice(DEFAULT_PARAPHRASES).format(name=full)
+        sc["prompt_bucket"] = "default"
+        (ep / "reference.json").write_text(json.dumps(sc, indent=2))</code></pre>
+
+<h3>5.2 · Merge + push to HF</h3>
+
+<p>Merge 178 base + 9,216 aug into a single LeRobot v3 dataset, push to <code>HBOrtiz/so101_eval3_track3_v3_baseline</code>. Drop the <code>observation.images.reference</code> stream from the schema (we ignore it at training, no need to ship it). Use the existing merge script: <code>python eval_3/aug/prep_for_merge.py --root datasets/eval3_track3_aug --base-root datasets/eval3 --drop-key observation.images.reference --push-to HBOrtiz/so101_eval3_track3_v3_baseline</code>.</p>
+
+<h2 id="testing">§6 · Strix testing protocol (Mahbod)</h2>
+
+<p>Every checkpoint that finishes training goes through identical paces. <strong>Don't deviate</strong> — comparability across tracks depends on protocol consistency.</p>
+
+<ol>
+  <li><strong>Pull the checkpoint:</strong> <code>huggingface-cli download HBOrtiz/&lt;track&gt; --local-dir /tmp/&lt;track&gt;</code>.</li>
+  <li><strong>Spin up the Strix laptop, plug in the SO-101 arm + wrist cam.</strong> Confirm camera1 stream is live + the same physical setup as recording-time.</li>
+  <li><strong>Place 3 paper printouts</strong> in any SOL/OSL/etc. layout. Don't rearrange between rollouts within a track — keep the setup fixed for fair comparison.</li>
+  <li><strong>3 rollouts per checkpoint:</strong>
+    <ol type="a">
+      <li>TOY: place a Swift printout in 3 positions, prompt "Place the coke on Taylor Swift." — does the arm reach the right physical slot? Record success/fail per rollout.</li>
+      <li>Held-out IID: same celebs but use the held-out heldout_03/04/05 photos (the ones we didn't print at recording time — they're in the photo bank, just print a fresh copy).</li>
+      <li>OOD: rotate one of the printouts to a non-IID celeb (e.g. Federer, Bezos — pick from VGGFace2 top-50). Prompt their name. Record.</li>
+    </ol>
+  </li>
+  <li><strong>Log to shared sheet:</strong> <code>{track, rollout_type, celeb, layout, success(0/1), notes}</code>.</li>
+  <li><strong>Capture video</strong> of any failure mode (positional shortcut, wrong celeb, timeout).</li>
+</ol>
+
+<h2 id="decisions">§7 · Decisions we need to lock NOW</h2>
+
+<table>
+  <thead><tr><th>Decision</th><th>Owner</th><th>Deadline</th><th>Default if no objection</th></tr></thead>
+  <tbody>
+    <tr>
+      <td>Hans pushes warm-VLM as merged state-dict (not LoRA adapter alone)</td>
+      <td>Hans</td>
+      <td>Tonight</td>
+      <td>Merged (easiest to load via <code>vlm_model_name</code>)</td>
+    </tr>
+    <tr>
+      <td>Drop <code>observation.images.reference</code> from the merged HF dataset, or keep it (just ignored)?</td>
+      <td>Roham</td>
+      <td>Tonight</td>
+      <td>Drop — smaller dataset, less confusion at training time</td>
+    </tr>
+    <tr>
+      <td>Track B LR: 1e-5 (safer) or 2.5e-5 (Pi0.5 default)?</td>
+      <td>Roham</td>
+      <td>Day 2 06:00</td>
+      <td>1e-5 — frozen VLM means lower LR is barely slower convergence; safer to avoid any indirect forgetting</td>
+    </tr>
+    <tr>
+      <td>Track A &amp; C step count: 30,000 or 50,000?</td>
+      <td>Hans, Sejohn</td>
+      <td>Day 2 06:00</td>
+      <td>30,000 — fits in 6 h Brev. Action expert convergence is fast when VLM frozen.</td>
+    </tr>
+    <tr>
+      <td>Single Brev VM for all 3 tracks (serialized) or 2 VMs in parallel?</td>
+      <td>Team</td>
+      <td>Day 2 06:00</td>
+      <td>2 VMs: VM1 runs Track A then C (12 h total), VM2 runs Track B (24 h). Cost ~2× single but saves a full day.</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2 id="risks">§8 · Risks &amp; mitigations</h2>
+
+<table>
+  <thead><tr><th>Risk</th><th>Prob.</th><th>Impact</th><th>Mitigation</th></tr></thead>
+  <tbody>
+    <tr>
+      <td>Hans's warm-VLM doesn't transfer to camera1's scene context (faces seen through wrist-cam at ~30% frame coverage, vs VGGFace2's centered headshots)</td>
+      <td>medium</td>
+      <td>Track A underperforms; Track C carries the bonus</td>
+      <td>Track C is the same SmolVLA arch without the warm-start — if warm-start hurts, C wins. Both fit in compute budget so we always have the comparison.</td>
+    </tr>
+    <tr>
+      <td>Pi0.5's PaliGemma WebLI prior is too weak for our specific IID celebs (we never validated it under fine-tune)</td>
+      <td>medium</td>
+      <td>Track B underperforms; we lose the capacity bet</td>
+      <td>Day 3 fallback: mirror Hans's LoRA-VGGFace2 recipe on PaliGemma. Tight schedule but feasible. Or accept Track A/C as the ship.</td>
+    </tr>
+    <tr>
+      <td>Catastrophic forgetting in Pi0.5 despite <code>train_expert_only=True</code> (action loss flows back through cross-attention)</td>
+      <td>low</td>
+      <td>PaliGemma's celeb prior degrades during training</td>
+      <td>Low LR (1e-5) further reduces drift. M3 stop-gradient (Pi0.5-KI Eqs. 5–6) is natively part of pi05's code path — verify enabled in the checkpoint config.</td>
+    </tr>
+    <tr>
+      <td>Track 3 dataset has prompt re-label bugs (some episodes still have ref-only/counterfactual prompts)</td>
+      <td>low</td>
+      <td>Training sees nonsense prompts, hurts convergence</td>
+      <td>Sejohn's tonight sanity-check loader will catch this on 5 random episodes. If any fail the schema, halt training, re-run relabel pass.</td>
+    </tr>
+    <tr>
+      <td>Strix inference VRAM blows up for Pi0.5 (3B + ViT activations)</td>
+      <td>low–medium</td>
+      <td>Track B unshippable</td>
+      <td>Pi0.5 at bf16 ≈ 7 GB weights + ~3 GB KV cache + ~1 GB ViT acts ≈ 11–12 GB. Fits Strix 16 GB but tight. Mahbod verifies on Day 3 deploy.</td>
+    </tr>
+    <tr>
+      <td>Brev quota or VM availability blocks Day 2 launch</td>
+      <td>low</td>
+      <td>Schedule slip</td>
+      <td>Mahbod confirmed ~$200+ remaining. RTX PRO 6000 Blackwell instances typically available in EU regions. Backup region pre-identified.</td>
+    </tr>
+    <tr>
+      <td>All 3 tracks fail face discrimination (highly unlikely but possible)</td>
+      <td>very low</td>
+      <td>Eval-day catastrophe</td>
+      <td>Track C is closest to Eval-1/2 architecture which we know works on similar SO-101 tasks. Worst case 1-2/9 rollouts + 20 bonus ≈ 31 pts. Not zero.</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2 id="cites">§9 · Sources cited</h2>
+
+<h4>Carl's ruling</h4>
+<ul>
+  <li>Slack thread, 2026-05-18 08:38 CEST. Quoted verbatim in <a href="EVAL_3_OPTIONS_BRIEFING.html">EVAL_3_OPTIONS_BRIEFING.html</a> §0.</li>
+</ul>
+
+<h4>Mechanism papers</h4>
+<ul>
+  <li>BlindVLA — <a href="https://arxiv.org/abs/2510.25616">arxiv 2510.25616</a>. ArcFace cosine alignment, frozen MLP projector, Backbone2Enc layer choice. The basis for Track D (M2).</li>
+  <li>Pi0.5-KI — <a href="https://arxiv.org/abs/2505.23705">arxiv 2505.23705</a>. Stop-gradient on K_b/V_b (Eqs. 5–6); web/VQA co-training preserves VLM priors (Fig. 6b: 94% → 74% OOD without it). Validates the <code>train_expert_only=True</code> defensive setting we apply on Pi0.5.</li>
+  <li>SmolVLA — <a href="https://arxiv.org/abs/2506.01844">arxiv 2506.01844</a>. <code>num_vlm_layers=16</code> (Table 8 N=L/2 best). Architecture for Tracks A and C.</li>
+  <li>OpenVLA-OFT — <a href="https://arxiv.org/abs/2502.19645">arxiv 2502.19645</a>. LoRA + frozen VLM for fine-tuning. Validates Hans's LoRA-not-SFT choice on SmolVLM2.</li>
+  <li>VGGFace2 — <a href="https://arxiv.org/abs/1710.08092">arxiv 1710.08092</a>. 9,131 identities × 3.31M images. Hans's warm-VLM dataset.</li>
+</ul>
+
+<h4>Internal documents</h4>
+<ul>
+  <li><a href="EVAL_3_OPTIONS_BRIEFING.html">EVAL_3_OPTIONS_BRIEFING.html</a> — the post-TA-ruling strategy doc (now supplanted by this final plan for the 5-person execution).</li>
+  <li><a href="EVAL_3_RESEARCH_REPORT.md">EVAL_3_RESEARCH_REPORT.md</a> — full M1–M8 mechanism derivation + skeptical validation audits.</li>
+  <li><a href="../../eval_3/STRATEGY.md">eval_3/STRATEGY.md</a> — locked plan history (§7d v3 = this).</li>
+  <li><a href="../../eval_3/aug/STRATEGY_v3.md">eval_3/aug/STRATEGY_v3.md</a> — augmentation pipeline (still valid for camera1).</li>
+  <li><a href="../../TODO.md">TODO.md</a> — operational checklist (Hans's warm-VLM + 3-track plan).</li>
+</ul>
+
+<h4>LeRobot infra (verified in our vendored tree at <code>third_party/lerobot/</code>)</h4>
+<ul>
+  <li>SmolVLA config: <code>configuration_smolvla.py:72</code> (<code>freeze_vision_encoder=True</code>), <code>:73</code> (<code>train_expert_only=True</code>), <code>:87</code> (<code>vlm_model_name</code> accepts arbitrary HF path).</li>
+  <li>Pi0.5 config: <code>configuration_pi05.py:88</code> (<code>freeze_vision_encoder=False</code> — we override), <code>:89</code> (<code>train_expert_only=False</code> — we override).</li>
+  <li>PEFT/LoRA: <code>configs/default.py:85 class PeftConfig</code> + <code>scripts/lerobot_train.py:246 if cfg.peft is not None</code>. Available CLI knobs: <code>--peft.target_modules</code>, <code>--peft.method_type</code>, <code>--peft.r</code>, etc.</li>
+</ul>
+
+<h4>Validation of claims (this doc was triple-checked against)</h4>
+<ol>
+  <li>Code reads: every config flag and code path cited above was opened and verified.</li>
+  <li>Paper reads: BlindVLA Eq. 9, Pi0.5-KI Fig. 6b, SmolVLA Table 8, VGGFace2 stats all cross-referenced against the primary sources.</li>
+  <li>Internal doc reads: STRATEGY.md §7c (current), EVAL_3_RESEARCH_REPORT.md §P2.1–2.2, EVAL_3_OPTIONS_BRIEFING.md §475 "Scenario D" (anticipated the ruling).</li>
+</ol>
+
+<p style="text-align: center; margin-top: 3rem; color: var(--muted); font-size: 0.9em;">
+  Last updated: 2026-05-18 21:00 CEST · Maintained by <span class="tag tag-roham">Roham</span>
+</p>
+
+</div>
+
+</body>
+</html>
