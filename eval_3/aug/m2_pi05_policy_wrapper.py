@@ -192,6 +192,8 @@ class M2Pi05WrappedPolicy(nn.Module):
             bbox_valid=sup["bbox_valid"],
             target_centroids=sup["target_centroids"],
             projector=self.projector,
+            num_camera1_patches=NUM_PI05_PATCHES,  # 256, not the SmolVLA default 64
+            camera1_offset=0,
         )
 
         # 3. KLAL loss (force name-token → face-patch attention).
@@ -277,8 +279,9 @@ class M2Pi05WrappedPolicy(nn.Module):
 
     def _ensure_name_token_ids(self):
         """Pre-tokenize the 3 celeb full names against the policy's tokenizer.
-        Tries known accessor paths; if none work, KLAL silently falls back to
-        union-of-slots target masks (logged once)."""
+        For Pi0.5 the tokenizer lives in the preprocessor pipeline, not on the
+        policy directly; fall back to loading PaliGemma's tokenizer from HF
+        (same vocabulary that was used to encode the batch)."""
         if self._name_token_ids is not None:
             return
         tok = None
@@ -297,11 +300,16 @@ class M2Pi05WrappedPolicy(nn.Module):
                 tok = obj
                 break
         if tok is None:
-            self._name_token_ids = {}
-            print("[m2-pi05] [WARN] couldn't find tokenizer for name-token lookup; "
-                  "KLAL will use union-of-slots target masks (less precise)",
-                  flush=True)
-            return
+            try:
+                from transformers import AutoTokenizer
+                tok = AutoTokenizer.from_pretrained("google/paligemma-3b-pt-224")
+                print(f"[m2-pi05] loaded PaliGemma tokenizer from HF for name lookup",
+                      flush=True)
+            except Exception as e:
+                print(f"[m2-pi05] [WARN] failed to load tokenizer: {e}; "
+                      "KLAL will use union-of-slots target masks", flush=True)
+                self._name_token_ids = {}
+                return
         full = {"swift": "Taylor Swift", "obama": "Barack Obama", "lecun": "Yann LeCun"}
         ids = {}
         for short, name in full.items():
