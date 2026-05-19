@@ -144,6 +144,11 @@ def _patch_make_policy():
 
 
 def main() -> int:
+    # Apply transformers 4.55 compat patches for Pi0.5 BEFORE constructing
+    # any PI05Policy. Two patches: embed_image pooler_output → tensor;
+    # create_causal_mask kwarg inputs_embeds → input_embeds.
+    from pi05_inference_patch import apply as _apply_pi05_patch
+    _apply_pi05_patch()
     _patch_make_policy()
     from lerobot.scripts.lerobot_train import main as lerobot_main
     return lerobot_main() or 0
