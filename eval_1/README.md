@@ -52,6 +52,28 @@ Each rollout captures the arm's starting pose, runs the policy for 40 s
 (press right-arrow to end the episode early — built into `lerobot-record`),
 then drives the arm back to the starting pose for the next take.
 
+### Run a rollout on macOS (Apple Silicon)
+
+```bash
+./scripts/dry_run_mac.py            # headless: load on MPS, time inference (no robot/cam)
+./scripts/run_rollout_mac.sh        # actual rollout — needs SO-101 + USB cam attached
+```
+
+`run_rollout_mac.sh` is the macOS sibling of `run_rollout.sh`. It targets the
+`lemonkey` conda env under `~/miniforge3`, auto-detects the follower at the first
+`/dev/cu.usbmodem*` it finds, uses an integer camera index (not `/dev/video0`),
+and defaults the checkpoint to
+`/Volumes/T7/LeMonkey/models/smolvla_eval1_v2/checkpoints/<step>/pretrained_model`.
+Override any of those with the `PYBIN`, `FOLLOWER_PORT`, `CAMERA_INDEX`, `CKPT`,
+or `ROLLOUT_DIR` env vars. First run requires Camera permission for Terminal in
+macOS System Settings → Privacy & Security → Camera.
+
+`dry_run_mac.py` loads the policy + pre/postprocessors (overriding the
+`device_processor` step from `cuda` to `mps`) and runs `predict_action` against
+a synthetic observation. Measured on M-series MPS: ~5 ms per cached action +
+~850 ms per chunk-recompute (every 50th frame), effective ~46 Hz — above the
+SO-101's 30 Hz control loop.
+
 ### Run a 30-rollout structured eval
 
 ```bash
@@ -114,7 +136,8 @@ Reference healthy range: `wrong_color > 30`, `paraphrase < 15`,
 - **Camera**: USB camera at `/dev/video0` (640×480 @ 30 fps), wrist-mounted.
   Same physical mount used during training.
 - **GPU**: any NVIDIA GPU with ≥6 GB VRAM. GTX 1660 SUPER tested for inference.
-  H100 / RTX 6000 used for training.
+  H100 / RTX 6000 used for training. Apple Silicon (MPS) also supported for
+  inference via `run_rollout_mac.sh`; CPU-only is too slow for 30 Hz control.
 - **Microphone**: only for `run_rollout_voice.sh` (defaults to `plughw:1,0`).
 
 The udev symlinks `so101-follower` / `so101-leader` are created by
@@ -152,11 +175,13 @@ eval_1/
 │   ├── brev_setup.sh                             idempotent bootstrap for fresh Brev VMs
 │   │
 │   ├── data collection (robot-side)
-│   │   ├── run_rollout.sh                        single rollout, typed prompt
+│   │   ├── run_rollout.sh                        single rollout, typed prompt (Linux deploy box)
+│   │   ├── run_rollout_mac.sh                    macOS sibling of run_rollout.sh (MPS, /dev/cu.usbmodem*)
+│   │   ├── dry_run_mac.py                        headless MPS inference smoke test, no hardware needed
 │   │   ├── run_rollout_voice.sh                  single rollout, Whisper voice prompt
 │   │   ├── voice_transcribe.py                   Whisper helper
 │   │   ├── dagger_record.py                      HG-DAgger correction recorder
-│   │   ├── auto_home.py                          captures + drives back to a saved pose
+│   │   ├── auto_home.py                          captures + drives back to a saved pose (override port via SO101_FOLLOWER_PORT)
 │   │   └── rest_arms.py                          release torques, manually home both arms
 │   │
 │   ├── evaluation

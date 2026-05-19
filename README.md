@@ -127,6 +127,8 @@ recordings, and per-session state stay local.
 1. Plug in the SO-101 (`/dev/so101-follower`, `/dev/so101-leader`) and camera (`/dev/video0`).
 2. Either:
    - **Eval 1**: `cd eval_1 && ./scripts/run_rollout.sh` — see [`eval_1/README.md`](eval_1/README.md).
+   - **Eval 1 on macOS (Apple Silicon, MPS)**: `cd eval_1 && ./scripts/run_rollout_mac.sh`.
+     Verify the inference path first with `./scripts/dry_run_mac.py` — no robot/cam needed.
    - **Eval 2**: scripts mirror Eval 1's pattern; see [`eval_2/README.md`](eval_2/README.md).
 3. Type or speak the prompt at the menu, then watch the rollout.
 
@@ -163,6 +165,7 @@ emits 50-step chunks; we execute the first action and replan every 50 frames.
 - **Robot**: SO-101 6-DOF arm, follower at `/dev/so101-follower`, leader at `/dev/so101-leader` (udev-stable).
 - **Camera**: USB camera at `/dev/video0`, 640×480 @ 30 fps, wrist-mounted.
 - **GPU (inference)**: any NVIDIA GPU with ≥ 6 GB VRAM. GTX 1660 SUPER tested.
+  Apple Silicon (MPS) also supported on macOS — see [`eval_1/scripts/run_rollout_mac.sh`](eval_1/scripts/run_rollout_mac.sh).
 - **GPU (training)**: Brev H100 (80 GB) or RTX Pro 6000 (96 GB). ~10 hours per 25k-step run.
 
 ## Documentation index
