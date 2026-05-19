@@ -217,6 +217,10 @@ def main() -> int:
         for k in img_feature_keys:
             batch[k] = frame_224.to(args.device).unsqueeze(0)
         batch = preprocessor(batch)
+        # The TokenizerProcessor emits language tokens on CPU; move all
+        # tensors to the policy's device.
+        batch = {k: (v.to(args.device) if torch.is_tensor(v) else v)
+                 for k, v in batch.items()}
 
         with torch.inference_mode():
             _ = policy.select_action(batch)
