@@ -12,6 +12,7 @@ returns the arm to where it was when the rollout started.
 from __future__ import annotations
 
 import json
+import os
 import sys
 import time
 from pathlib import Path
@@ -22,7 +23,9 @@ from lerobot.robots.so_follower.so_follower import SOFollower
 ACTION_KEYS = ["shoulder_pan.pos", "shoulder_lift.pos", "elbow_flex.pos",
                "wrist_flex.pos", "wrist_roll.pos", "gripper.pos"]
 
-PORT = "/dev/so101-follower"
+# Default matches the udev symlink on the Linux deploy box; override on
+# other hosts (e.g. macOS /dev/cu.usbmodemXXXX) with SO101_FOLLOWER_PORT.
+PORT = os.environ.get("SO101_FOLLOWER_PORT", "/dev/so101-follower")
 ID   = "my_follower"
 
 
