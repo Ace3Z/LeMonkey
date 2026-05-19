@@ -95,11 +95,43 @@ class M2WrappedPolicy(nn.Module):
     # Forward + supervision build
     # ------------------------------------------------------------------
 
+    def _ensure_episode_starts(self):
+        """Build episode_index → dataset_from_index lookup from cached meta.
+
+        LeRobot v3 batches emit `index` (global frame index, 0..total_frames-1)
+        and `episode_index`, but not a per-episode `frame_index`. We need the
+        latter for M2SupervisionBuilder, so compute it via
+        `frame_idx = index - dataset_from_index[episode_index]`.
+        """
+        if hasattr(self, "_episode_starts"):
+            return
+        import os
+        import datasets as _ds
+        from pathlib import Path
+        repo = os.environ.get("M2_DATASET_REPO_ID")
+        if not repo:
+            raise RuntimeError(
+                "M2WrappedPolicy: env M2_DATASET_REPO_ID is required so the "
+                "wrapper can read meta/episodes/*.parquet to derive frame_index"
+            )
+        root = Path(os.environ.get("HF_LEROBOT_HOME") or Path.home() / ".cache/huggingface/lerobot") / repo
+        ep_files = sorted(str(p) for p in (root / "meta/episodes").rglob("*.parquet"))
+        if not ep_files:
+            raise FileNotFoundError(f"M2WrappedPolicy: no episodes parquet under {root}/meta/episodes")
+        ds = _ds.load_dataset("parquet", data_files=ep_files, split="train")
+        starts = {}
+        for row in ds:
+            starts[int(row["episode_index"])] = int(row["dataset_from_index"])
+        self._episode_starts = starts
+        print(f"[m2 wrapper] built episode_starts lookup ({len(starts)} entries)", flush=True)
+
     def _extract_indices(self, batch: dict) -> tuple[list[int], list[int]]:
         """Pull episode_index + frame_index per sample from a LeRobot batch.
 
         LeRobot's LeRobotDataset emits these as tensors of shape (B,) or
         (B, n_obs_steps). We take the LAST timestep when the dim has time.
+        Frame index is derived as `index - dataset_from_index[episode_index]`
+        because v3 batches do not include per-episode `frame_index` directly.
         """
         for key_ep in ("episode_index", "episode_idx"):
             if key_ep in batch:
@@ -110,22 +142,43 @@ class M2WrappedPolicy(nn.Module):
                 "M2WrappedPolicy: batch missing 'episode_index'. Keys: "
                 f"{sorted(k for k in batch if isinstance(k, str))}"
             )
+        # Prefer an explicit `frame_index` if a future LeRobot version emits it.
+        fr = None
         for key_fr in ("frame_index", "frame_idx"):
             if key_fr in batch:
                 fr = batch[key_fr]
                 break
-        else:
-            raise KeyError(
-                "M2WrappedPolicy: batch missing 'frame_index'. Keys: "
-                f"{sorted(k for k in batch if isinstance(k, str))}"
-            )
 
-        # Handle (B,) or (B, T) — take last timestep.
         if ep.ndim == 2:
             ep = ep[:, -1]
+        ep_list = ep.detach().cpu().long().tolist()
+
+        if fr is None:
+            # Compute frame_idx = global_index - episode_start[episode_index].
+            if "index" not in batch:
+                raise KeyError(
+                    "M2WrappedPolicy: batch has neither 'frame_index' nor 'index'. "
+                    f"Keys: {sorted(k for k in batch if isinstance(k, str))}"
+                )
+            self._ensure_episode_starts()
+            idx = batch["index"]
+            if idx.ndim == 2:
+                idx = idx[:, -1]
+            idx_list = idx.detach().cpu().long().tolist()
+            fr_list = []
+            for ep_i, g_i in zip(ep_list, idx_list):
+                start = self._episode_starts.get(ep_i)
+                if start is None:
+                    raise KeyError(
+                        f"M2WrappedPolicy: episode_index={ep_i} not in episode_starts "
+                        f"(known {len(self._episode_starts)} episodes)"
+                    )
+                fr_list.append(g_i - start)
+            return ep_list, fr_list
+
         if fr.ndim == 2:
             fr = fr[:, -1]
-        return ep.detach().cpu().long().tolist(), fr.detach().cpu().long().tolist()
+        return ep_list, fr.detach().cpu().long().tolist()
 
     def forward(self, batch: dict, **kwargs) -> tuple[torch.Tensor, dict]:
         # 1. Run inner policy forward; hook captures layer-9 output during this.
