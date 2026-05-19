@@ -195,8 +195,13 @@ def main() -> int:
     handle = target_module.register_forward_pre_hook(pre_hook, with_kwargs=True)
 
     # 5. For each celeb prompt, run forward + analyze.
+    # IMPORTANT: SmolVLA caches an action chunk (length = chunk_size = 50)
+    # and only does a fresh forward when the queue is empty. Call
+    # policy.reset() between prompts so each one runs a real forward.
     results = []
     for short, prompt in PROMPTS.items():
+        policy.reset()
+        captured.pop("h9", None)
         batch = {
             "observation.images.camera1": image.to(args.device).unsqueeze(0),
             "observation.state": state.to(args.device).unsqueeze(0),
@@ -205,6 +210,8 @@ def main() -> int:
         batch = preprocessor(batch)
         with torch.inference_mode():
             _ = policy.select_action(batch)
+        if "h9" not in captured:
+            raise RuntimeError(f"Hook did not fire for prompt {prompt!r}")
 
         h = captured["h9"]  # shape (B, prefix_len, 960) in bf16
         # Prefix layout: [img1_patches (64) | empty_cam_patches (64) | lang_tokens (L) | state (1)]
