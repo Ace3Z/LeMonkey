@@ -21,7 +21,9 @@ CKPT_STEP="${1:-025000}"
 CKPT="${CKPT:-/Volumes/T7/LeMonkey/models/smolvla_eval1_v2/checkpoints/${CKPT_STEP}/pretrained_model}"
 ROLLOUT_DIR="${ROLLOUT_DIR:-$HOME/LeMonkey/eval_1/rollouts}"
 HERE="$(cd "$(dirname "$0")" && pwd)"
+REPO_ROOT="$(cd "$HERE/../.." && pwd)"
 PYBIN="${PYBIN:-$HOME/miniforge3/envs/lemonkey/bin/python}"
+CALIBRATION_DIR="${CALIBRATION_DIR:-$REPO_ROOT/calibration/robots/so_follower}"
 HOME_POSE="/tmp/run_rollout_home.json"
 HOME_DRIVE_S=2.0
 
@@ -47,12 +49,19 @@ if [ ! -x "$PYBIN" ]; then
   exit 1
 fi
 
-export SO101_FOLLOWER_PORT="$FOLLOWER_PORT"  # auto_home.py reads this
+if [ ! -f "$CALIBRATION_DIR/my_follower.json" ]; then
+  echo "ERROR: calibration file not found at $CALIBRATION_DIR/my_follower.json" >&2
+  echo "       Set CALIBRATION_DIR=... or check the in-repo calibration/ dir." >&2
+  exit 1
+fi
+export SO101_FOLLOWER_PORT="$FOLLOWER_PORT"        # auto_home.py reads this
+export SO101_CALIBRATION_DIR="$CALIBRATION_DIR"    # auto_home.py reads this
 
 mkdir -p "$ROLLOUT_DIR"
 echo "Using checkpoint:   $CKPT"
 echo "Follower port:      $FOLLOWER_PORT"
 echo "Camera index:       $CAMERA_INDEX"
+echo "Calibration dir:    $CALIBRATION_DIR"
 echo "Rollouts saved to:  $ROLLOUT_DIR"
 echo
 
@@ -78,6 +87,7 @@ while true; do
 
   "$PYBIN" -m lerobot.scripts.lerobot_record \
     --robot.type=so101_follower --robot.port="$FOLLOWER_PORT" --robot.id=my_follower \
+    --robot.calibration_dir="$CALIBRATION_DIR" \
     --robot.cameras="{ camera1: {type: opencv, index_or_path: $CAMERA_INDEX, width: 640, height: 480, fps: 30}}" \
     --display_data=true \
     --dataset.repo_id="local/eval_$RUN_NAME" \

@@ -62,11 +62,12 @@ then drives the arm back to the starting pose for the next take.
 `run_rollout_mac.sh` is the macOS sibling of `run_rollout.sh`. It targets the
 `lemonkey` conda env under `~/miniforge3`, auto-detects the follower at the first
 `/dev/cu.usbmodem*` it finds, uses an integer camera index (not `/dev/video0`),
+loads the SO-101 calibration from the in-repo `calibration/robots/so_follower/`,
 and defaults the checkpoint to
 `/Volumes/T7/LeMonkey/models/smolvla_eval1_v2/checkpoints/<step>/pretrained_model`.
-Override any of those with the `PYBIN`, `FOLLOWER_PORT`, `CAMERA_INDEX`, `CKPT`,
-or `ROLLOUT_DIR` env vars. First run requires Camera permission for Terminal in
-macOS System Settings → Privacy & Security → Camera.
+Override any of those with the `PYBIN`, `FOLLOWER_PORT`, `CAMERA_INDEX`,
+`CALIBRATION_DIR`, `CKPT`, or `ROLLOUT_DIR` env vars. First run requires Camera
+permission for Terminal in macOS System Settings → Privacy & Security → Camera.
 
 `dry_run_mac.py` loads the policy + pre/postprocessors (overriding the
 `device_processor` step from `cuda` to `mps`) and runs `predict_action` against

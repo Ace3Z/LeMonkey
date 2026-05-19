@@ -27,10 +27,16 @@ ACTION_KEYS = ["shoulder_pan.pos", "shoulder_lift.pos", "elbow_flex.pos",
 # other hosts (e.g. macOS /dev/cu.usbmodemXXXX) with SO101_FOLLOWER_PORT.
 PORT = os.environ.get("SO101_FOLLOWER_PORT", "/dev/so101-follower")
 ID   = "my_follower"
+# When unset, lerobot falls back to HF_LEROBOT_CALIBRATION (a per-user dir).
+# On hosts that don't have that populated, point at the in-repo calibration.
+CALIBRATION_DIR = os.environ.get("SO101_CALIBRATION_DIR")
 
 
 def connect():
-    cfg = SOFollowerRobotConfig(port=PORT, id=ID, cameras={})
+    kwargs = dict(port=PORT, id=ID, cameras={})
+    if CALIBRATION_DIR:
+        kwargs["calibration_dir"] = Path(CALIBRATION_DIR)
+    cfg = SOFollowerRobotConfig(**kwargs)
     f = SOFollower(cfg)
     f.connect()
     return f
