@@ -64,7 +64,7 @@ def main() -> int:
     print(f"[load] {args.model}", flush=True)
     processor = AutoProcessor.from_pretrained(args.model)
     model = PaliGemmaForConditionalGeneration.from_pretrained(
-        args.model, dtype=torch.bfloat16
+        args.model, torch_dtype=torch.bfloat16
     ).to(args.device).eval()
 
     def ask(prompt: str) -> str:
