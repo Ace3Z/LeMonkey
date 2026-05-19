@@ -283,6 +283,7 @@ class M2SupervisionBuilder:
 
         n_base = 0
         n_excluded = 0
+        n_no_detection = 0
         for i, (ep_idx, fidx) in enumerate(zip(episode_indices, frame_idxs)):
             if ep_idx < 0 or ep_idx >= len(self.episode_mapping):
                 raise IndexError(
@@ -308,9 +309,13 @@ class M2SupervisionBuilder:
                 )
             frame_entry = frames_for_src.get(fidx)
             if frame_entry is None:
-                raise KeyError(
-                    f"face_labels for {ep.source_episode!r} has no frame_idx={fidx}"
-                )
+                # The face detector missed this frame (e.g. last frame of an
+                # episode where the robot occludes the workspace). Skip M2
+                # supervision for this sample — leave masks/valid/targets at
+                # their zero-initialized state so the loss ignores it. The
+                # action-loss path still uses the sample normally.
+                n_no_detection += 1
+                continue
             aug = self._load_augmentation(ep.variant_name)
             new_lmr = aug["new_layout_camera_lmr"]
 
@@ -326,6 +331,14 @@ class M2SupervisionBuilder:
         if n_excluded:
             print(f"[WARN] M2SupervisionBuilder: expected pre-filtered batch but got "
                   f"{n_excluded} excluded samples, fallback=marked-invalid", flush=True)
+        if n_no_detection:
+            # Per CLAUDE.md §5 — never silent. Detector misses are expected at
+            # a low rate (often the last frame of an episode); we log them
+            # so a sudden surge would be visible.
+            print(f"[WARN] M2SupervisionBuilder: {n_no_detection}/{B} samples had "
+                  f"no face_labels entry for the requested frame_idx, "
+                  f"fallback=marked-invalid (M2 skipped for those samples)",
+                  flush=True)
 
         return {
             "bbox_masks": torch.from_numpy(masks).to(device=device),
