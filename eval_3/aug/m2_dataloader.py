@@ -254,6 +254,7 @@ class M2SupervisionBuilder:
         frame_idxs: list[int],
         device: torch.device | str = "cpu",
         dtype: torch.dtype = torch.float32,
+        **kwargs,
     ) -> dict[str, torch.Tensor]:
         """Convenience wrapper for the training loop.
 
@@ -277,9 +278,22 @@ class M2SupervisionBuilder:
         B = len(episode_indices)
         assert len(frame_idxs) == B
 
-        masks = np.zeros((B, 3, NUM_CAMERA1_PATCHES), dtype=bool)
+        # Allow callers (Pi0.5 wrapper) to inject grid + geometry overrides
+        # so the same builder works for SmolVLA's 8x8 grid and Pi0.5's 16x16.
+        patch_grid = kwargs.get("patch_grid", None)  # int; if set, overrides NUM_CAMERA1_PATCHES
+        resize_with_pad_box_fn = kwargs.get("resize_with_pad_box", None)
+        bbox_to_patch_mask_fn = kwargs.get("bbox_to_patch_mask", None)
+        num_patches = (patch_grid * patch_grid) if patch_grid is not None else NUM_CAMERA1_PATCHES
+
+        masks = np.zeros((B, 3, num_patches), dtype=bool)
         valid = np.zeros((B, 3), dtype=bool)
         targets = np.zeros((B, 3, ARCFACE_EMBED_DIM), dtype=np.float32)
+        # Per-sample auxiliary info for KLAL attention supervision.
+        target_slot_idx = np.full((B,), -1, dtype=np.int64)
+        target_celeb_short = [""] * B  # "swift" / "obama" / "lecun" / "" if no target
+
+        # Short → layout-letter map; mirrors generate_aug_v3.py.
+        SHORT_TO_LETTER = {"swift": "S", "obama": "O", "lecun": "L"}
 
         n_base = 0
         n_excluded = 0
@@ -318,11 +332,22 @@ class M2SupervisionBuilder:
                 continue
             aug = self._load_augmentation(ep.variant_name)
             new_lmr = aug["new_layout_camera_lmr"]
+            tgt_short = (aug.get("new_target_short")
+                         or aug.get("target_short")
+                         or aug.get("target_celeb"))
+            if tgt_short is not None and tgt_short in SHORT_TO_LETTER:
+                letter = SHORT_TO_LETTER[tgt_short]
+                if letter in new_lmr:
+                    target_slot_idx[i] = new_lmr.index(letter)
+                target_celeb_short[i] = tgt_short
 
             m, v, t = build_supervision_for_frame(
                 frame_entry,
                 new_layout_camera_lmr=new_lmr,
                 centroid_lookup=self.centroid_lookup,
+                patch_grid=patch_grid,
+                resize_with_pad_box_fn=resize_with_pad_box_fn,
+                bbox_to_patch_mask_fn=bbox_to_patch_mask_fn,
             )
             masks[i] = m
             valid[i] = v
@@ -344,7 +369,10 @@ class M2SupervisionBuilder:
             "bbox_masks": torch.from_numpy(masks).to(device=device),
             "bbox_valid": torch.from_numpy(valid).to(device=device),
             "target_centroids": torch.from_numpy(targets).to(device=device, dtype=torch.float32),
-            "n_base_samples": n_base,    # for monitoring; not used by the loss
+            "n_base_samples": n_base,
+            # KLAL inputs (Pi0.5 wrapper consumes these).
+            "target_slot_idx": torch.from_numpy(target_slot_idx).to(device=device),
+            "target_celeb_short": target_celeb_short,  # list[str], wrapper builds name_token_positions
         }
 
 

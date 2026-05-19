@@ -319,7 +319,9 @@ def build_supervision_for_frame(
     centroid_lookup: dict[str, np.ndarray],   # celeb → (512,) ArcFace centroid
     orig_hw: tuple[int, int] = (480, 640),
     target_hw: tuple[int, int] = (512, 512),
-    patch_grid: int = CAMERA1_PATCH_GRID,
+    patch_grid: int | None = None,
+    resize_with_pad_box_fn=None,             # custom geometry (e.g. Pi0.5)
+    bbox_to_patch_mask_fn=None,              # custom quantizer
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """For one frame, return:
        bbox_masks: (3, patch_grid**2) bool
@@ -332,7 +334,8 @@ def build_supervision_for_frame(
     bboxes = face_labels_frame.get("bboxes", [])
     celebs = slot_to_celeb(new_layout_camera_lmr)
 
-    n_patches = patch_grid * patch_grid
+    pg = patch_grid if patch_grid is not None else CAMERA1_PATCH_GRID
+    n_patches = pg * pg
     masks = np.zeros((3, n_patches), dtype=bool)
     valid = np.zeros((3,), dtype=bool)
     targets = np.zeros((3, ARCFACE_EMBED_DIM), dtype=np.float32)
@@ -345,7 +348,14 @@ def build_supervision_for_frame(
         celeb = celebs[slot]
         if celeb not in centroid_lookup:
             continue
-        masks[slot] = bbox_to_patch_mask(bbox_xyxy, orig_hw, target_hw, patch_grid)
+        if resize_with_pad_box_fn is not None and bbox_to_patch_mask_fn is not None:
+            # Pi0.5 path: custom geometry. resize_with_pad_box_fn returns the
+            # bbox in TARGET coords; bbox_to_patch_mask_fn quantises it to the
+            # NxN patch grid.
+            bbox_target = resize_with_pad_box_fn(bbox_xyxy)
+            masks[slot] = bbox_to_patch_mask_fn(bbox_target)
+        else:
+            masks[slot] = bbox_to_patch_mask(bbox_xyxy, orig_hw, target_hw, pg)
         valid[slot] = bool(masks[slot].any())
         targets[slot] = centroid_lookup[celeb]
     return masks, valid, targets

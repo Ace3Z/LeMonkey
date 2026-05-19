@@ -68,6 +68,12 @@ class M2Pi05WrappedPolicy(nn.Module):
         #    so we can read head counts from the loaded model).
         self._klal_hookset: KLALHookSet | None = None
 
+        # 3. Pre-tokenize the 3 celeb names so we can locate them per-sample
+        #    at forward time. tokens are matched against the language portion
+        #    of the prefix to derive name_token_positions for KLAL.
+        # Lazy init — needs the policy's tokenizer, set up on first forward.
+        self._name_token_ids: dict[str, list[int]] | None = None
+
     # ─── public API ───────────────────────────────────────────────────
 
     def apply_partial_freeze(self, freeze_below: int | None = None) -> tuple[int, int]:
@@ -167,6 +173,14 @@ class M2Pi05WrappedPolicy(nn.Module):
             bbox_to_patch_mask=bbox_to_patch_mask_pi05,
         )
 
+        # Locate name-token positions in the language sub-prefix per sample.
+        # Pi0.5 prefix layout: [N_cams x 256 image patches, lang_tokens].
+        # We need positions WITHIN the lang sequence; the wrapper combines with
+        # the image-token offset when calling klal_loss.
+        name_pos = self._extract_name_positions(batch, sup.get("target_celeb_short"))
+        if name_pos is not None:
+            sup["name_token_positions"] = name_pos.to(captured.device)
+
         # captured has shape (B, prefix_len, 2048). The first n_cams × 256
         # positions are image-patch hidden states. camera1 is first.
         # We slice the camera1 patches and pass to m2_align_loss as the
@@ -202,18 +216,31 @@ class M2Pi05WrappedPolicy(nn.Module):
                     [sup["bbox_masks"][b, tgt_slot[b]] for b in range(B)], dim=0
                 )
 
-            # Name-token positions in the prefix per sample. Builder must
-            # provide these (offsetted to skip image-patch positions + any
-            # left-pad on language tokens). If absent, KLAL is a no-op.
+            # name_pos (from _extract_name_positions) holds positions WITHIN
+            # the language sequence; offset by the image-patch span so they
+            # become prefix-row indices.
             name_pos = sup.get("name_token_positions", None)
-            if name_pos is not None:
+            if name_pos is not None and (name_pos >= 0).any():
+                # Determine the number of image-token streams in this prefix
+                # (Pi0.5 with empty_cameras=3 has 4 streams × 256 = 1024).
+                cfg_img_keys = list(self.policy.config.image_features.keys())
+                n_img_streams = len([k for k in cfg_img_keys if "image" in k])
+                lang_offset = n_img_streams * NUM_PI05_PATCHES
+                shifted = torch.where(name_pos >= 0, name_pos + lang_offset, name_pos)
                 klal_v = klal_loss(
                     self._klal_hookset,
                     image_patch_slice=slice(0, NUM_PI05_PATCHES),
-                    name_token_positions=name_pos.to(captured.device),
+                    name_token_positions=shifted.to(captured.device),
                     target_masks=target_masks_2d.to(captured.device),
                     cfg=self.klal_cfg,
                 )
+            else:
+                # Per CLAUDE.md §5 — log the fallback once.
+                if not getattr(self, "_klal_warned_no_pos", False):
+                    print("[WARN] m2-pi05 KLAL: no name_token_positions found in "
+                          "batch (tokenizer mismatch?); KLAL inactive this step.",
+                          flush=True)
+                    self._klal_warned_no_pos = True
 
         # 4. Combine. action_loss dtype is bf16 typically; cast aux losses.
         m2_typed = m2.loss.to(dtype=action_loss.dtype)
@@ -245,3 +272,84 @@ class M2Pi05WrappedPolicy(nn.Module):
             return super().__getattr__(name)
         except AttributeError:
             return getattr(self.policy, name)
+
+    # ─── KLAL helper: locate name-token positions per sample ───────
+
+    def _ensure_name_token_ids(self):
+        """Pre-tokenize the 3 celeb full names against the policy's tokenizer.
+        Tries known accessor paths; if none work, KLAL silently falls back to
+        union-of-slots target masks (logged once)."""
+        if self._name_token_ids is not None:
+            return
+        tok = None
+        # Try a few common access paths.
+        for attr_chain in (
+            ("policy_preprocessor", "input_tokenizer"),
+            ("language_tokenizer",),
+            ("tokenizer",),
+        ):
+            obj = self.policy
+            for a in attr_chain:
+                obj = getattr(obj, a, None)
+                if obj is None:
+                    break
+            if obj is not None:
+                tok = obj
+                break
+        if tok is None:
+            self._name_token_ids = {}
+            print("[m2-pi05] [WARN] couldn't find tokenizer for name-token lookup; "
+                  "KLAL will use union-of-slots target masks (less precise)",
+                  flush=True)
+            return
+        full = {"swift": "Taylor Swift", "obama": "Barack Obama", "lecun": "Yann LeCun"}
+        ids = {}
+        for short, name in full.items():
+            # Try with leading space (BPE-friendly).
+            for variant in (" " + name, name):
+                t = tok.encode(variant, add_special_tokens=False)
+                if t:
+                    ids[short] = t
+                    break
+        self._name_token_ids = ids
+        print(f"[m2-pi05] tokenized celeb names: "
+              f"{ {k: len(v) for k, v in ids.items()} }", flush=True)
+
+    def _extract_name_positions(self, batch, target_celeb_short_list):
+        """Return (B, K_max) tensor of language-token positions for each
+        sample's prompted celeb name, padded with -1.
+        """
+        if not target_celeb_short_list:
+            return None
+        self._ensure_name_token_ids()
+        if not self._name_token_ids:
+            return None
+        key = "observation.language.tokens"
+        if key not in batch:
+            return None
+        lang_tokens = batch[key]  # (B, L)
+        B, L = lang_tokens.shape
+        positions = []
+        max_k = 0
+        for b, short in enumerate(target_celeb_short_list):
+            ids = self._name_token_ids.get(short)
+            if not ids:
+                positions.append([])
+                continue
+            # Linear scan for the contiguous subsequence.
+            row = lang_tokens[b].cpu().tolist()
+            found = []
+            n = len(ids)
+            for i in range(L - n + 1):
+                if row[i : i + n] == ids:
+                    found = list(range(i, i + n))
+                    break
+            positions.append(found)
+            max_k = max(max_k, len(found))
+        if max_k == 0:
+            return None
+        out = torch.full((B, max_k), -1, dtype=torch.long)
+        for b, pos in enumerate(positions):
+            for k, p in enumerate(pos):
+                out[b, k] = p
+        return out
