@@ -35,6 +35,11 @@ import torch
 import torch.nn.functional as F
 from PIL import Image
 
+# Pi0.5 + transformers 4.55 compat patch — must run before PI05Policy import.
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "aug"))
+from pi05_inference_patch import apply as _apply_pi05_patch  # noqa: E402
+_apply_pi05_patch()
+
 
 PROMPTS = {
     "swift": "Place the coke on Taylor Swift.",
