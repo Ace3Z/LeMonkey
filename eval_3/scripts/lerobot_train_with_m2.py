@@ -88,6 +88,26 @@ def _patch_get_safe_version():
     print("[m2 launcher] patched get_safe_version → returns version as-is "
           "(skips HF version-tag query)", flush=True)
 
+    # huggingface_hub.hf_hub_download leaves behind a `.cache/huggingface/`
+    # directory inside the dataset root; lerobot's
+    # `has_legacy_hub_download_metadata()` detects that marker and forces a
+    # re-download of metadata, which then triggers the bulk-video download
+    # path (1000-req/5min xet rate limit). Nuke any such marker every launch.
+    import shutil
+    hf_home = os.environ.get("HF_LEROBOT_HOME") or str(Path.home() / ".cache/huggingface/lerobot")
+    repo = os.environ.get("M2_DATASET_REPO_ID")
+    if not repo:
+        # try to sniff it from CLI argv
+        for a in sys.argv:
+            if a.startswith("--dataset.repo_id="):
+                repo = a.split("=", 1)[1]
+                break
+    if repo:
+        marker = Path(hf_home) / repo / ".cache"
+        if marker.exists():
+            shutil.rmtree(marker, ignore_errors=True)
+            print(f"[m2 launcher] removed stale download marker {marker}", flush=True)
+
 
 def _patch_make_policy():
     """Monkey-patch `lerobot.policies.factory.make_policy` to wrap with M2."""
