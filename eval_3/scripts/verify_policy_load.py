@@ -59,10 +59,26 @@ def main() -> int:
     print(f"[verify] input_features keys: {sorted(cfg.input_features.keys())}", flush=True)
     print(f"[verify] output_features keys: {sorted(cfg.output_features.keys())}", flush=True)
 
-    # --- 3. One forward pass with a dummy batch -------------------------
-    # Mirror what lerobot-record sends at inference: one camera1 frame, state
-    # vector, and tokenized task. We don't care about action quality here —
-    # just that the forward path doesn't error.
+    # --- 3. Build the inference-time preprocessor ----------------------
+    # lerobot-record runs policy_preprocessor.json on every step to:
+    #  - normalize the image (IDENTITY for SmolVLA — passthrough)
+    #  - tokenize `task` → observation.language.tokens / .attention_mask
+    #  - normalize state via MEAN_STD stats
+    # select_action then expects the tokenized batch.
+    from lerobot.processor.pipeline import DataProcessorPipeline
+
+    if args.path:
+        preprocessor = DataProcessorPipeline.from_pretrained(
+            args.path, config_filename="policy_preprocessor.json"
+        )
+    else:
+        preprocessor = DataProcessorPipeline.from_pretrained(
+            args.repo, config_filename="policy_preprocessor.json",
+            revision=args.revision,
+        )
+    print(f"[verify] loaded preprocessor: {len(preprocessor.steps)} steps", flush=True)
+
+    # --- 4. One forward pass with a dummy batch -------------------------
     bs = 1
     img_key = "observation.images.camera1"
     state_dim = next((v.shape[0] for k, v in cfg.input_features.items()
@@ -72,8 +88,9 @@ def main() -> int:
     batch = {
         img_key: torch.zeros(bs, 3, 480, 640, device=args.device),
         "observation.state": torch.zeros(bs, state_dim, device=args.device),
-        "task": ["Place the coke on Taylor Swift."],
+        "task": "Place the coke on Taylor Swift.",
     }
+    batch = preprocessor(batch)
 
     with torch.inference_mode():
         action = policy.select_action(batch)
