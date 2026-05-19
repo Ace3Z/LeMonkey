@@ -66,6 +66,9 @@ export M2_EPISODE_MAPPING="$M2_TOOLKIT_DIR/episode_mapping.json"
 export M2_LAMBDA=${M2_LAMBDA:-0.2}
 export M2_CAPTURE_LAYER=${M2_CAPTURE_LAYER:-9}
 export M2_LOG_EVERY=${M2_LOG_EVERY:-100}
+# Used by the launcher (m2_policy_wrapper) to read meta/episodes for the
+# frame_index lookup and to nuke the .cache marker on (re-)launch.
+export M2_DATASET_REPO_ID="HBOrtiz/so101_eval3_track3_v3_baseline"
 
 echo "==> M2 config:"
 echo "    face_labels=$M2_FACE_LABELS_DIR"
@@ -80,10 +83,14 @@ LOG=~/outputs/train/smolvla_track_D_m2.log
 echo "==> training log: $LOG"
 echo "==> started at: $(date)"
 
+# NOTE: Hans's warm-VLM (HansOrtiz/smolvlm2_celeb_warm) is not on HF as of
+# 2026-05-19. Falling back to vanilla SmolVLM2-500M-Video-Instruct so the
+# M2 toolkit can still run; if/when the warm VLM lands, swap the
+# --policy.vlm_model_name flag back.
 python -u eval_3/scripts/lerobot_train_with_m2.py \
   --policy.type=smolvla \
   --policy.pretrained_path=lerobot/smolvla_base \
-  --policy.vlm_model_name=HansOrtiz/smolvlm2_celeb_warm \
+  --policy.vlm_model_name=HuggingFaceTB/SmolVLM2-500M-Video-Instruct \
   --policy.freeze_vision_encoder=True \
   --policy.train_expert_only=False \
   --policy.empty_cameras=1 \
@@ -94,6 +101,7 @@ python -u eval_3/scripts/lerobot_train_with_m2.py \
   --policy.repo_id=HBOrtiz/smolvla_eval3_track_D_m2_mahbod \
   --dataset.repo_id=HBOrtiz/so101_eval3_track3_v3_baseline \
   --dataset.video_backend=pyav \
+  --dataset.revision=v3.0 \
   --batch_size=64 \
   --steps=30000 \
   --save_freq=5000 \
