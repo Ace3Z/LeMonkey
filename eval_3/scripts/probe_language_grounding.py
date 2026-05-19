@@ -145,14 +145,21 @@ def main() -> int:
     preprocessor = DataProcessorPipeline.from_pretrained(
         args.repo, config_filename="policy_preprocessor.json", revision=args.revision
     )
-    # The TokenizerProcessor step has the tokenizer.
+    # The TokenizerProcessor step exposes its loaded HF tokenizer as
+    # `input_tokenizer` (the `tokenizer` field is just the dataclass init kwarg).
     tokenizer = None
     for step in preprocessor.steps:
-        if hasattr(step, "tokenizer") and step.tokenizer is not None:
+        if getattr(step, "input_tokenizer", None) is not None:
+            tokenizer = step.input_tokenizer
+            break
+        if getattr(step, "tokenizer", None) is not None and not isinstance(
+            getattr(step, "tokenizer"), str
+        ):
             tokenizer = step.tokenizer
             break
     if tokenizer is None:
-        raise RuntimeError("No tokenizer found in preprocessor steps")
+        names = [type(s).__name__ for s in preprocessor.steps]
+        raise RuntimeError(f"No tokenizer found in preprocessor steps: {names}")
     print(f"[load]  tokenizer: {type(tokenizer).__name__}, vocab={tokenizer.vocab_size}", flush=True)
 
     # 2. Find a test frame with 3 known faces.
