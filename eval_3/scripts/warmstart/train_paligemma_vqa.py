@@ -83,8 +83,25 @@ from PIL import Image
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__,
                                   formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--manifest", type=Path, required=True,
-                     help="Parquet manifest from prepare_vggface2_vqa.py")
+    ap.add_argument("--manifest", type=Path, default=None,
+                     help="Parquet manifest from prepare_vggface2_vqa.py (legacy file-path mode). "
+                          "Mutually exclusive with --hf-dataset / --local-parquet-dir.")
+    ap.add_argument("--hf-dataset", default=None,
+                     help="HF Hub dataset id with pre-cropped face parquets, e.g. "
+                          "'chronopt-research/cropped-vggface2-224'. Expects rows with "
+                          "fields {image: HF Image, label: ClassLabel}. The ClassLabel "
+                          "ids (e.g. 'n000001') are mapped to human names via --identity-meta-csv.")
+    ap.add_argument("--local-parquet-dir", type=Path, default=None,
+                     help="Local dir holding the chronopt parquet shards (after hf download). "
+                          "If set, uses local files instead of streaming from HF. Faster, "
+                          "no network at training time.")
+    ap.add_argument("--identity-meta-csv", type=Path, default=None,
+                     help="VGGFace2 identity_meta.csv (id -> Name). Available at "
+                          "ProgramComputer/VGGFace2:meta/identity_meta.csv. Has the "
+                          "well-known leading-space-on-headers bug; we strip it.")
+    ap.add_argument("--scraped-bank", type=Path, default=None,
+                     help="Optional: our 193-celeb scraped/ bank to mix in as "
+                          "distribution-anchored extra rows. Format: <slug>/<photo>.jpg.")
     ap.add_argument("--pretrained-pi05", default="lerobot/pi05_base",
                      help="Pi0.5 base HF repo or local path (default: lerobot/pi05_base)")
     ap.add_argument("--processor-name", default="google/paligemma2-3b-pt-224",
@@ -162,17 +179,119 @@ def main() -> int:
     policy.model.paligemma_with_expert.paligemma = paligemma
 
     # ── 4. Build dataset + collator ─────────────────────────────────────────
-    print("==> [4/6] loading manifest + processor", flush=True)
+    print("==> [4/6] loading dataset + processor", flush=True)
     from datasets import load_dataset
     from transformers import AutoProcessor
 
     processor = AutoProcessor.from_pretrained(args.processor_name)
 
-    ds = load_dataset("parquet", data_files=str(args.manifest), split="train")
+    # Validate mode: exactly one of --manifest, --hf-dataset, --local-parquet-dir
+    n_modes = sum(x is not None for x in
+                   (args.manifest, args.hf_dataset, args.local_parquet_dir))
+    if n_modes != 1:
+        raise SystemExit(
+            f"[FATAL] exactly one of --manifest / --hf-dataset / --local-parquet-dir "
+            f"required (got {n_modes})"
+        )
+
+    # Resolve VGGFace2 id → human-name mapping if we'll need it.
+    id_to_name: dict[str, str] = {}
+    if args.identity_meta_csv is not None:
+        import csv as _csv
+        with open(args.identity_meta_csv, newline="") as f:
+            reader = _csv.DictReader(f)
+            for row in reader:
+                # Oxford CSV has the leading-space-headers bug (` Name`, ` Sample_Num`).
+                # Some rows have extra commas in unquoted Name fields → DictReader puts
+                # the overflow under key=None as a list. Skip None keys + cast values
+                # to str so we never call .strip() on a list.
+                clean = {}
+                for k, v in row.items():
+                    if k is None:
+                        continue
+                    if isinstance(v, list):
+                        v = ",".join(v) if v else ""
+                    clean[k.strip()] = (v or "").strip().strip('"')
+                cid = clean.get("Class_ID") or clean.get("class_id")
+                name = clean.get("Name") or clean.get("name")
+                if cid and name:
+                    id_to_name[cid] = name.replace("_", " ")
+        if not id_to_name:
+            raise SystemExit(
+                f"[FATAL] identity_meta.csv at {args.identity_meta_csv} parsed 0 names. "
+                "Check the header schema (Oxford CSV has leading-space columns; we strip)."
+            )
+        print(f"  identity_meta.csv: {len(id_to_name)} names loaded", flush=True)
+
+    # Load dataset — three modes (manifest, hf-dataset, local-parquet-dir)
+    PROMPT_TEMPLATE = "<image>Who is the person in this image?\n"
+    if args.manifest is not None:
+        # Legacy file-path manifest from prepare_vggface2_vqa.py
+        ds = load_dataset("parquet", data_files=str(args.manifest), split="train")
+        ds_kind = "manifest"
+    elif args.local_parquet_dir is not None:
+        # chronopt-style parquets already on disk
+        parquets = sorted(str(p) for p in args.local_parquet_dir.rglob("*.parquet"))
+        if not parquets:
+            raise SystemExit(f"[FATAL] no *.parquet under {args.local_parquet_dir}")
+        ds = load_dataset("parquet", data_files=parquets, split="train")
+        ds_kind = "local_parquet"
+    else:
+        # Stream from HF Hub
+        ds = load_dataset(args.hf_dataset, split="train")
+        ds_kind = "hf_dataset"
+
+    # If the dataset has chronopt-style {image, label} schema, resolve labels
+    # to human names via id_to_name. The class_label.int2str gives the
+    # n000001-style ID; the CSV maps that to "Aaron Eckhart" etc.
+    needs_label_resolution = (
+        "label" in ds.column_names and "image" in ds.column_names
+        and ds.features["label"].__class__.__name__ == "ClassLabel"
+    )
+    if needs_label_resolution:
+        if not id_to_name:
+            raise SystemExit(
+                "[FATAL] dataset has ClassLabel 'label' field (chronopt-style) "
+                "but no --identity-meta-csv given. Cannot resolve n000001 → human name."
+            )
+        label_feat = ds.features["label"]
+        print(f"  chronopt-mode: {label_feat.num_classes} ClassLabel ids; "
+              f"will resolve via identity_meta.csv at training time", flush=True)
+    else:
+        label_feat = None
+
     if args.smoke:
         ds = ds.shuffle(seed=args.seed).select(range(200))
         print(f"==> SMOKE: trimmed dataset to {len(ds)} rows", flush=True)
-    print(f"manifest rows: {len(ds)}", flush=True)
+    print(f"dataset rows ({ds_kind}): {len(ds)}", flush=True)
+
+    def _resolve_row(ex):
+        """Return (PIL.Image, prompt, target) for one row, regardless of source schema.
+
+        Three input row shapes are supported:
+          (a) manifest:    {image_path, prompt, target}     → open path
+          (b) chronopt:    {image: HF Image, label: int}    → use auto-decoded PIL, resolve label
+          (c) raw bank:    {image_path, target}             → like (a) but build prompt
+        """
+        if "image_path" in ex and ex.get("image_path"):
+            img = Image.open(ex["image_path"]).convert("RGB")
+            prompt = ex.get("prompt") or PROMPT_TEMPLATE
+            target = ex["target"]
+        elif "image" in ex and label_feat is not None:
+            img = ex["image"]
+            if not isinstance(img, Image.Image):
+                # Some HF versions hand bytes; decode lazily
+                import io as _io
+                img = Image.open(_io.BytesIO(img["bytes"]))
+            img = img.convert("RGB")
+            vgg_id = label_feat.int2str(ex["label"])
+            target = id_to_name.get(vgg_id)
+            if not target:
+                raise KeyError(f"id_to_name missing vgg_id={vgg_id} (label={ex['label']})")
+            prompt = PROMPT_TEMPLATE
+        else:
+            raise ValueError(f"unrecognized row schema; keys={list(ex.keys())}")
+        return img, prompt, target
 
     def collate(batch):
         """Returns the dict PaliGemma's forward expects:
@@ -180,35 +299,29 @@ def main() -> int:
         Uses `suffix=target` so the processor masks prompt tokens (sets label=-100)
         and only the celeb-name tokens contribute to CE loss.
 
-        On image-read failure, skips the row and emits [WARN]. If the whole
-        batch fails, falls back to duplicating any one good row from the
-        previous batch (caller has to handle the all-failed case — but with
-        VGGFace2 + valid manifest this should never actually trigger).
+        Row-level errors are skipped with [WARN]. If the whole batch fails,
+        fabricates one row from ds[0] so Trainer keeps moving (hard-fail later
+        will surface a deeper problem).
         """
         images = []
         prompts = []
         suffixes = []
         for ex in batch:
             try:
-                img = Image.open(ex["image_path"]).convert("RGB")
+                img, p, t = _resolve_row(ex)
             except Exception as e:
-                print(f"[WARN] image_read_fail: path={ex['image_path']}, "
-                      f"err={e}, fallback=skip-row", flush=True)
+                print(f"[WARN] row_resolve_fail: keys={list(ex.keys())}, "
+                      f"err={type(e).__name__}: {str(e)[:120]}, fallback=skip-row",
+                      flush=True)
                 continue
             images.append(img)
-            prompts.append(ex["prompt"])
-            suffixes.append(ex["target"])
+            prompts.append(p)
+            suffixes.append(t)
         if not images:
-            # Whole batch unreadable. Fabricate a 1-row batch from the first
-            # manifest row so Trainer keeps moving. Hard-fails if the manifest
-            # itself is broken (then we want to crash early anyway).
             print(f"[WARN] collator_whole_batch_failed: expected=>=1 readable image, "
-                  f"got=0, fallback=fabricate-from-manifest[0]", flush=True)
-            ex0 = ds[0]
-            img = Image.open(ex0["image_path"]).convert("RGB")
-            images = [img]
-            prompts = [ex0["prompt"]]
-            suffixes = [ex0["target"]]
+                  f"got=0, fallback=fabricate-from-ds[0]", flush=True)
+            img, p, t = _resolve_row(ds[0])
+            images, prompts, suffixes = [img], [p], [t]
         out = processor(
             text=prompts,
             images=images,
