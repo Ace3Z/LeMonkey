@@ -116,8 +116,10 @@ def main() -> int:
                      default=["q_proj", "k_proj", "v_proj", "o_proj",
                               "gate_proj", "up_proj", "down_proj"],
                      help="LoRA target modules — same as Track B for alignment")
-    ap.add_argument("--epochs", type=int, default=1,
-                     help="VGGFace2 is large; 1 epoch is usually plenty")
+    ap.add_argument("--epochs", type=float, default=1.0,
+                     help="VGGFace2 is large; 1 epoch is usually plenty. "
+                          "Use fractional values (e.g. 0.15) to subsample for "
+                          "shorter wall-time without per-identity balancing logic.")
     ap.add_argument("--batch-size", type=int, default=8)
     ap.add_argument("--grad-accum", type=int, default=4,
                      help="Effective batch = batch_size * grad_accum")
