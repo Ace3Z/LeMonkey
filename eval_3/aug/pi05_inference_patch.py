@@ -1,15 +1,17 @@
 """Runtime patches for Pi0.5 + transformers 4.55.0 compatibility.
 
-Currently one patch:
+Two patches:
 
-* `PaliGemmaWithExpertModel.embed_image` (modeling_pi05.py:442) calls
-  `self.paligemma.model.get_image_features(image).pooler_output`.
-  In transformers 4.55 that method returns the pooled tensor directly
-  instead of an object with `pooler_output`, raising
-  `AttributeError: 'Tensor' object has no attribute 'pooler_output'`.
+1. `PaliGemmaWithExpertModel.embed_image` (modeling_pi05.py:442) calls
+   `self.paligemma.model.get_image_features(image).pooler_output`. In
+   transformers 4.55 that returns the pooled tensor directly.
+
+2. `PiGemmaModel.forward` (pi_gemma.py:261) calls
+   `create_causal_mask(..., inputs_embeds=...)` but transformers 4.55's
+   create_causal_mask uses the kwarg name `input_embeds` (singular).
+   Patched via a wrapper that translates the kwarg.
 
 Idempotent — calling `apply()` twice is safe.
-
 Import + call apply() BEFORE constructing any PI05Policy.
 """
 from __future__ import annotations
@@ -23,6 +25,16 @@ def apply() -> None:
         return
     import torch
     from lerobot.policies.pi05.modeling_pi05 import PaliGemmaWithExpertModel
+    # Patch 2: create_causal_mask kwarg rename.
+    import lerobot.policies.pi_gemma as pi_gemma
+    _orig_ccm = pi_gemma.create_causal_mask
+    def _patched_ccm(*args, **kwargs):
+        if "inputs_embeds" in kwargs and "input_embeds" not in kwargs:
+            kwargs["input_embeds"] = kwargs.pop("inputs_embeds")
+        return _orig_ccm(*args, **kwargs)
+    pi_gemma.create_causal_mask = _patched_ccm
+    print("[pi05_inference_patch] patched create_causal_mask kwarg "
+          "inputs_embeds → input_embeds", flush=True)
 
     def embed_image(self, image):
         out_dtype = image.dtype
