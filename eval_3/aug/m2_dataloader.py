@@ -46,6 +46,7 @@ from m2_alignment import (
     NUM_CAMERA1_PATCHES,
     build_supervision_for_frame,
 )
+from m2_episode_mapping import EpisodeInfo, load_mapping_json
 
 
 # Sources whose augmentation.json claims a celeb at slot R that doesn't
@@ -92,10 +93,18 @@ class M2SupervisionBuilder:
         face_labels_dir: Path,
         manifest_path: Path,
         aug_root: Path,
+        episode_mapping_path: Path | None = None,
     ):
         self.face_labels_dir = Path(face_labels_dir)
         self.manifest_path = Path(manifest_path)
         self.aug_root = Path(aug_root)
+        # Optional: an episode_index → EpisodeInfo map for the merged HF dataset.
+        # Built by `m2_episode_mapping.build_episode_mapping(...)`. If provided,
+        # callers can use `build_batch_from_episode_indices(...)` instead of
+        # supplying (source_episodes, frame_idxs, variants) per batch.
+        self.episode_mapping: list[EpisodeInfo] | None = None
+        if episode_mapping_path is not None:
+            self.episode_mapping = load_mapping_json(Path(episode_mapping_path))
 
         # Preload manifest + centroid lookup (~150 KB).
         manifest = json.loads(self.manifest_path.read_text())
@@ -237,6 +246,92 @@ class M2SupervisionBuilder:
             "bbox_masks": torch.from_numpy(masks).to(device=device),
             "bbox_valid": torch.from_numpy(valid).to(device=device),
             "target_centroids": torch.from_numpy(targets).to(device=device, dtype=torch.float32),
+        }
+
+    def build_batch_from_episode_indices(
+        self,
+        episode_indices: list[int],
+        frame_idxs: list[int],
+        device: torch.device | str = "cpu",
+        dtype: torch.dtype = torch.float32,
+    ) -> dict[str, torch.Tensor]:
+        """Convenience wrapper for the training loop.
+
+        The LeRobotDataset yields batches with `episode_index` and
+        `frame_index` per sample. We map each episode_index to a variant
+        via `self.episode_mapping`, then call build_batch.
+
+        For BASE TELEOPS (episode_index < N_base), face_labels haven't been
+        generated, so we return all-invalid supervision for those samples.
+        The M2 loss handles all-invalid frames gracefully (zero loss with
+        grad attached; per `m2_align_loss` docstring).
+
+        Requires `episode_mapping_path` was provided at construction.
+        """
+        if self.episode_mapping is None:
+            raise RuntimeError(
+                "build_batch_from_episode_indices requires construction with "
+                "episode_mapping_path=... — see m2_episode_mapping.py"
+            )
+
+        B = len(episode_indices)
+        assert len(frame_idxs) == B
+
+        masks = np.zeros((B, 3, NUM_CAMERA1_PATCHES), dtype=bool)
+        valid = np.zeros((B, 3), dtype=bool)
+        targets = np.zeros((B, 3, ARCFACE_EMBED_DIM), dtype=np.float32)
+
+        n_base = 0
+        n_excluded = 0
+        for i, (ep_idx, fidx) in enumerate(zip(episode_indices, frame_idxs)):
+            if ep_idx < 0 or ep_idx >= len(self.episode_mapping):
+                raise IndexError(
+                    f"episode_index={ep_idx} out of range "
+                    f"(mapping has {len(self.episode_mapping)} entries)"
+                )
+            ep = self.episode_mapping[ep_idx]
+            if ep.is_base:
+                # No face_labels for base teleops — leave supervision all-invalid.
+                n_base += 1
+                continue
+            if self.is_excluded(ep.source_episode):
+                # Pre-filter should have caught this, but defend in depth.
+                n_excluded += 1
+                continue
+
+            frames_for_src = self._frame_lookup.get(ep.source_episode)
+            if frames_for_src is None:
+                raise KeyError(
+                    f"M2SupervisionBuilder: no face_labels for source "
+                    f"{ep.source_episode!r} (episode_index={ep_idx}, "
+                    f"variant={ep.variant_name!r})"
+                )
+            frame_entry = frames_for_src.get(fidx)
+            if frame_entry is None:
+                raise KeyError(
+                    f"face_labels for {ep.source_episode!r} has no frame_idx={fidx}"
+                )
+            aug = self._load_augmentation(ep.variant_name)
+            new_lmr = aug["new_layout_camera_lmr"]
+
+            m, v, t = build_supervision_for_frame(
+                frame_entry,
+                new_layout_camera_lmr=new_lmr,
+                centroid_lookup=self.centroid_lookup,
+            )
+            masks[i] = m
+            valid[i] = v
+            targets[i] = t
+
+        if n_excluded:
+            print(f"[WARN] M2SupervisionBuilder: expected pre-filtered batch but got "
+                  f"{n_excluded} excluded samples, fallback=marked-invalid", flush=True)
+
+        return {
+            "bbox_masks": torch.from_numpy(masks).to(device=device),
+            "bbox_valid": torch.from_numpy(valid).to(device=device),
+            "target_centroids": torch.from_numpy(targets).to(device=device, dtype=torch.float32),
+            "n_base_samples": n_base,    # for monitoring; not used by the loss
         }
 
 
