@@ -652,6 +652,13 @@ def find_video(ep_dir: Path) -> Path:
     cands = list(ep_dir.glob("videos/*/chunk-*/file-*.mp4"))
     if not cands:
         raise FileNotFoundError(f"no video under {ep_dir}/videos/")
+    # Prefer the wrist camera (camera1, 640x480). The reference stream is
+    # 480x480 and would mismatch the cached portrait masks. Path.glob order
+    # is not guaranteed across filesystems (worked on dev box, picked
+    # reference first on edna ext4), so don't rely on cands[0].
+    cam1 = [p for p in cands if "observation.images.camera1" in str(p)]
+    if cam1:
+        return cam1[0]
     return cands[0]
 
 

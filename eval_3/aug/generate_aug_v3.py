@@ -418,7 +418,17 @@ def main() -> int:
     p.add_argument("--force", action="store_true")
     p.add_argument("--debug", action="store_true",
                    help="Also produce dbg_compare.mp4 + dbg_stage2_panels.png per variant")
+    p.add_argument("--worker-id", type=int, default=0,
+                   help="This worker's id, 0-indexed (use with --num-workers for parallel runs)")
+    p.add_argument("--num-workers", type=int, default=1,
+                   help="Total number of parallel workers. Each worker processes the "
+                        "subset of episodes where sorted_index %% num_workers == worker_id.")
     args = p.parse_args()
+
+    # Prevent OpenCV's internal thread pool from oversubscribing when many
+    # processes run in parallel (each cv2.warpPerspective etc. defaults to
+    # all-cores). With N workers each fan-out by N threads, the box trashes.
+    cv2.setNumThreads(1)
 
     if not args.root and not args.episode_dirs:
         p.error("either --root or --episode-dirs required")
@@ -437,17 +447,34 @@ def main() -> int:
         root = Path(args.root)
         ep_dirs = sorted(p for p in root.iterdir()
                           if p.is_dir() and (p / "reference.json").is_file())
+
+    # Worker striping. Each worker handles the subset of sorted episodes
+    # where sorted_index % num_workers == worker_id. target_assignment is
+    # computed below on the FULL ep_dirs (pre-stripe) so all workers see
+    # the same celeb distribution.
+    full_ep_dirs = list(ep_dirs)
+    if args.num_workers > 1:
+        if not (0 <= args.worker_id < args.num_workers):
+            raise SystemExit(
+                f"--worker-id={args.worker_id} must be in [0, {args.num_workers})"
+            )
+        ep_dirs = [e for i, e in enumerate(full_ep_dirs)
+                    if i % args.num_workers == args.worker_id]
+        print(f"  worker {args.worker_id}/{args.num_workers}: handling "
+              f"{len(ep_dirs)}/{len(full_ep_dirs)} episodes (sorted-index stripe)",
+              flush=True)
     print(f"processing {len(ep_dirs)} episodes × {args.num_variants} variants = "
-          f"{len(ep_dirs) * args.num_variants} variants total", flush=True)
+          f"{len(ep_dirs) * args.num_variants} variants for THIS worker", flush=True)
 
     out_root = Path(args.out_root)
     out_root.mkdir(parents=True, exist_ok=True)
 
     # Pre-compute deterministic uniform target assignment across ALL
-    # (episode, variant_idx) tuples. Each of the 195 celebs gets exactly
-    # 22 or 23 target appearances across the full 4 475-variant corpus.
+    # (episode, variant_idx) tuples. Each celeb gets ~uniform target
+    # appearances across the full corpus. Computed on the FULL pre-stripe
+    # ep list so every worker sees the same assignments for its episodes.
     target_assignment = precompute_target_assignment(
-        [e.name for e in ep_dirs], args.num_variants,
+        [e.name for e in full_ep_dirs], args.num_variants,
         list(bank.keys()), args.seed,
     )
     from collections import Counter
@@ -480,12 +507,18 @@ def main() -> int:
             results.append({"ep": ep.name, "error": f"{type(e).__name__}: {e}"})
 
     summary = {
+        "worker_id": args.worker_id,
+        "num_workers": args.num_workers,
         "n_episodes": len(ep_dirs),
         "num_variants_per_episode": args.num_variants,
         "results": results,
     }
-    (out_root / "_run_summary.json").write_text(json.dumps(summary, indent=2))
-    print(f"\nDone. Summary: {out_root / '_run_summary.json'}")
+    # When workers > 1, each writes its own summary file so they don't
+    # overwrite each other in the shared --out-root.
+    summary_name = ("_run_summary.json" if args.num_workers <= 1
+                    else f"_run_summary_w{args.worker_id:02d}.json")
+    (out_root / summary_name).write_text(json.dumps(summary, indent=2))
+    print(f"\nDone. Summary: {out_root / summary_name}")
     return 0
 
 
