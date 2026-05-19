@@ -253,20 +253,21 @@ def m2_align_loss(
     # 1. Extract camera1 patches: (B, 64, 960)
     cam1 = hidden_state[:, camera1_offset : camera1_offset + num_camera1_patches, :]
 
-    # 2. Mean-pool over each (b, s) bbox mask.
-    mask = bbox_masks.to(dtype=dtype)                       # (B, 3, 64)
-    weighted = torch.einsum("bsp,bph->bsh", mask, cam1)     # (B, 3, 960)
+    # 2. Mean-pool over each (b, s) bbox mask. Cast to fp32 here: the
+    # projector is fp32 (frozen at init) and Linear requires matching
+    # dtypes; the upcast also recovers ~1e-2 noise that bf16 accumulates
+    # over the 64-patch sum.
+    mask = bbox_masks.to(dtype=torch.float32)               # (B, 3, 64)
+    cam1_f32 = cam1.to(dtype=torch.float32)
+    weighted = torch.einsum("bsp,bph->bsh", mask, cam1_f32)  # (B, 3, 960)
     denom = mask.sum(dim=-1, keepdim=True).clamp_min(1.0)   # (B, 3, 1)
-    pooled = weighted / denom                               # (B, 3, 960)
+    pooled = weighted / denom                               # (B, 3, 960) fp32
 
-    # 3. Project to 512-D via the frozen MLP. Apply to (B*3, 960).
+    # 3. Project to 512-D via the frozen MLP.
     projected = projector(pooled.reshape(B * 3, H)).reshape(B, 3, ARCFACE_EMBED_DIM)
 
     # 4. Cosine vs target_centroids (both normalized).
-    # Cast to fp32 for the normalize+dot — bf16 over 512 dims accumulates
-    # ~1e-2 noise, blurring 0.55 vs 0.60 cosines we care about. fp32 cast
-    # is cheap (B*3*512 elements) and only here, not in the projector path.
-    u = F.normalize(projected.float(), dim=-1, eps=1e-6)
+    u = F.normalize(projected, dim=-1, eps=1e-6)
     z = F.normalize(target_centroids.to(dtype=torch.float32), dim=-1, eps=1e-6)
     cos = (u * z).sum(dim=-1)                                # (B, 3) fp32
 
