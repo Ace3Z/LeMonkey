@@ -86,7 +86,10 @@ while true; do
     "$PYBIN" "$AUTO_HOME" capture "$HOME_POSE" || true
   fi
 
-  lerobot-record \
+  # Run lerobot-record via our wrapper so the SmolVLM inference patch is
+  # applied (transformers==4.55.0 boundaries-on-CPU bug). Same CLI as the
+  # `lerobot-record` entry point.
+  "$PYBIN" "$HERE/lerobot_record_with_patch.py" \
     --robot.type=so101_follower --robot.port=/dev/so101-follower --robot.id=my_follower \
     --robot.cameras="{ camera1: {type: opencv, index_or_path: /dev/video0, width: 640, height: 480, fps: 30}}" \
     --display_data=true \

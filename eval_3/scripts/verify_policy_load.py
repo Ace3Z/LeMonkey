@@ -25,6 +25,13 @@ from pathlib import Path
 
 import torch
 
+# Apply the SmolVLM boundaries-device patch BEFORE any policy load, since
+# transformers==4.55.0 ships a bug that bites on the first GPU forward pass.
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "aug"))
+from smolvlm_inference_patch import apply as _apply_smolvlm_patch  # noqa: E402
+
+_apply_smolvlm_patch()
+
 
 def main() -> int:
     p = argparse.ArgumentParser()
