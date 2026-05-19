@@ -65,7 +65,10 @@ def is_text_only(task: str) -> bool:
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--out", type=Path, required=True,
-                        help="Output JSON file (a single list of int indices)")
+                        help="Output JSON file: KEEP indices (text-only episodes)")
+    parser.add_argument("--drop-out", type=Path, default=None,
+                        help="Optional: also write the INVERSE (drop indices) to this JSON. "
+                             "Useful for `lerobot-edit-dataset delete_episodes`.")
     parser.add_argument("--cache-dir", type=Path, default=None,
                         help="Where to cache the downloaded meta (default: HF cache)")
     args = parser.parse_args()
@@ -98,6 +101,13 @@ def main() -> None:
     size_kb = args.out.stat().st_size / 1024
     print()
     print(f"[write] {len(keep_indices)} keep-indices → {args.out}  ({size_kb:.1f} KB)")
+
+    if args.drop_out:
+        drop_indices = dropped["episode_index"].astype(int).tolist()
+        args.drop_out.parent.mkdir(parents=True, exist_ok=True)
+        with open(args.drop_out, "w") as f:
+            json.dump(drop_indices, f)
+        print(f"[write] {len(drop_indices)} drop-indices → {args.drop_out}")
     print()
     print(f"=== Usage in lerobot-train ===")
     print(f'  INDICES=$(cat {args.out})')
