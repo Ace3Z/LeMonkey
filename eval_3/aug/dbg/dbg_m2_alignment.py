@@ -68,10 +68,10 @@ def test_geometry() -> bool:
     mask = bbox_to_patch_mask(bbox)
     print(f"  bbox in 480x640: {bbox}")
     print(f"  mask shape: {mask.shape}, n_active: {mask.sum()}")
-    # Expected: in the 512x512 resized-with-pad frame, the bbox becomes roughly
-    # (130*0.8=104, 240*0.8+64=256, 210*0.8=168, 320*0.8+64=320)
-    # → patch col_lo=floor(104/64)=1, col_hi=ceil(168/64)-1=2 → cols 1-2
-    # → patch row_lo=floor(256/64)=4, row_hi=ceil(320/64)-1=4 → rows 4 only
+    # Expected (LeRobot resize_with_pad with ratio=1.25 + left+top pad):
+    # (130/1.25=104, 240/1.25+128=320, 210/1.25=168, 320/1.25+128=384)
+    # → col_lo=floor(104/64)=1, col_hi=ceil(168/64)-1=2 → cols 1-2
+    # → row_lo=floor(320/64)=5, row_hi=ceil(384/64)-1=5 → row 5 only
     # 2 cols × 1 row = 2 active patches.
     grid = mask.reshape(CAMERA1_PATCH_GRID, CAMERA1_PATCH_GRID)
     print(f"  mask grid (rows=y, cols=x):")
@@ -214,13 +214,15 @@ def test_real_frame() -> bool:
         return grad_nz
 
     # Compose: original frame (480×640) + the resized-with-pad 512×512 + overlay patches.
+    # Mirror LeRobot's modeling_smolvla.py:134-152 exactly:
+    #   ratio = max(cur_w/W, cur_h/H); resized to (cur/ratio); pad LEFT+TOP only.
     target_hw = (512, 512)
     orig_h, orig_w = frame.shape[:2]
-    scale = min(target_hw[0] / orig_h, target_hw[1] / orig_w)
-    new_w = int(orig_w * scale)
-    new_h = int(orig_h * scale)
-    pad_x = (target_hw[1] - new_w) // 2
-    pad_y = (target_hw[0] - new_h) // 2
+    ratio = max(orig_w / target_hw[1], orig_h / target_hw[0])
+    new_w = int(orig_w / ratio)
+    new_h = int(orig_h / ratio)
+    pad_x = max(0, target_hw[1] - new_w)         # all on LEFT
+    pad_y = max(0, target_hw[0] - new_h)         # all on TOP
 
     resized = cv2.resize(frame, (new_w, new_h), interpolation=cv2.INTER_AREA)
     canvas = np.zeros((target_hw[0], target_hw[1], 3), dtype=np.uint8)
@@ -241,11 +243,11 @@ def test_real_frame() -> bool:
         if not valid_np[slot]:
             continue
         bb = frame_entry["bboxes"][slot]
-        # Original-frame bbox → target-frame bbox
-        rx1 = bb["x1"] * scale + pad_x
-        ry1 = bb["y1"] * scale + pad_y
-        rx2 = bb["x2"] * scale + pad_x
-        ry2 = bb["y2"] * scale + pad_y
+        # Original-frame bbox → target-frame bbox (left+top padding, divide by ratio).
+        rx1 = bb["x1"] / ratio + pad_x
+        ry1 = bb["y1"] / ratio + pad_y
+        rx2 = bb["x2"] / ratio + pad_x
+        ry2 = bb["y2"] / ratio + pad_y
         # Bbox rectangle
         ax.add_patch(plt.Rectangle((rx1, ry1), rx2 - rx1, ry2 - ry1,
                                     fill=False, edgecolor=slot_colors[slot],
@@ -267,7 +269,8 @@ def test_real_frame() -> bool:
     ax.set_xticks(np.arange(0, target_hw[1] + 1, px))
     ax.set_yticks(np.arange(0, target_hw[0] + 1, py))
     ax.set_title(f"{src}  frame 0 — bbox → 8×8 patch mask overlay\n"
-                 f"(resize-with-pad: 640×480 → {new_w}×{new_h} centered in 512×512)",
+                 f"(LeRobot resize_with_pad: 640×480 → {new_w}×{new_h} at top-left, "
+                 f"pad_x={pad_x} left, pad_y={pad_y} top)",
                  fontsize=10)
     fig.tight_layout()
     out = OUT_DIR / f"{src}__frame0_bbox_to_patch.png"

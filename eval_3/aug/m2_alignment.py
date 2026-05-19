@@ -83,22 +83,33 @@ def _resize_with_pad_box(
 ) -> tuple[float, float, float, float]:
     """Map a pixel bbox from the original frame to the resized-with-pad frame.
 
-    `resize_with_pad` (LeRobot's preprocessing) keeps aspect ratio and pads
-    the shorter side with zeros centred. For 480×640 → 512×512:
-      scale = min(512/640, 512/480) = 0.8
-      new_h = 480 * 0.8 = 384, new_w = 640 * 0.8 = 512
-      pad_y = (512 − 384) / 2 = 64 on each of top + bottom; pad_x = 0
+    Mirrors LeRobot's `resize_with_pad` at
+    third_party/lerobot/src/lerobot/policies/smolvla/modeling_smolvla.py:134
+    verbatim:
+        ratio = max(cur_w / target_w, cur_h / target_h)
+        resized_h = int(cur_h / ratio); resized_w = int(cur_w / ratio)
+        pad_h = max(0, target_h - resized_h)
+        pad_w = max(0, target_w - resized_w)
+        # padding goes on LEFT + TOP only, not centered.
+        F.pad(resized_img, (pad_w, 0, pad_h, 0))
+
+    For 480×640 → 512×512:
+        ratio = max(640/512, 480/512) = 1.25
+        resized_h = int(480/1.25) = 384
+        resized_w = int(640/1.25) = 512
+        pad_h = 128 (all on TOP); pad_w = 0
+        → image lives at rows [128, 512), cols [0, 512)
     """
     x1, y1, x2, y2 = bbox_xyxy
     orig_h, orig_w = orig_hw
     target_h, target_w = target_hw
-    scale = min(target_h / orig_h, target_w / orig_w)
-    new_w = orig_w * scale
-    new_h = orig_h * scale
-    pad_x = (target_w - new_w) / 2
-    pad_y = (target_h - new_h) / 2
-    return (x1 * scale + pad_x, y1 * scale + pad_y,
-            x2 * scale + pad_x, y2 * scale + pad_y)
+    ratio = max(orig_w / target_w, orig_h / target_h)
+    resized_w = int(orig_w / ratio)
+    resized_h = int(orig_h / ratio)
+    pad_x = max(0, target_w - resized_w)        # all on left
+    pad_y = max(0, target_h - resized_h)        # all on top
+    return (x1 / ratio + pad_x, y1 / ratio + pad_y,
+            x2 / ratio + pad_x, y2 / ratio + pad_y)
 
 
 def bbox_to_patch_mask(
@@ -226,37 +237,53 @@ def m2_align_loss(
 
     device = hidden_state.device
     dtype = hidden_state.dtype
+    valid = bbox_valid.to(device=device)
+
+    # Defensive: catch valid=True with empty mask. build_supervision_for_frame
+    # guarantees `valid ⇒ mask.any()`, but callers bypassing that helper would
+    # silently feed zero-pooled vectors → meaningless cosine → noise.
+    mask_any = bbox_masks.any(dim=-1)                       # (B, 3) bool
+    bad = valid & ~mask_any
+    if bad.any():
+        print(f"[WARN] m2_align_loss: expected valid⇒mask.any(), "
+              f"got {int(bad.sum().item())} valid slots with empty masks, "
+              f"fallback=force-invalid-and-skip", flush=True)
+        valid = valid & mask_any
 
     # 1. Extract camera1 patches: (B, 64, 960)
     cam1 = hidden_state[:, camera1_offset : camera1_offset + num_camera1_patches, :]
 
     # 2. Mean-pool over each (b, s) bbox mask.
-    # bbox_masks float in {0, 1}, expand to broadcast over hidden_size.
     mask = bbox_masks.to(dtype=dtype)                       # (B, 3, 64)
     weighted = torch.einsum("bsp,bph->bsh", mask, cam1)     # (B, 3, 960)
     denom = mask.sum(dim=-1, keepdim=True).clamp_min(1.0)   # (B, 3, 1)
     pooled = weighted / denom                               # (B, 3, 960)
 
-    # 3. Project to 512-D via the frozen MLP. Apply to (B*3, 960) for stable Linear.
+    # 3. Project to 512-D via the frozen MLP. Apply to (B*3, 960).
     projected = projector(pooled.reshape(B * 3, H)).reshape(B, 3, ARCFACE_EMBED_DIM)
 
     # 4. Cosine vs target_centroids (both normalized).
-    u = F.normalize(projected, dim=-1, eps=1e-8)
-    z = F.normalize(target_centroids.to(dtype=dtype), dim=-1, eps=1e-8)
-    cos = (u * z).sum(dim=-1)                                # (B, 3)
+    # Cast to fp32 for the normalize+dot — bf16 over 512 dims accumulates
+    # ~1e-2 noise, blurring 0.55 vs 0.60 cosines we care about. fp32 cast
+    # is cheap (B*3*512 elements) and only here, not in the projector path.
+    u = F.normalize(projected.float(), dim=-1, eps=1e-6)
+    z = F.normalize(target_centroids.to(dtype=torch.float32), dim=-1, eps=1e-6)
+    cos = (u * z).sum(dim=-1)                                # (B, 3) fp32
 
     # 5. Mask to valid slots, mean over them.
-    valid = bbox_valid.to(device=device)
     n_valid = int(valid.sum().item())
     if n_valid == 0:
-        # Defensive: return a zero loss with grad attached, log will happen
-        # at the caller. (Per project CLAUDE.md §5: no silent fallback; the
-        # caller must emit a [WARN] if this branch ever fires in production.)
+        # Zero loss with grad attached (cos.sum() * 0.0 keeps the graph).
+        # Caller must emit [WARN] if this branch is hot in production
+        # (CLAUDE.md §5: no silent fallbacks).
         loss = (cos.sum() * 0.0)
     else:
-        loss = -((cos * valid.to(dtype=dtype)).sum() / n_valid)
+        loss = -((cos * valid.to(dtype=torch.float32)).sum() / n_valid)
 
-    # Pack per-slot cos with NaN where invalid (for monitoring, no grad).
+    # Cast loss back to the network's working dtype for the multitask sum.
+    loss = loss.to(dtype=dtype)
+
+    # Per-slot cos for monitoring (no grad, NaN where invalid).
     with torch.no_grad():
         per_slot_cos = cos.detach().masked_fill(~valid, float("nan")).reshape(-1)
 
@@ -277,6 +304,11 @@ SHORT_TO_FULL = {"obama": "barack_obama",
 
 def slot_to_celeb(new_layout_camera_lmr: str) -> list[str]:
     """E.g. 'OLS' → ['barack_obama', 'yann_lecun', 'taylor_swift']."""
+    if len(new_layout_camera_lmr) != 3 or any(c not in LETTER_TO_SHORT for c in new_layout_camera_lmr):
+        raise ValueError(
+            f"new_layout_camera_lmr={new_layout_camera_lmr!r} not a 3-letter "
+            f"permutation of {set(LETTER_TO_SHORT)}"
+        )
     return [SHORT_TO_FULL[LETTER_TO_SHORT[c]] for c in new_layout_camera_lmr]
 
 
