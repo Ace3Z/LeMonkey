@@ -220,6 +220,24 @@ def _patch_make_policy():
         print(f"[m2 launcher] wrapped policy: "
               f"{n_frozen/1e6:.1f}M frozen, {n_trainable/1e6:.1f}M trainable",
               flush=True)
+
+        # Eval-day eligibility sanity check (suggested by reviewer agent):
+        # the HF push must serialize the inner SmolVLAPolicy only, not the
+        # M2 wrapper. That hinges on `save_pretrained` / `push_model_to_hub`
+        # binding to the inner policy via __getattr__ delegation. Confirm at
+        # launch time so we fail loud if the wiring ever breaks.
+        save_self = wrapped.save_pretrained.__self__.__class__.__name__
+        push_self = wrapped.push_model_to_hub.__self__.__class__.__name__
+        if save_self != "SmolVLAPolicy" or push_self != "SmolVLAPolicy":
+            raise SystemExit(
+                "[m2 launcher] sanity check FAILED: save_pretrained bound to "
+                f"{save_self!r}, push_model_to_hub bound to {push_self!r} — "
+                "expected both bound to SmolVLAPolicy. HF artifact would "
+                "include M2 wrapper state, making it ineligible for eval. "
+                "Abort and investigate the __getattr__ delegation."
+            )
+        print(f"[m2 launcher] eligibility check OK: save_pretrained + "
+              f"push_model_to_hub bind to SmolVLAPolicy", flush=True)
         return wrapped
 
     factory.make_policy = make_policy_with_m2

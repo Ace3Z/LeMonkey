@@ -122,12 +122,18 @@ lerobot-train \
 
 ### Track D toolkit (Mahbod) — M2 ArcFace cosine distillation, drop-in patch
 
-- [ ] `eval_3/aug/cache_arcface_embeddings.py` — walk every variant, compute `buffalo_l` ArcFace embedding of the target face from `augmentation.json["workspace_photos"][target_pid]`, save as `aug_cache_target_arcface.npy` in each variant dir. ~2 h dev box.
-- [ ] `eval_3/aug/face_align_projector.py` — frozen 3-layer MLP module (LN → Linear(hidden, 2048) → SiLU → Dropout(0.1) → Linear(2048, 2048) → SiLU → Dropout(0.1) → Linear(2048, 512)). All params `requires_grad=False` after init.
-- [ ] Patch `third_party/lerobot/src/lerobot/policies/smolvla/modeling_smolvla.py` at Backbone2Enc — expose hidden state at SmolLM2 layer 8 (of 16), compute `0.2 · L_align` (BlindVLA Eq. 9), add to loss in `forward()`.
+- [x] `eval_3/aug/m2_alignment.py` — frozen projector (LN → 960→2048 → SiLU → Drop(0.1) → 2048→2048 → SiLU → Drop(0.1) → 2048→512) + `m2_align_loss` (BlindVLA Eq. 9). Commit `b66091e`.
+- [x] `eval_3/aug/m2_dataloader.py` — `M2SupervisionBuilder` reads `face_labels/` + `celeb_embeddings.json` + per-variant `augmentation.json`, emits `bbox_masks/bbox_valid/target_centroids`. Commit `b66091e`.
+- [x] `eval_3/aug/m2_policy_wrapper.py` + `eval_3/scripts/lerobot_train_with_m2.py` — `M2WrappedPolicy` is a drop-in wrapper; launcher monkey-patches `make_policy` so upstream lerobot stays untouched. Includes a launch-time eligibility sanity check (commit `b66091e`, plus fix commits `e32e069`/`27626e6`/`fd7ab38`/`07d4f49`/`9c76ced`/`b8009b1`/`ea1501b`).
+- [x] **Track D run launched 2026-05-19 06:36 CEST on Brev `time2sleep`** (A100 80GB). Step ~1.6 k / 30 k at last check, `mean_cos = +0.74`, step time ~2 s, ETA ~17-20 h. Output: `HBOrtiz/smolvla_eval3_track_D_m2_mahbod`. Detailed log: [`docs/experiments/2026-05-19_track_D_m2_brev_launch.md`](docs/experiments/2026-05-19_track_D_m2_brev_launch.md).
+- [ ] **Strix-side pre-cache** (handoff to Darius): before eval-day load, pull the architecture+tokenizer for `HuggingFaceTB/SmolVLM2-500M-Video-Instruct` onto the eval box. The training config has `load_vlm_weights=False` (VLM weights come from our safetensors), but `SmolVLAPolicy.from_pretrained` still resolves `vlm_model_name` to instantiate the graph. One-liner: `huggingface-cli download HuggingFaceTB/SmolVLM2-500M-Video-Instruct`.
 
-**Hold for Day 3 decision.** Apply only if Track A or C shows face-discrimination
-weakness on the Day-2 Strix test.
+**Held for Day 3 decision applied early** because Hans's warm-VLM
+(`HansOrtiz/smolvlm2_celeb_warm`) wasn't on HF yet at launch time; we used
+vanilla `HuggingFaceTB/SmolVLM2-500M-Video-Instruct`, so this run is
+effectively "M2 on top of Track C" rather than "M2 on top of Track A". If
+Hans publishes the warm-VLM before Day 3, swap `--policy.vlm_model_name`
+and re-run.
 
 ### Strix testing protocol (Darius)
 
