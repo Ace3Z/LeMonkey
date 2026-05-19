@@ -149,7 +149,12 @@ def test_vision_sensitivity(policy, preprocessor, frames, state, prompt, device)
     return not identical_any, deltas
 
 
-def test_determinism_and_range(policy, preprocessor, image, state, device):
+def test_consistency_and_range(policy, preprocessor, image, state, device):
+    """SmolVLA's flow-matching head samples fresh noise each call, so two
+    identical-input calls are NOT expected to be bit-identical. The real
+    sanity check is: outputs are *stable* (similar but not pathological)
+    and live in a sane MEAN_STD-normalized magnitude band.
+    """
     prompt = "Place the coke on Taylor Swift."
     b1 = _make_batch(image, state, prompt, device, preprocessor)
     b2 = _make_batch(image, state, prompt, device, preprocessor)
@@ -158,50 +163,56 @@ def test_determinism_and_range(policy, preprocessor, image, state, device):
         a2 = policy.select_action(b2).detach().cpu()
 
     delta = _diff_metric(a1, a2)
-    deterministic = _identical(a1, a2, atol=1e-3)
     nan = bool(torch.isnan(a1).any())
     inf = bool(torch.isinf(a1).any())
     amax = float(a1.abs().max().item())
     sane_range = 0.0 < amax < 5.0  # MEAN_STD-normalized → typically O(1)
+    # 'Stable' = jitter under 10% of the max magnitude.
+    stable = delta < 0.1 * max(amax, 1e-3)
 
-    print(f"[det]   mean |Δ| between two identical calls = {delta:.6f}")
-    print(f"[det]   determinism: {'PASS' if deterministic else 'FAIL — leaking flow-matching noise'}")
-    print(f"[det]   NaN: {nan}  Inf: {inf}  max|a|: {amax:.3f}  "
-          f"sane_range (0 < |a| < 5): {sane_range}")
-    return deterministic and not nan and not inf and sane_range, delta
+    print(f"[cons]  mean |Δ| between two identical-input calls = {delta:.4f}")
+    print(f"[cons]  max|a|: {amax:.3f}  jitter ratio (Δ/max): {delta / max(amax, 1e-3):.3%}")
+    print(f"[cons]  NaN: {nan}  Inf: {inf}  sane_range (0 < |a| < 5): {sane_range}")
+    print(f"[cons]  result: {'PASS — stable, in-range, no NaN' if (stable and sane_range and not nan and not inf) else 'FAIL'}")
+    return (stable and sane_range and not nan and not inf), delta
 
 
 def test_patch_mask_aliasing(face_labels_dir: Path):
-    """Distribution of bbox patch counts per detected face slot."""
-    NUM_CAMERA1_PATCHES = 64  # 8x8 grid (480x640 ÷ 60px patches ~ 8x8)
+    """Distribution of bbox patch counts per detected face on an 8x8 grid.
+
+    face_labels schema:
+        { source_episode, representative_variant, n_frames, stride,
+          score_thresh, schema_version,
+          frames: [ {frame_idx, n_visible_faces,
+                     bboxes: [{x1,y1,x2,y2,score,x_center}, ...]}, ... ] }
+    Camera is 640x480; 8x8 grid → patch size 80 (W) x 60 (H).
+    """
     counts = Counter()
-    n_files = n_frames = n_slots = 0
+    n_files = n_frames = n_bboxes = 0
     for p in sorted(face_labels_dir.glob("*.json")):
         d = json.loads(p.read_text())
         n_files += 1
-        for fidx, entry in d.items():
+        for frame in d.get("frames", []):
             n_frames += 1
-            for slot in entry.get("slots", []):
-                n_slots += 1
-                bbox = slot.get("bbox", None)
-                if not bbox:
-                    continue
-                # bbox is [x_min, y_min, x_max, y_max] in image pixels
-                # at 480x640 cam → 8x8 patch grid → patch size ~60x80
-                x0, y0, x1, y1 = bbox
-                px0, py0 = int(x0 / 80), int(y0 / 60)
-                px1, py1 = int(x1 / 80) + 1, int(y1 / 60) + 1
-                ph = max(1, min(8, py1) - max(0, py0))
-                pw = max(1, min(8, px1) - max(0, px0))
+            for bb in frame.get("bboxes", []):
+                n_bboxes += 1
+                x1, y1, x2, y2 = bb["x1"], bb["y1"], bb["x2"], bb["y2"]
+                px1, py1 = int(x1 / 80), int(y1 / 60)
+                px2, py2 = int(x2 / 80) + 1, int(y2 / 60) + 1
+                pw = max(1, min(8, px2) - max(0, px1))
+                ph = max(1, min(8, py2) - max(0, py1))
                 counts[ph * pw] += 1
-    print(f"[mask]  scanned {n_files} sources, {n_frames} frames, {n_slots} slots with bbox")
-    print(f"[mask]  patch-count distribution (rough estimate, 8x8 grid over 480x640):")
+    print(f"[mask]  scanned {n_files} sources, {n_frames} frame entries, {n_bboxes} bboxes")
+    print(f"[mask]  patch-count distribution (8x8 grid over 480x640):")
+    total = sum(counts.values()) or 1
     for k in sorted(counts.keys()):
-        print(f"           {k:>2d} patches: {counts[k]:>6d} slots ({counts[k]/sum(counts.values())*100:.1f}%)")
-    median = sorted(counts.elements())[len(list(counts.elements())) // 2] if counts else 0
-    print(f"[mask]  median patches per slot = {median}")
+        bar = "█" * int(counts[k] / total * 40)
+        print(f"           {k:>2d} patches: {counts[k]:>7d} ({counts[k]/total*100:5.1f}%) {bar}")
+    median = (sorted(counts.elements())[len(list(counts.elements())) // 2]
+              if counts else 0)
+    print(f"[mask]  median patches per face = {median}")
     ok = median >= 2
-    print(f"[mask]  result: {'PASS — patch grid carries enough signal' if ok else 'CONCERN — slots collapse to 1 patch'}")
+    print(f"[mask]  result: {'PASS — most faces span ≥2 patches' if ok else 'CONCERN — most faces collapse to 1 patch (M2 signal is degenerate)'}")
     return ok, median
 
 
@@ -247,9 +258,9 @@ def main() -> int:
                                         "Place the coke on Taylor Swift.", args.device)
     results["vision"] = ok_vis
 
-    print("\n=== 3. DETERMINISM + RANGE ===")
-    ok_det, _ = test_determinism_and_range(policy, preprocessor, frames[0], state, args.device)
-    results["determinism"] = ok_det
+    print("\n=== 3. CONSISTENCY + RANGE ===")
+    ok_cons, _ = test_consistency_and_range(policy, preprocessor, frames[0], state, args.device)
+    results["consistency"] = ok_cons
 
     print("\n=== 4. PATCH-MASK ALIASING (data probe) ===")
     flabels = Path(args.face_labels_dir)
