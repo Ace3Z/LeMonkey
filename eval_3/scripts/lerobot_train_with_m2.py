@@ -66,8 +66,32 @@ def _env(key: str, default=None, required: bool = False, cast=str):
     return cast(v)
 
 
+def _patch_get_safe_version():
+    """Bypass lerobot's HF-revision-tag lookup when the dataset is local-only.
+
+    `lerobot.datasets.utils.get_safe_version` queries HF for repo tags and
+    rate-limits us at 1000 req/5min. Since we pre-downloaded the dataset
+    (and tagged it once locally), there's no need to re-query. Stub it to
+    return the input version as-is.
+    """
+    import lerobot.datasets.utils as ldu
+    import lerobot.datasets.dataset_metadata as ldmm
+    import lerobot.datasets.lerobot_dataset as lldataset
+
+    def _stub_get_safe_version(repo_id, version):
+        v = str(version)
+        return v if v.startswith("v") else f"v{v}"
+
+    ldu.get_safe_version = _stub_get_safe_version
+    ldmm.get_safe_version = _stub_get_safe_version
+    lldataset.get_safe_version = _stub_get_safe_version
+    print("[m2 launcher] patched get_safe_version → returns version as-is "
+          "(skips HF version-tag query)", flush=True)
+
+
 def _patch_make_policy():
     """Monkey-patch `lerobot.policies.factory.make_policy` to wrap with M2."""
+    _patch_get_safe_version()
     if _env("M2_DISABLE", default="0") == "1":
         print("[m2 launcher] M2_DISABLE=1 — skipping M2 wrap (debug mode)", flush=True)
         return
