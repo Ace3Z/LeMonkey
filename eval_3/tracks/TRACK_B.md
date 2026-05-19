@@ -168,8 +168,8 @@ lerobot-train \
 - `optimizer_lr=1e-5` — half of Pi0.5's default 2.5e-5. Conservative because LoRA updates effective only at low LR; also reduces risk of perturbing base weights through the LLM's adapter path.
 - `gradient_checkpointing=True` — drops peak activation memory by recomputing forward during backward. Free with `compile_model=True`.
 - `compile_model=True` — torch.compile speeds Pi0.5 by ~25-40 % in published benchmarks.
-- `peft.target_modules=["q_proj","k_proj","v_proj","o_proj"]` — LoRA-wrap the 4 attention projections in every Gemma-2B transformer block. Standard target set from LoRA literature (Hu et al. 2021); same set Hans used on SmolVLM (per his Slack messages).
-- `peft.r=16, alpha=32` — rank 16, scaling alpha 32 → effective scaling ratio 2.0. Standard middle-of-the-road; gives ~14 M trainable adapter params on Gemma-2B.
+- `peft.target_modules=["q_proj","k_proj","v_proj","o_proj","gate_proj","up_proj","down_proj"]` — LoRA-wrap **all 7 linear projections** in every Gemma-2B transformer block (4 attention + 3 gated-MLP). Targeting MLP layers in addition to attention is the LLaMA-Adapter / QLoRA convention and gives the adapters genuinely-meaningful capacity to absorb celeb-discriminative features. Standard attention-only LoRA would under-perform here because most of Gemma's representational capacity lives in the gated MLP, not attention.
+- `peft.r=32, alpha=64` — rank 32, scaling alpha 64 → effective scaling ratio 2.0. Bumped from the initial r=16 because r=16 only allocates ~14M trainable params and the model needs to learn 9 distinct celeb identities through a small projection — that's plausibly under-capacity. r=32 gives ~28M trainable adapter params, which is still <1.4 % of Gemma-2B's frozen weights so forgetting risk remains low. (For reference: LoRA paper Hu 2021 §4 found rank ≥ 8 typically sufficient on language tasks, but face-recognition is fine-grained classification with many identities — closer to DreamBooth-style personalization where 16-32 is the recommended floor.)
 - `peft.lora_dropout=0.05` — small dropout on adapters; standard.
 - `rename_map` — re-routes our 1 camera onto the pretrained `right_wrist_0_rgb` slot.
 - `batch_size=24` — bf16 + grad_ckpt + LoRA easily fits at 24 on RTX PRO 6000.
@@ -179,7 +179,7 @@ lerobot-train \
 
 | Flag | Default | Alternative | Notes |
 |---|---|---|---|
-| `peft.r` | 16 | 8 or 32 | Higher rank = more capacity to adapt VLM, more compute. 16 is conservative; bump if Day-2 Strix test shows poor face discrimination. |
+| `peft.r` | 32 | 16 or 64 | r=16 if Day-1 smoke run loss is unstable; r=64 if Day-2 Strix test still shows weak face discrimination. r=32 is the research-grounded middle. |
 | `optimizer_lr` | 1e-5 | 2.5e-5 (Pi0.5 default) | If training loss plateaus too fast, increase. If unstable, decrease. |
 | `batch_size` | 24 | 32 | If VRAM allows; gives slightly cleaner gradients. |
 

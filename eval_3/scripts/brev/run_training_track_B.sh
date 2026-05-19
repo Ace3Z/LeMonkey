@@ -27,7 +27,12 @@ PUSH_REPO="${PUSH_REPO:-HBOrtiz/pi05_eval3_track_B}"
 STEPS="${STEPS:-30000}"
 BATCH_SIZE="${BATCH_SIZE:-24}"
 LR="${LR:-1e-5}"
-LORA_R="${LORA_R:-16}"
+LORA_R="${LORA_R:-32}"
+LORA_ALPHA="${LORA_ALPHA:-64}"
+# Full Gemma transformer block: 4 attention projections + 3 gated-MLP projections.
+# Standard LLaMA/Gemma LoRA practice. Wider coverage = more capacity for the
+# adapters to absorb celeb-discriminative features in the VLM.
+LORA_TARGETS='["q_proj","k_proj","v_proj","o_proj","gate_proj","up_proj","down_proj"]'
 
 echo "==> Track B (Pi0.5) launching"
 echo "    dataset : $DATASET"
@@ -51,9 +56,9 @@ lerobot-train \
     --policy.compile_model=True \
     \
     --peft.method_type=LORA \
-    --peft.target_modules='["q_proj","k_proj","v_proj","o_proj"]' \
+    --peft.target_modules="$LORA_TARGETS" \
     --peft.r="$LORA_R" \
-    --peft.lora_alpha=32 \
+    --peft.lora_alpha="$LORA_ALPHA" \
     --peft.lora_dropout=0.05 \
     \
     --dataset.repo_id="$DATASET" \
