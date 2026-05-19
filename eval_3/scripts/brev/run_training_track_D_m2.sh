@@ -105,7 +105,7 @@ python -u eval_3/scripts/lerobot_train_with_m2.py \
   --batch_size=64 \
   --steps=30000 \
   --save_freq=5000 \
-  --num_workers=8 \
+  --num_workers=24 \
   --output_dir=~/outputs/train/smolvla_track_D_m2 \
   --job_name=smolvla_track_D_m2 \
   --wandb.enable=false \
