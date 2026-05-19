@@ -124,6 +124,8 @@ def main() -> int:
     p.add_argument("--revision", default=None)
     p.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu")
     p.add_argument("--dataset-root", default=str(Path.home() / ".cache/huggingface/lerobot/HBOrtiz/so101_eval3_track3_v3_baseline"))
+    p.add_argument("--image-path", default=None,
+                   help="Bypass dataset lookup: load this PNG/JPG directly (must be 640x480 RGB).")
     p.add_argument("--layers", nargs="+", type=int, default=[6, 10, 14, 17])
     p.add_argument("--episode", type=int, default=100)
     p.add_argument("--frame", type=int, default=10)
@@ -161,7 +163,16 @@ def main() -> int:
           f"n_kv_heads={n_kv_heads}  head_dim={head_dim}", flush=True)
 
     # Real frame → 224x224 center-padded.
-    frame_raw = _grab_real_frame(Path(args.dataset_root), args.episode, args.frame)
+    if args.image_path:
+        from PIL import Image as _PIL
+        _img = _PIL.open(args.image_path).convert("RGB")
+        if _img.size != (640, 480):
+            _img = _img.resize((640, 480))
+        import numpy as _np
+        frame_raw = torch.from_numpy(_np.array(_img)).permute(2, 0, 1).float() / 255.0
+        print(f"[frame] loaded {args.image_path}", flush=True)
+    else:
+        frame_raw = _grab_real_frame(Path(args.dataset_root), args.episode, args.frame)
     frame_224 = _resize_center_pad(frame_raw)
     Image.fromarray((frame_224.permute(1, 2, 0).numpy() * 255).astype(np.uint8)).save(outdir / "input.png")
     print(f"[frame] saved 224x224 input → {outdir/'input.png'}", flush=True)
