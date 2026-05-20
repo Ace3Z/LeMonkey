@@ -145,6 +145,13 @@ def main() -> int:
                      help="Apply on-the-fly image augmentation (flip / rotate / color "
                           "jitter / resized-crop). Needed for the small scraped bank "
                           "(~1700 imgs) so the trainable vision tower doesn't overfit.")
+    ap.add_argument("--no-grad-ckpt", action="store_true",
+                     help="Disable gradient checkpointing. grad-ckpt recomputes "
+                          "activations in backward to save memory (~30%% slower). On a "
+                          "97GB card with ~65GB spare, disabling it trades the spare "
+                          "VRAM for ~30%% speedup. Verify it fits before a long run.")
+    ap.add_argument("--dataloader-workers", type=int, default=4,
+                     help="DataLoader worker processes.")
     args = ap.parse_args()
 
     args.output_dir.mkdir(parents=True, exist_ok=True)
@@ -406,17 +413,20 @@ def main() -> int:
         warmup_ratio=args.warmup_ratio,
         lr_scheduler_type="cosine",
         bf16=True,
-        gradient_checkpointing=True,
+        gradient_checkpointing=not args.no_grad_ckpt,
         gradient_checkpointing_kwargs={"use_reentrant": False},
         logging_steps=args.logging_steps,
         save_steps=args.save_steps,
         save_total_limit=2,
         remove_unused_columns=False,    # critical: keep image_path etc. for the collator
         seed=args.seed,
-        dataloader_num_workers=4,
+        dataloader_num_workers=args.dataloader_workers,
         report_to=[],                    # no wandb; logs go to stdout
         push_to_hub=False,                # we'll push the spliced-back pi05 manually below
     )
+    print(f"  grad_checkpointing={not args.no_grad_ckpt}  "
+          f"batch={args.batch_size}x{args.grad_accum}={args.batch_size*args.grad_accum}  "
+          f"workers={args.dataloader_workers}", flush=True)
 
     trainer = Trainer(
         model=paligemma,
@@ -425,6 +435,8 @@ def main() -> int:
         data_collator=collate,
     )
     trainer.train()
+    if torch.cuda.is_available():
+        print(f"  peak VRAM: {torch.cuda.max_memory_allocated()/1e9:.1f} GB", flush=True)
 
     # ── 6. Merge adapters + splice back into Pi0.5 + push ───────────────────
     print("==> [6/6] merging adapters + saving full Pi0.5 + pushing", flush=True)
