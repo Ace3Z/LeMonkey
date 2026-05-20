@@ -404,7 +404,7 @@ def load_policy_and_processor(args, device: torch.device):
     )
     cfg.train_expert_only = False    # CRITICAL: VLM body must be trainable for VQA CE.
     cfg.freeze_vision_encoder = True # Keep SigLIP frozen — RT-2 doesn't tune it either.
-    cfg.empty_cameras = max(0, cfg.empty_cameras) if hasattr(cfg, "empty_cameras") else 0
+    cfg.empty_cameras = 1  # camera3 zero-padded (training recipe --policy.empty_cameras=1)
     if args.vlm_model_name is not None:
         cfg.vlm_model_name = args.vlm_model_name
     # The cfg.device read in subordinate constructors should match our device.
@@ -458,12 +458,26 @@ def build_robot_preprocessor(policy_cfg, dataset, pretrained_path: str, device: 
     """
     from lerobot.policies.factory import make_pre_post_processors
 
-    # Do NOT pass pretrained_path — lerobot/smolvla_base has no policy_preprocessor.json
-    # (that file only exists on post-v0.5.2 checkpoints).  Build fresh from config + stats.
+    # empty_cameras=1 pads camera3 with zeros (matching the training recipe).
+    # The base checkpoint has empty_cameras=0; we must set it before building
+    # the preprocessor so the pipeline allocates the right number of image slots.
+    policy_cfg.empty_cameras = 1
+
+    # Do NOT pass pretrained_path — lerobot/smolvla_base has no policy_preprocessor.json.
     pre, post = make_pre_post_processors(
         policy_cfg=policy_cfg,
         dataset_stats=dataset.meta.stats,
     )
+
+    # Inject the rename map: dataset uses observation.images.reference but the
+    # policy expects observation.images.camera2 (training recipe --rename_map).
+    from lerobot.processor.rename_processor import RenameObservationsProcessorStep
+    for step in pre.steps:
+        if isinstance(step, RenameObservationsProcessorStep):
+            step.rename_map = {"observation.images.reference": "observation.images.camera2"}
+            print("[cotrain] preprocessor rename_map set: reference → camera2", flush=True)
+            break
+
     return pre, post
 
 
