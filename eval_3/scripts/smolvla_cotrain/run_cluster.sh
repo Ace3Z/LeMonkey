@@ -37,6 +37,10 @@ fi
 : "${PUSH_REPO:?set PUSH_REPO — the HF model repo for checkpoints, e.g. youruser/smolvla_klal_lora_25k}"
 export HF_TOKEN
 
+# HF tokenizers deadlocks if forked into DataLoader workers after being used in
+# the parent — the VL collator does exactly that. Disable its thread pool.
+export TOKENIZERS_PARALLELISM=false
+
 # ── tunables (override via env) ──────────────────────────────────────────────
 STEPS="${STEPS:-25000}"               # total training steps
 SAVE_FREQ="${SAVE_FREQ:-5000}"        # checkpoint + HF push every N steps

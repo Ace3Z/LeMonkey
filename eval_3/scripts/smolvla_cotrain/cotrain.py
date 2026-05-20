@@ -64,6 +64,13 @@ from dataclasses import dataclass
 from datetime import timedelta
 from pathlib import Path
 
+# HF's Rust `tokenizers` deadlocks if a fast tokenizer is used in the parent
+# (it is — policy build + build_name_token_ids) and then again inside a forked
+# DataLoader worker. The VL collator runs `processor(...)` in workers, so with
+# num_workers>0 the first VL batch fetch hangs silently. Disable the tokenizer
+# thread pool before any fork. Must be set before `tokenizers` is imported.
+os.environ.setdefault("TOKENIZERS_PARALLELISM", "false")
+
 import torch
 import torch.distributed as dist
 import torch.nn.functional as F
