@@ -38,9 +38,11 @@ DTYPE="${DTYPE:-bfloat16}"
 OUT_DIR="${OUT_DIR:-outputs/smolvla_cotrain_${VL_RATIO}to1}"
 PUSH_REPO="${PUSH_REPO:-}"                  # leave empty to skip HF push
 
-# Auto-detect a fully-downloaded local snapshot to bypass snapshot_download.
-# snapshot_download stalls on certain blobs even when the dataset is cached;
-# passing root= skips the HF fetch entirely.
+# Auto-detect local snapshots to bypass snapshot_download entirely.
+# snapshot_download hits HF API rate limits under parallel workers and
+# stalls indefinitely; root=/local_path skips all network I/O.
+
+# Robot dataset (lerobot hub cache)
 _LEROBOT_CACHE="${HOME}/.cache/huggingface/lerobot/hub"
 _ROBOT_SLUG="datasets--$(echo "$ROBOT_DATASET" | sed 's|/|--|g')"
 _SNAP_DIR="$_LEROBOT_CACHE/$_ROBOT_SLUG/snapshots"
@@ -49,6 +51,26 @@ if [ -d "$_SNAP_DIR" ]; then
     if [ -n "$_SNAP" ] && [ -d "$_SNAP_DIR/$_SNAP/videos" ]; then
         ROBOT_LOCAL_DIR="${ROBOT_LOCAL_DIR:-$_SNAP_DIR/$_SNAP}"
         echo "==> robot dataset cached locally, bypassing HF download: $ROBOT_LOCAL_DIR"
+    fi
+fi
+
+# VL manifest (standard HF hub cache — hf_hub_download uses ~/.cache/huggingface/hub)
+_HF_CACHE="${HOME}/.cache/huggingface/hub"
+_VL_SLUG="datasets--$(echo "$VL_MANIFEST" | sed 's|/|--|g')"
+_VL_SNAP_DIR="$_HF_CACHE/$_VL_SLUG/snapshots"
+if [ -z "${VL_IMAGE_ROOT:-}" ] && [ -d "$_VL_SNAP_DIR" ]; then
+    _VL_SNAP=$(ls -1 "$_VL_SNAP_DIR" 2>/dev/null | head -1)
+    if [ -n "$_VL_SNAP" ]; then
+        _VL_LOCAL="$_VL_SNAP_DIR/$_VL_SNAP"
+        # Use the local parquet as --vl_manifest and pre-extracted images as --vl_image_root
+        if [ -f "$_VL_LOCAL/manifest.parquet" ]; then
+            VL_MANIFEST="$_VL_LOCAL/manifest.parquet"
+            echo "==> VL manifest cached locally: $VL_MANIFEST"
+        fi
+        if [ -d "$_VL_LOCAL/images" ]; then
+            VL_IMAGE_ROOT="$_VL_LOCAL/images"
+            echo "==> VL images cached locally: $VL_IMAGE_ROOT"
+        fi
     fi
 fi
 

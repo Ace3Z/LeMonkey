@@ -150,6 +150,7 @@ class VLPairsDataset(Dataset):
                     full = snapshot_download(
                         repo_id=manifest_path_or_id, repo_type="dataset",
                         token=os.environ.get("HF_TOKEN"),
+                        max_workers=1,  # avoid HF API rate-limit from parallel requests
                     )
                     image_root = Path(full)
                     # The snapshot may have images.tar.zst still packed; unpack if so.
