@@ -249,6 +249,26 @@ class M2Pi05WrappedPolicy(nn.Module):
         klal_typed = klal_v.to(dtype=action_loss.dtype)
         total = action_loss + self.lam_m2 * m2_typed + klal_typed
 
+        # One-time gradient-flow diagnostic: confirms the M2 capture is not
+        # detached and that M2's gradient actually reaches the trainable
+        # capture layer. Step 0 only — negligible cost.
+        if self._step == 0:
+            gf = "SET" if m2.loss.grad_fn is not None else "NONE"
+            try:
+                from m2_pi05_hook import _resolve_text_model
+                _tm = _resolve_text_model(self.policy)
+                _pp = next((p for p in _tm.layers[self.capture_layer].parameters()
+                            if p.requires_grad), None)
+                _g = (torch.autograd.grad(self.lam_m2 * m2_typed, _pp,
+                                          retain_graph=True, allow_unused=True)[0]
+                      if _pp is not None else None)
+                _gn = f"{float(_g.norm()):.3e}" if _g is not None else "None/unused"
+            except Exception as e:
+                _gn = f"ERR:{type(e).__name__}:{e}"
+            print(f"[m2-diag] captured.requires_grad={captured.requires_grad}  "
+                  f"m2.loss.grad_fn={gf}  "
+                  f"M2-grad->layer{self.capture_layer}_norm={_gn}", flush=True)
+
         with torch.no_grad():
             valid_cos = m2.per_slot_cos[~torch.isnan(m2.per_slot_cos)]
             mean_cos = float(valid_cos.mean().item()) if valid_cos.numel() > 0 else float("nan")

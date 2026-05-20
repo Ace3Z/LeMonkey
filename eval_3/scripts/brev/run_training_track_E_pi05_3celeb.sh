@@ -49,11 +49,18 @@ export M2_MANIFEST_PATH="$M2_TOOLKIT_DIR/celeb_embeddings.json"
 export M2_AUG_ROOT=~/LeMonkey/datasets/eval3_track3_aug
 export M2_EPISODE_MAPPING="$M2_TOOLKIT_DIR/episode_mapping_3celeb.json"
 export M2_DATASET_REPO_ID="HBOrtiz/so101_eval3_track3_v3_baseline"
-export M2_LAMBDA=${M2_LAMBDA:-0.2}
+# M2_LAMBDA=1.0 (not BlindVLA's 0.2): Pi0.5 trains at lr=1e-5, 5x below the
+# 5e-5 SmolVLA used where M2 reached mean_cos 0.88 at lambda=0.2; 5x lambda
+# restores M2's effective step. Verified 2026-05-20: mean_cos +0.01 -> +0.56
+# over 800 steps (dead flat at lambda=0.2).
+export M2_LAMBDA=${M2_LAMBDA:-1.0}
 export M2_CAPTURE_LAYER=${M2_CAPTURE_LAYER:-10}
 export M2_LOG_EVERY=${M2_LOG_EVERY:-100}
 export KLAL_LAMBDA=${KLAL_LAMBDA:-1.0}
-export KLAL_LAYERS=${KLAL_LAYERS:-"6,10,14,17"}
+# KLAL_LAYERS drops layer 6: the partial-freeze freezes LM layers 0-9, so
+# KLAL@6 trained zero params (dead weight diluting the loss). 10/14/17 are
+# the supervised AND trainable layers.
+export KLAL_LAYERS=${KLAL_LAYERS:-"10,14,17"}
 export KLAL_SIGMA_PATCHES=${KLAL_SIGMA_PATCHES:-1.5}
 
 echo "==> Track E config (3-celeb TOY):"

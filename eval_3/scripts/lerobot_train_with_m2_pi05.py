@@ -11,10 +11,12 @@ Env vars (all required unless noted):
     M2_AUG_ROOT            — directory containing augmentation.json files
     M2_EPISODE_MAPPING     — eval3_m2_toolkit/episode_mapping.json
     M2_DATASET_REPO_ID     — used by wrapper to derive frame_index lookup
-    M2_LAMBDA              — float, default 0.2 (BlindVLA Eq.9 lambda)
+    M2_LAMBDA              — float, default 1.0 (5x BlindVLA's 0.2 — offsets
+                             Pi0.5's 5x-smaller lr; see run_training_track_E)
     M2_CAPTURE_LAYER       — int, default 10 (gemma_2b 18-layer, ~57% depth)
     KLAL_LAMBDA            — float, default 1.0 (WACV 2026 KLAL weight)
-    KLAL_LAYERS            — comma-separated, default "6,10,14,17"
+    KLAL_LAYERS            — comma-separated, default "10,14,17" (must be
+                             >= capture_layer — earlier layers are frozen)
     KLAL_SIGMA_PATCHES     — Gaussian sigma in patch units, default 1.5
     M2_LOG_EVERY           — int, default 100
     M2_DISABLE             — set "1" to skip the wrap (debug)
@@ -75,12 +77,12 @@ def _patch_make_policy():
     manifest_path = Path(_env("M2_MANIFEST_PATH", required=True))
     aug_root = Path(_env("M2_AUG_ROOT", required=True))
     episode_mapping = Path(_env("M2_EPISODE_MAPPING", required=True))
-    lam_m2 = _env("M2_LAMBDA", default=0.2, cast=float)
+    lam_m2 = _env("M2_LAMBDA", default=1.0, cast=float)
     capture_layer = _env("M2_CAPTURE_LAYER", default=10, cast=int)
     log_every = _env("M2_LOG_EVERY", default=100, cast=int)
 
     klal_lam = _env("KLAL_LAMBDA", default=1.0, cast=float)
-    klal_layers = tuple(int(x) for x in _env("KLAL_LAYERS", default="6,10,14,17").split(","))
+    klal_layers = tuple(int(x) for x in _env("KLAL_LAYERS", default="10,14,17").split(","))
     klal_sigma = _env("KLAL_SIGMA_PATCHES", default=1.5, cast=float)
 
     for p in [face_labels_dir, manifest_path, aug_root, episode_mapping]:
