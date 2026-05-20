@@ -38,6 +38,24 @@ DTYPE="${DTYPE:-bfloat16}"
 OUT_DIR="${OUT_DIR:-outputs/smolvla_cotrain_${VL_RATIO}to1}"
 PUSH_REPO="${PUSH_REPO:-}"                  # leave empty to skip HF push
 
+# ---- KLAL + LoRA (celeb-routing enhancement; off unless ENABLE_*=1) ----------
+ENABLE_LORA="${ENABLE_LORA:-0}"             # 1 => freeze VLM base, adapt via LoRA
+LORA_R="${LORA_R:-16}"
+LORA_ALPHA="${LORA_ALPHA:-32}"
+LORA_DROPOUT="${LORA_DROPOUT:-0.0}"
+LORA_LAYERS="${LORA_LAYERS:-all}"
+LORA_TARGET_MODULES="${LORA_TARGET_MODULES:-q_proj,k_proj,v_proj,o_proj}"
+
+ENABLE_KLAL="${ENABLE_KLAL:-0}"             # 1 => add KLAL attention loss
+KLAL_LAMBDA="${KLAL_LAMBDA:-1.0}"
+KLAL_LAYERS="${KLAL_LAYERS:-10,12,14}"      # must be a subset of LoRA layers
+KLAL_SIGMA="${KLAL_SIGMA:-1.0}"
+# KLAL bbox supervision — M2 toolkit paths (required when ENABLE_KLAL=1):
+FACE_LABELS_DIR="${FACE_LABELS_DIR:-}"
+CELEB_MANIFEST="${CELEB_MANIFEST:-}"
+AUG_ROOT="${AUG_ROOT:-}"
+EPISODE_MAPPING="${EPISODE_MAPPING:-}"
+
 # ---- Pre-flight ---------------------------------------------------------------
 
 if [ -z "${HF_TOKEN:-}" ]; then
@@ -70,6 +88,8 @@ echo "    vl_ratio   : $VL_RATIO (=> VL batch every $((VL_RATIO + 1))-th step)"
 echo "    lr         : $LR"
 echo "    output     : $OUT_DIR"
 echo "    push       : ${PUSH_REPO:-(skip)}"
+echo "    lora       : $([ "$ENABLE_LORA" = "1" ] && echo "on (r=$LORA_R a=$LORA_ALPHA layers=$LORA_LAYERS)" || echo "off (full VLM fine-tune)")"
+echo "    klal       : $([ "$ENABLE_KLAL" = "1" ] && echo "on (lambda=$KLAL_LAMBDA layers=$KLAL_LAYERS sigma=$KLAL_SIGMA)" || echo "off")"
 echo
 
 CMD=( python -u "$SCRIPT"
@@ -91,5 +111,25 @@ CMD=( python -u "$SCRIPT"
 [ -n "$VL_IMAGE_ROOT" ] && CMD+=( --vl_image_root="$VL_IMAGE_ROOT" )
 [ -n "$VLM_OVERRIDE"  ] && CMD+=( --vlm_model_name="$VLM_OVERRIDE" )
 [ -n "$PUSH_REPO"     ] && CMD+=( --push_to_hub_repo="$PUSH_REPO" )
+
+if [ "$ENABLE_LORA" = "1" ]; then
+    CMD+=( --enable_lora
+           --lora_r="$LORA_R"
+           --lora_alpha="$LORA_ALPHA"
+           --lora_dropout="$LORA_DROPOUT"
+           --lora_layers="$LORA_LAYERS"
+           --lora_target_modules="$LORA_TARGET_MODULES" )
+fi
+
+if [ "$ENABLE_KLAL" = "1" ]; then
+    CMD+=( --enable_klal
+           --klal_lambda="$KLAL_LAMBDA"
+           --klal_layers="$KLAL_LAYERS"
+           --klal_sigma="$KLAL_SIGMA"
+           --face_labels_dir="$FACE_LABELS_DIR"
+           --celeb_manifest="$CELEB_MANIFEST"
+           --aug_root="$AUG_ROOT"
+           --episode_mapping="$EPISODE_MAPPING" )
+fi
 
 "${CMD[@]}"

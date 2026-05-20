@@ -35,6 +35,23 @@ Usage
         --push_to_hub_repo=HBOrtiz/smolvla_eval3_cotrain_10to1
 
 For a smoke test, drop --steps=200 and --batch_size=4.
+
+Optional KLAL + LoRA (celeb-routing enhancement)
+------------------------------------------------
+`--enable_lora` adapts the VLM via low-rank adapters (base frozen) instead of
+full fine-tuning. `--enable_klal` adds the KLAL attention-supervision loss on
+robot batches — it teaches the policy's name-token to attend to the prompted
+celeb's face patch, against a bbox-derived target. KLAL needs the M2 toolkit's
+face-bbox data (bboxes only — the M2 ArcFace loss is NOT added):
+
+    ... --enable_lora --enable_klal \\
+        --face_labels_dir=eval_3/aug/stats/face_labels \\
+        --celeb_manifest=eval_3/aug/stats/celeb_embeddings.json \\
+        --aug_root=/data/eval3_track3_aug \\
+        --episode_mapping=eval_3/aug/stats/episode_mapping.json
+
+Checkpoints are saved with the LoRA delta merged into the base weights, so
+they load as a vanilla SmolVLAPolicy (eval-day recipe unchanged).
 """
 from __future__ import annotations
 
@@ -42,12 +59,19 @@ import argparse
 import os
 import sys
 import time
+from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
 
 import torch
 import torch.nn.functional as F
 from torch.utils.data import DataLoader, Dataset
+
+# The m2_* helpers (LoRA, KLAL attention supervision) live in eval_3/aug.
+# Add it to the path so the bare `import m2_*` statements resolve regardless
+# of the CWD the script is launched from.
+REPO_ROOT = Path(__file__).resolve().parents[3]
+sys.path.insert(0, str(REPO_ROOT / "eval_3/aug"))
 
 
 # -----------------------------------------------------------------------------
@@ -101,6 +125,40 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--video_backend", default="pyav",
                    help="LeRobotDataset video backend. Default pyav — torchcodec leaks "
                         "~35 GB/worker over long runs (see TORCHCODEC_OOM_REPORT.md).")
+    # LoRA — parameter-efficient VLM adaptation. With --enable_lora the VLM
+    # base is frozen and adapted only via low-rank adapters (instead of
+    # full-fine-tuning the VLM body); both VQA-CE and action gradients flow
+    # into the adapters. Off → original cotrain (full VLM fine-tune).
+    p.add_argument("--enable_lora", action="store_true",
+                   help="Freeze the VLM base, adapt it via LoRA adapters only.")
+    p.add_argument("--lora_r", type=int, default=16)
+    p.add_argument("--lora_alpha", type=int, default=32)
+    p.add_argument("--lora_dropout", type=float, default=0.0)
+    p.add_argument("--lora_layers", default="all",
+                   help="Comma-separated VLM layer indices to LoRA, or 'all'.")
+    p.add_argument("--lora_target_modules", default="q_proj,k_proj,v_proj,o_proj")
+    # KLAL — name-token -> face-patch attention supervision on robot batches.
+    p.add_argument("--enable_klal", action="store_true",
+                   help="Add the KLAL attention-supervision loss on robot steps.")
+    p.add_argument("--klal_lambda", type=float, default=1.0,
+                   help="KLAL loss weight (WACV 2026 uses 1.0).")
+    p.add_argument("--klal_layers", default="10,12,14",
+                   help="VLM layers KLAL supervises. Must be a subset of the "
+                        "LoRA layers when --enable_lora.")
+    p.add_argument("--klal_sigma", type=float, default=1.0,
+                   help="Gaussian target sigma in patch units. SmolVLA's 8x8 "
+                        "grid is coarser than Pi0.5's 16x16, so 1.0 (vs the "
+                        "Pi0.5 KLAL's 1.5) — empirical default, see the port doc.")
+    # KLAL bbox supervision source — the M2 toolkit's data builder. KLAL uses
+    # only the face bounding boxes from it; the M2 ArcFace loss is NOT added.
+    p.add_argument("--face_labels_dir", default=None,
+                   help="M2 toolkit face_labels/ dir (required with --enable_klal).")
+    p.add_argument("--celeb_manifest", default=None,
+                   help="M2 toolkit celeb_embeddings.json (required with --enable_klal).")
+    p.add_argument("--aug_root", default=None,
+                   help="Dir of per-variant augmentation.json (required with --enable_klal).")
+    p.add_argument("--episode_mapping", default=None,
+                   help="M2 toolkit episode_mapping.json (required with --enable_klal).")
     return p.parse_args()
 
 
@@ -331,7 +389,11 @@ def load_policy_and_processor(args, device: torch.device):
     assert isinstance(cfg, SmolVLAConfig), (
         f"Expected SmolVLAConfig from {args.pretrained_path}, got {type(cfg)}"
     )
-    cfg.train_expert_only = False    # CRITICAL: VLM body must be trainable for VQA CE.
+    # VLM trainability. Without LoRA: full-fine-tune the VLM body (cotrain
+    # default — CRITICAL so the VQA-CE loss can move VLM weights). With LoRA:
+    # freeze the VLM base; the trainable LoRA adapters (injected below) carry
+    # both the VQA-CE and the action gradients into the VLM instead.
+    cfg.train_expert_only = bool(args.enable_lora)
     cfg.freeze_vision_encoder = True # Keep SigLIP frozen — RT-2 doesn't tune it either.
     cfg.empty_cameras = max(0, cfg.empty_cameras) if hasattr(cfg, "empty_cameras") else 0
     if args.vlm_model_name is not None:
@@ -345,9 +407,36 @@ def load_policy_and_processor(args, device: torch.device):
     # Re-apply requires_grad in case the policy load reset them.
     policy.model.vlm_with_expert.set_requires_grad()
 
+    # LoRA: freeze the VLM base, add trainable low-rank adapters on the LM
+    # attention projections. Done AFTER set_requires_grad so the adapters
+    # (created requires_grad=True) survive. With train_expert_only=True the
+    # base + lm_head are frozen; the adapters carry the trainable capacity.
+    lora_registry: list = []
+    lora_layers: tuple = ()
+    if args.enable_lora:
+        from m2_lora import LoRAConfig, count_lora_params, inject_lora
+
+        text_model = policy.model.vlm_with_expert.vlm.model.text_model
+        n_layers = len(text_model.layers)
+        if args.lora_layers.strip().lower() == "all":
+            lora_layers = tuple(range(n_layers))
+        else:
+            lora_layers = tuple(int(x) for x in args.lora_layers.split(","))
+        lora_cfg = LoRAConfig(
+            r=args.lora_r, alpha=args.lora_alpha, dropout=args.lora_dropout,
+            layers=lora_layers,
+            target_modules=tuple(m.strip() for m in args.lora_target_modules.split(",")),
+        )
+        lora_registry = inject_lora(text_model, lora_cfg)
+        print(f"[cotrain] LoRA injected: {len(lora_registry)} modules over "
+              f"{len(lora_layers)} layers, r={args.lora_r} alpha={args.lora_alpha} "
+              f"dropout={args.lora_dropout}, "
+              f"{count_lora_params(lora_registry) / 1e6:.2f}M adapter params",
+              flush=True)
+
     # SmolVLM2 processor (Idefics3Processor under the hood) for the VL collator.
     vl_processor = policy.model.vlm_with_expert.processor
-    return policy, vl_processor, cfg
+    return policy, vl_processor, cfg, lora_registry, lora_layers
 
 
 def load_robot_dataset(args):
@@ -408,6 +497,98 @@ def build_robot_preprocessor(policy_cfg, dataset, pretrained_path: str, device: 
 
 
 # -----------------------------------------------------------------------------
+# KLAL + LoRA helpers
+# -----------------------------------------------------------------------------
+
+@contextmanager
+def merged_lora_for_save(lora_registry):
+    """Within this block LoRA modules are swapped for plain merged Linears so
+    `save_pretrained` / `push_to_hub` write a vanilla SmolVLAPolicy checkpoint
+    (loadable with no LoRA code — keeps the eval-day recipe unchanged). The
+    LoRA modules are restored on exit; base weights are never mutated.
+    """
+    if lora_registry:
+        from m2_lora import swap_to_lora, swap_to_merged
+
+        swap_to_merged(lora_registry)
+        try:
+            yield
+        finally:
+            swap_to_lora(lora_registry)
+    else:
+        yield
+
+
+def robot_episode_frame_indices(raw_batch: dict) -> tuple[list[int], list[int]]:
+    """Per-sample (episode_index, frame_index) from a raw LeRobotDataset batch.
+
+    KLAL supervision is keyed on these so the bbox builder can look up the
+    prompted celeb's face box for each frame.
+    """
+    if "episode_index" not in raw_batch or "frame_index" not in raw_batch:
+        raise KeyError(
+            "robot batch missing 'episode_index'/'frame_index' — KLAL needs "
+            "both to look up face bboxes. Got keys: "
+            f"{sorted(k for k in raw_batch if isinstance(k, str))}"
+        )
+    ep = raw_batch["episode_index"]
+    fr = raw_batch["frame_index"]
+    if ep.ndim == 2:
+        ep = ep[:, -1]
+    if fr.ndim == 2:
+        fr = fr[:, -1]
+    return (ep.detach().cpu().long().tolist(),
+            fr.detach().cpu().long().tolist())
+
+
+def compute_klal_loss(hookset, cfg, builder, name_ids, batch, ep_idx, fr_idx,
+                      device) -> torch.Tensor:
+    """Build KLAL supervision for the robot batch and return the scaled loss.
+
+    Returns a 0-d tensor; 0.0 (no grad) if no name tokens / bboxes / image
+    offset could be resolved for the batch (logged once — CLAUDE.md §5).
+    """
+    from m2_klal import klal_loss
+    from m2_klal_smolvla import extract_name_token_positions
+
+    sup = builder.build_batch_from_episode_indices(
+        episode_indices=ep_idx, frame_idxs=fr_idx, device=device)
+    bbox_masks = sup["bbox_masks"]                       # (B, 3, P) bool
+    B = bbox_masks.shape[0]
+    tgt_slot = sup.get("target_slot_idx")
+    if tgt_slot is None:
+        # No explicit prompted-slot index — union the 3 slots (less precise).
+        target_masks = bbox_masks.any(dim=1)             # (B, P)
+    else:
+        target_masks = torch.stack(
+            [bbox_masks[b, int(tgt_slot[b])] for b in range(B)], dim=0)
+
+    lang_tokens = batch.get("observation.language.tokens")
+    name_pos = None
+    if lang_tokens is not None:
+        name_pos = extract_name_token_positions(
+            lang_tokens, sup.get("target_celeb_short"), name_ids)
+
+    off = hookset.image_prefix_len()
+    patches = hookset.patches_per_image()
+    if name_pos is None or off is None or patches is None:
+        if not getattr(compute_klal_loss, "_warned", False):
+            print(f"[WARN] KLAL: no supervision this step — "
+                  f"expected=name tokens + measured image-prefix length, got "
+                  f"name_pos={name_pos is not None} off={off} patches={patches}, "
+                  f"fallback=KLAL contributes 0 (logged once)", flush=True)
+            compute_klal_loss._warned = True
+        return torch.zeros((), device=device)
+
+    # name_pos holds positions WITHIN the language sequence; offset by the
+    # image-patch span to get prefix-row indices.
+    shifted = torch.where(name_pos >= 0, name_pos + off, name_pos).to(device)
+    return klal_loss(hookset, image_patch_slice=slice(0, patches),
+                     name_token_positions=shifted,
+                     target_masks=target_masks.to(device), cfg=cfg)
+
+
+# -----------------------------------------------------------------------------
 # Main training loop
 # -----------------------------------------------------------------------------
 
@@ -429,12 +610,68 @@ def main() -> int:
 
     # 1. Policy + processor.
     print(f"[cotrain] loading SmolVLA policy from {args.pretrained_path} ...", flush=True)
-    policy, vl_processor, policy_cfg = load_policy_and_processor(args, device)
+    policy, vl_processor, policy_cfg, lora_registry, lora_layers = \
+        load_policy_and_processor(args, device)
     policy.train()
     trainable_n = sum(p.numel() for p in policy.parameters() if p.requires_grad)
     total_n = sum(p.numel() for p in policy.parameters())
     print(f"[cotrain] trainable params: {trainable_n / 1e6:.1f}M / {total_n / 1e6:.1f}M "
           f"({100 * trainable_n / total_n:.1f}%)", flush=True)
+
+    # 1b. KLAL attention supervision (robot steps only). Teaches the VLM's
+    # name-token to attend to the prompted celeb's face patch, against a
+    # bbox-derived Gaussian target. Bboxes come from the M2 toolkit's data
+    # builder — bboxes only, the M2 ArcFace loss is NOT added.
+    klal_hookset = None
+    klal_cfg = None
+    klal_builder = None
+    klal_name_ids = None
+    if args.enable_klal:
+        for flag, val in [("--face_labels_dir", args.face_labels_dir),
+                          ("--celeb_manifest", args.celeb_manifest),
+                          ("--aug_root", args.aug_root),
+                          ("--episode_mapping", args.episode_mapping)]:
+            if not val:
+                raise SystemExit(f"--enable_klal requires {flag}")
+        if getattr(policy_cfg, "add_image_special_tokens", False):
+            raise SystemExit(
+                "KLAL needs add_image_special_tokens=False — with special "
+                "tokens the image-prefix length the loss relies on is wrong.")
+
+        from m2_dataloader import M2SupervisionBuilder
+        from m2_klal import KLALConfig
+        from m2_klal_smolvla import KLALHookSetSmolVLA, build_name_token_ids
+
+        klal_layers = tuple(int(x) for x in args.klal_layers.split(","))
+        if args.enable_lora and not set(klal_layers).issubset(set(lora_layers)):
+            raise SystemExit(
+                f"--klal_layers {klal_layers} must be a subset of the LoRA "
+                f"layers {sorted(lora_layers)} — KLAL can only shape attention "
+                f"where the q/k projections are trainable.")
+
+        klal_builder = M2SupervisionBuilder(
+            face_labels_dir=Path(args.face_labels_dir),
+            manifest_path=Path(args.celeb_manifest),
+            aug_root=Path(args.aug_root),
+            episode_mapping_path=Path(args.episode_mapping),
+        )
+        vlm_we = policy.model.vlm_with_expert
+        tcfg = vlm_we.config.text_config
+        n_heads = tcfg.num_attention_heads
+        n_kv = tcfg.num_key_value_heads
+        head_dim = getattr(tcfg, "head_dim", None) or (tcfg.hidden_size // n_heads)
+        klal_hookset = KLALHookSetSmolVLA(
+            vlm_we.vlm.model.text_model, vlm_we, klal_layers,
+            n_heads, n_kv, head_dim)
+        klal_cfg = KLALConfig(capture_layers=klal_layers,
+                              target_sigma_patches=args.klal_sigma,
+                              lam=args.klal_lambda,
+                              patch_grid=8, num_image_patches_total=64)
+        klal_name_ids = build_name_token_ids(vl_processor.tokenizer)
+        print(f"[cotrain] KLAL enabled: layers={klal_layers} "
+              f"lambda={args.klal_lambda} sigma={args.klal_sigma}, "
+              f"celeb name-tokens="
+              f"{ {k: len(v) for k, v in klal_name_ids.items()} }", flush=True)
 
     # 2. Robot dataset + preprocessor + dataloader.
     print(f"[cotrain] loading robot dataset {args.robot_dataset} ...", flush=True)
@@ -488,6 +725,7 @@ def main() -> int:
     last_log_time = time.perf_counter()
     last_flow_loss = float("nan")
     last_vqa_loss = float("nan")
+    last_klal_loss = float("nan")
 
     for step in range(args.steps):
         is_vl_step = (step % period == 0)
@@ -510,6 +748,11 @@ def main() -> int:
             except StopIteration:
                 robot_iter = iter(robot_loader)
                 batch = next(robot_iter)
+            # KLAL: read episode/frame indices off the RAW batch and arm the
+            # attention hooks before the forward.
+            if klal_hookset is not None:
+                ep_idx, fr_idx = robot_episode_frame_indices(batch)
+                klal_hookset.reset()
             # Apply the SmolVLA preprocessor: tokenizes the language task,
             # normalizes state/action features, moves to device. Without
             # this the policy's forward raises KeyError on language tokens.
@@ -517,9 +760,18 @@ def main() -> int:
             with torch.amp.autocast(device_type=device.type,
                                      dtype=torch.bfloat16 if args.dtype == "bfloat16"
                                                           else torch.float32):
-                loss = smolvla_action_loss(policy, batch)
+                flow_loss = smolvla_action_loss(policy, batch)
+            loss = flow_loss
+            last_flow_loss = flow_loss.item()
+            # KLAL loss — recomputed from the q/k captured during the forward
+            # above; its gradient flows back into the VLM q/k (LoRA adapters).
+            if klal_hookset is not None:
+                klal_v = compute_klal_loss(
+                    klal_hookset, klal_cfg, klal_builder, klal_name_ids,
+                    batch, ep_idx, fr_idx, device)
+                loss = flow_loss + klal_v.to(flow_loss.dtype)
+                last_klal_loss = float(klal_v.detach())
             loss_name = "flow_loss"
-            last_flow_loss = loss.item()
 
         if not torch.isfinite(loss):
             print(f"[WARN] step {step}: non-finite loss ({loss_name}={loss.item()}), "
@@ -543,14 +795,18 @@ def main() -> int:
             last_log_time = time.perf_counter()
             steps_per_sec = args.log_every / dt if dt > 0 else 0
             print(f"step {step:6d}  {loss_name}={loss.item():.4f}  "
-                  f"(last flow={last_flow_loss:.4f} vqa={last_vqa_loss:.4f})  "
+                  f"(last flow={last_flow_loss:.4f} vqa={last_vqa_loss:.4f} "
+                  f"klal={last_klal_loss:.4f})  "
                   f"grad={grad_norm:.2f}  steps/s={steps_per_sec:.2f}",
                   flush=True)
 
         if step > 0 and step % args.save_freq == 0:
             ckpt_dir = out_dir / f"step_{step:06d}"
             ckpt_dir.mkdir(parents=True, exist_ok=True)
-            policy.save_pretrained(ckpt_dir)
+            # merged_lora_for_save folds the LoRA delta into the base for the
+            # duration of the save so the checkpoint is a vanilla SmolVLAPolicy.
+            with merged_lora_for_save(lora_registry):
+                policy.save_pretrained(ckpt_dir)
             # Save preprocessor/postprocessor alongside so eval-day inference
             # can reproduce normalization + tokenization. Without these, the
             # checkpoint cannot be deployed.
@@ -561,7 +817,8 @@ def main() -> int:
     # 6. Final save.
     final_dir = out_dir / "final"
     final_dir.mkdir(parents=True, exist_ok=True)
-    policy.save_pretrained(final_dir)
+    with merged_lora_for_save(lora_registry):
+        policy.save_pretrained(final_dir)
     preprocessor.save_pretrained(final_dir)
     postprocessor.save_pretrained(final_dir)
     print(f"[cotrain] final checkpoint → {final_dir}", flush=True)
@@ -569,7 +826,8 @@ def main() -> int:
     # 7. HF push (policy + processors).
     if args.push_to_hub_repo:
         try:
-            policy.push_to_hub(args.push_to_hub_repo)
+            with merged_lora_for_save(lora_registry):
+                policy.push_to_hub(args.push_to_hub_repo)
             preprocessor.push_to_hub(args.push_to_hub_repo)
             postprocessor.push_to_hub(args.push_to_hub_repo)
             print(f"[cotrain] pushed to https://huggingface.co/{args.push_to_hub_repo}",
