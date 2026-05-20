@@ -17,7 +17,7 @@ the 30 k step production launch.
 | Darius's VL pairs manifest | Darius | `HBOrtiz/eval3_objectvla_vl_pairs` on HF, parquet schema matches `lerobot_train_with_vl_cotrain.py` `VLPairsDataset.__init__` required cols (`image_path`, `prompt`, `target`) |
 | Roham's robot-frame bboxes | Roham | parquet with `episode_idx`, `frame_idx`, `bbox_xyxy`, `target_celeb` columns for 200-celeb dataset |
 | brev_instance2 access | — | SSH works; conda `lemonkey` env activates; `python -c "import lerobot, peft, transformers, torch; print(...)"` reports versions |
-| warm-PG checkpoint accessible | Roham | `hf download HBOrtiz/pi05_paligemma_celeb_warm` succeeds (or local cache present) |
+| warm-PG checkpoint accessible | Roham | `hf download HBOrtiz/pi05_paligemma_celeb_warm_v2` succeeds (or local cache present) |
 
 ---
 
@@ -175,7 +175,7 @@ already covers this, but verify your specific checkpoint loads cleanly:
 
 ```bash
 # On Strix:
-hf download HBOrtiz/pi05_paligemma_celeb_warm --local-dir /tmp/pi05_warm
+hf download HBOrtiz/pi05_paligemma_celeb_warm_v2 --local-dir /tmp/pi05_warm
 
 # Simulate the rollout runner's first action with the warm-PG checkpoint
 # as a dry-run for Track 2's eventual checkpoint format.

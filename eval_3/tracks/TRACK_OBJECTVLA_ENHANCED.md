@@ -28,7 +28,7 @@ than clean tabletop objects — we should expect lower lift unless we squeeze
 every free signal available.
 
 **0.2 — Cold `pi05_base` was ObjectVLA's baseline because they didn't have a
-warm-PG. We do.** Roham's `HBOrtiz/pi05_paligemma_celeb_warm` is verified ready
+warm-PG. We do.** Roham's `HBOrtiz/pi05_paligemma_celeb_warm_v2` is verified ready
 on HF (4 B params, LoRA-merged from 9 131-identity VGGFace2 VQA fine-tuning).
 Starting cold ignores this. **Enhancement B-1** flips one flag to stack
 offline + online face knowledge — the kind of cost-free signal you take.
@@ -113,13 +113,13 @@ LoRA target list.
 
 ### B-1 · Warm-PG starting point (1 flag, ~0 h)
 
-Swap cold `lerobot/pi05_base` → warm `HBOrtiz/pi05_paligemma_celeb_warm`
+Swap cold `lerobot/pi05_base` → warm `HBOrtiz/pi05_paligemma_celeb_warm_v2`
 (Roham's warm-PG, verified ready on HF: 4 B params, safetensors, F32/BF16).
 Stacks offline VGGFace2 face-knowledge with online ObjectVLA bbox grounding.
 
 ```diff
 - --policy.pretrained_path=lerobot/pi05_base
-+ --policy.pretrained_path=HBOrtiz/pi05_paligemma_celeb_warm
++ --policy.pretrained_path=HBOrtiz/pi05_paligemma_celeb_warm_v2
 ```
 
 **Why it works**: warm-PG already LoRA-fine-tuned PaliGemma's language body on
@@ -222,7 +222,7 @@ Low risk, modest expected lift (~1–3%). Skip if time-constrained.
   python eval_3/scripts/lerobot_train_with_vl_cotrain.py \
     --policy.type=pi05 \
 -   --policy.pretrained_path=lerobot/pi05_base \
-+   --policy.pretrained_path=HBOrtiz/pi05_paligemma_celeb_warm \
++   --policy.pretrained_path=HBOrtiz/pi05_paligemma_celeb_warm_v2 \
     --policy.freeze_vision_encoder=True \
     --policy.train_expert_only=False \
     --policy.empty_cameras=3 \

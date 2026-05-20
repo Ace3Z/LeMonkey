@@ -97,7 +97,7 @@ face recognition during Track 2 training:
 - **Curriculum (B-5)**: easy variants first (high hardneg_gap), then full
   distribution at step 5 k. Lets face features form before action loss
   settles.
-- **Warm-PG starting (B-1)**: load from `HBOrtiz/pi05_paligemma_celeb_warm`
+- **Warm-PG starting (B-1)**: load from `HBOrtiz/pi05_paligemma_celeb_warm_v2`
   which already has VGGFace2 celeb knowledge LoRA-merged into PaliGemma.
 - **EMA (B-7)**: α=0.999 shadow weights reduce gradient-noise oscillation
   late in training.

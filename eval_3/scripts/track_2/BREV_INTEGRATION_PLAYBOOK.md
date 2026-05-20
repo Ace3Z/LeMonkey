@@ -49,7 +49,7 @@ dict-attention-mask fallback in Phase D2 is needed.
 python <<'EOF'
 from lerobot.policies.pi05.modeling_pi05 import PI05Policy
 import torch
-p = PI05Policy.from_pretrained("HBOrtiz/pi05_paligemma_celeb_warm")
+p = PI05Policy.from_pretrained("HBOrtiz/pi05_paligemma_celeb_warm_v2")
 print(f"loaded ok, {sum(x.numel() for x in p.parameters())/1e9:.2f}B params")
 print(f"layers: {len(p.model.paligemma_with_expert.paligemma.model.language_model.layers)}")
 EOF

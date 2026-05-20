@@ -24,7 +24,7 @@ For ad-hoc smoke testing:
 
     python eval_3/scripts/track_2/lerobot_train_with_vl_cotrain.py \\
         --policy.type=pi05 \\
-        --policy.pretrained_path=HBOrtiz/pi05_paligemma_celeb_warm \\
+        --policy.pretrained_path=HBOrtiz/pi05_paligemma_celeb_warm_v2 \\
         --dataset.repo_id=HBOrtiz/so101_eval3_aug_v3_200celebs \\
         --vl_dataset.manifest=HBOrtiz/eval3_objectvla_vl_pairs \\
         --vl_ratio=10 \\

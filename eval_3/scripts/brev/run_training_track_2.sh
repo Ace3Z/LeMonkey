@@ -4,7 +4,7 @@
 # Mirrors run_training_track_B.sh + adds:
 #   - --vl_dataset.manifest  (Darius's VL pairs, HBOrtiz/eval3_objectvla_vl_pairs)
 #   - --vl_ratio=10          (10 robot batches : 1 VL batch — ObjectVLA published)
-#   - --policy.pretrained_path=HBOrtiz/pi05_paligemma_celeb_warm  (Enhancement B-1)
+#   - --policy.pretrained_path=HBOrtiz/pi05_paligemma_celeb_warm_v2  (Enhancement B-1)
 #   - --dataset.episodes_file (Enhancement B-2 keep_list — when ready)
 #   - --dataset.sample_weights (Enhancement B-3 hardneg weights — when ready)
 #   - --dataset.curriculum_switch_step=5000 (Enhancement B-5)
@@ -39,7 +39,7 @@ LORA_ALPHA="${LORA_ALPHA:-64}"
 LORA_TARGETS='["q_proj","k_proj","v_proj","o_proj","gate_proj","up_proj","down_proj"]'
 
 # Enhancement B-1: warm-PG starting point (NOT cold pi05_base).
-PRETRAINED="${PRETRAINED:-HBOrtiz/pi05_paligemma_celeb_warm}"
+PRETRAINED="${PRETRAINED:-HBOrtiz/pi05_paligemma_celeb_warm_v2}"
 
 # Enhancement B-2/B-3 artifacts (paths relative to repo root).
 KEEP_LIST="${KEEP_LIST:-eval_3/scripts/track_2/keep_episodes.txt}"
