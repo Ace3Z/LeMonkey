@@ -115,13 +115,15 @@ Every 5k steps: `[cotrain] checkpoint saved → …` then `[cotrain] pushed → 
 |---|---|---|
 | `STEPS` | `25000` | total training steps |
 | `SAVE_FREQ` | `5000` | checkpoint + push interval |
-| `BATCH_SIZE` | `32` | robot batch **per GPU** — H200 has 141 GB, you can raise this (watch `nvidia-smi`) |
-| `VL_BATCH_SIZE` | `16` | VL batch per GPU — likewise raisable |
+| `BATCH_SIZE` | `48` | robot batch **per GPU** — measured: 65.5 GB peak on an 80 GB card |
+| `VL_BATCH_SIZE` | `24` | VL batch per GPU |
 | `NUM_WORKERS` | `8` | dataloader workers per GPU process |
 | `OUT_DIR` | `outputs/smolvla_klal_lora_25k` | local checkpoint dir |
 
-The defaults are deliberately conservative so the run won't OOM. To use more
-of each H200, raise `BATCH_SIZE`/`VL_BATCH_SIZE` and watch `nvidia-smi`.
+`BATCH_SIZE=48 / VL_BATCH_SIZE=24` was measured at **65.5 GB peak on an 80 GB
+card (~80%, no OOM over 220 steps)** — a good fit with safe headroom. Going to
+64/32 extrapolates past 80 GB and risks OOM; 48/24 is the recommended setting
+for 80 GB cards. With 7 GPUs the effective batch is 7×48 = 336 robot / 168 VL.
 
 This script targets a **single node** with several GPUs. For a multi-node job,
 replace `--standalone` in `run_cluster.sh` with your cluster's torchrun

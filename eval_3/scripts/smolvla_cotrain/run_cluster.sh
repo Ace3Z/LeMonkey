@@ -28,8 +28,8 @@ export HF_TOKEN
 # ── tunables (override via env) ──────────────────────────────────────────────
 STEPS="${STEPS:-25000}"               # total training steps
 SAVE_FREQ="${SAVE_FREQ:-5000}"        # checkpoint + HF push every N steps
-BATCH_SIZE="${BATCH_SIZE:-32}"        # robot batch PER GPU  (H200 141GB — safe to raise)
-VL_BATCH_SIZE="${VL_BATCH_SIZE:-16}"  # VL batch PER GPU     (H200 141GB — safe to raise)
+BATCH_SIZE="${BATCH_SIZE:-48}"        # robot batch PER GPU  (measured: 65.5/80 GB at 48/24)
+VL_BATCH_SIZE="${VL_BATCH_SIZE:-24}"  # VL batch PER GPU     (measured on an 80 GB card)
 VL_RATIO="${VL_RATIO:-10}"            # 10:1 robot:VL (ObjectVLA recipe)
 LR="${LR:-5e-5}"
 NUM_WORKERS="${NUM_WORKERS:-8}"       # dataloader workers per GPU process
