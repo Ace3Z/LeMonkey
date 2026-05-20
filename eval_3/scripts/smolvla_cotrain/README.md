@@ -4,6 +4,93 @@ RT-2 §3.2 style co-training: every `vl_ratio+1`-th step is a VQA batch with CE 
 
 This is the SmolVLA-450M sibling of `eval_3/scripts/track_2/lerobot_train_with_vl_cotrain.py` (Pi0.5-3B). Unlike that one, the script here is **end-to-end integrated** — its training loop runs as-is on a single GPU node.
 
+---
+
+## 0. HANDOVER — read this first if you're an agent picking this up on a fresh cluster instance
+
+**Goal:** fix the diagnosed failure where the SmolVLA policy ignores the prompt
+celeb name and always places the coke on the same workspace position
+("positional shortcut" / attention sink-lock). We do this with a single
+co-training run carrying up to three losses:
+
+- **L_action** — SmolVLA flow-matching on teleop episodes (robot frames). Unchanged.
+- **L_name** — VQA CE on celebrity images (name the face). Keeps the celeb-name
+  prior alive so it can't drift while the policy learns to act.
+- **L_attn (KLAL)** — KL attention-supervision: pushes the name-token→image-patch
+  attention toward the prompted celeb's face bbox. The head-on fix for the
+  "looks at the wrong face" routing failure. (arXiv:2511.12738; SmolVLM2 port in
+  `smolvla_klal.py`.)
+
+`loss = L_action  on robot steps;  vqa + klal_lam·klal  on VL steps` (a VL step
+hits every `vl_ratio+1`-th step). Both flow into the shared SmolVLM2 backbone.
+
+**What to run, in order** — see "KLAL ablation arms" below for the exact commands:
+1. **A — full fine-tune + KLAL** (paper's setup, λ=1). Run FIRST; sets the ceiling.
+2. **B — wide LoRA + KLAL** (λ≈0.1). Run SECOND; "can a cheap adapter match full?"
+3. **C — q/k-only LoRA + KLAL** (λ≈0.1). Run THIRD / parallel if compute spare.
+   Plus a no-KLAL **cheap bbox-as-text baseline** for comparison.
+Always **smoke-test (200 steps) before any long run** (gates below). Start with
+arm A's smoke — it has no LoRA injection, fewest moving parts.
+
+**Inference reality (drives the design):** at deploy the model gets only the
+**text name** in the prompt ("Place the coke on Barack Obama") + the single
+scene camera. No reference image. So the VL stream uses text-name identity (not
+the `reference_image_path` column), and KLAL anchors on name-tokens.
+
+### Datasets & models
+
+| Role | Repo | Notes |
+|---|---|---|
+| Robot teleop (L_action) | `HBOrtiz/so101_eval3_track3_v3_baseline` | 9,394 eps, 3 celebs (Swift/Obama/LeCun), text-only prompts |
+| VL pairs (L_name + L_attn) | `HBOrtiz/eval3_objectvla_vl_pairs` | 176,670 rows, 192 celebs. Cols: `image_path` (scene), `prompt`, `target`, `bbox_xyxy_norm` [x1,y1,x2,y2] (face box on the scene), `caption_type` (`qa_grounded`=bare name, `location_explicit`=bbox-as-text), `celeb_slug`, `pid`, `reference_image_path` (UNUSED — inference is text-only) |
+| Warm VLM backbone | `HBOrtiz/smolvlm2_lora_celebs` | SmolVLM2-500M with celeb LoRA merged (~60% name acc). Warm-start all KLAL arms from this. |
+| SmolVLA base policy | `lerobot/smolvla_base` | 450M; the action-expert + VLM scaffold |
+
+## 1. Environment setup (fresh cluster / Brev / AWS instance)
+
+These are the hard-won versions — wrong Python or ffmpeg will waste hours.
+**HuggingFace Pro** strongly recommended (free-tier rate limits stall the 14 GB
+dataset pulls).
+
+```bash
+# Conda env — Python 3.12 (lerobot requires >=3.12; 3.10 fails to install it)
+conda create -n lerobot python=3.12 -y && conda activate lerobot
+
+# ffmpeg 7.1.1 from conda-forge (torchcodec needs it; 8.x / 4.x mismatch)
+conda install -y -c conda-forge "ffmpeg=7.1.1"
+
+# libstdc++ fix so torchcodec loads (CXXABI mismatch otherwise) — persistent
+mkdir -p $CONDA_PREFIX/etc/conda/activate.d
+echo 'export LD_LIBRARY_PATH=$CONDA_PREFIX/lib:$LD_LIBRARY_PATH' \
+    > $CONDA_PREFIX/etc/conda/activate.d/ld_library_path.sh
+export LD_LIBRARY_PATH=$CONDA_PREFIX/lib:$LD_LIBRARY_PATH
+
+# PyTorch for CUDA 12.8 (matches H100 driver). Adjust cu-tag to your driver.
+pip install torch torchvision --index-url https://download.pytorch.org/whl/cu128
+
+# lerobot FROM THE SUBMODULE (the PyPI build routes pyav through a missing
+# torchvision.VideoReader; the pinned submodule routes it correctly).
+cd ~/LeMonkey && git submodule update --init --recursive
+cd third_party/lerobot && pip install -e ".[smolvla]" && cd ~/LeMonkey
+
+# Remove hf_xet — its range-get HEAD checks hang snapshot_download mid-run.
+pip uninstall -y hf_xet
+
+# File-descriptor limit (dataloader opens many mp4s; default 1024 too low)
+ulimit -n 65535 && echo 'ulimit -n 65535' >> ~/.bashrc
+
+# Auth
+hf auth login --token <YOUR_HF_TOKEN>   # needs read+write to HBOrtiz/*
+wandb login <YOUR_WANDB_TOKEN>          # optional (this script logs to stdout)
+
+# Verify
+python -c "import torch, lerobot, torchcodec; print('cuda', torch.cuda.is_available(), '| lerobot', lerobot.__file__)"
+```
+
+`lerobot.__file__` MUST point inside `third_party/lerobot/` (editable submodule),
+not site-packages. If a pull stalls on HF rate limits, pre-`hf download` the
+robot + VL datasets and `HBOrtiz/smolvlm2_lora_celebs` with `--max-workers 2`.
+
 ## TL;DR
 
 ```bash
