@@ -49,6 +49,69 @@ import torch
 import torch.nn.functional as F
 from torch.utils.data import DataLoader, Dataset
 
+# ---------------------------------------------------------------------------
+# Lerobot HF-API rate-limit bypass
+#
+# lerobot v0.5.2 calls get_safe_version() (→ list_repo_refs API call) in two
+# places: LeRobotDatasetMetadata.__init__ and LeRobotDataset.__init__.  Both
+# fire on every process start, even when the dataset is fully cached, because
+# snapshot_download enumerates the entire repo via the HF API before applying
+# allow_patterns.  On this instance this reliably triggers 429 rate-limit
+# stalls.
+#
+# Fix: patch get_safe_version and snapshot_download in lerobot's namespaces
+# before any lerobot import.  get_safe_version becomes a no-op (returns the
+# revision unchanged).  snapshot_download returns the existing lerobot hub
+# cache path immediately if it already exists — otherwise falls through to the
+# real download.
+# ---------------------------------------------------------------------------
+def _patch_lerobot_network_calls() -> None:
+    import importlib
+    import huggingface_hub as _hfhub
+
+    _orig_snapshot = _hfhub.snapshot_download
+
+    _LEROBOT_HUB = Path(os.path.expanduser("~/.cache/huggingface/lerobot/hub"))
+
+    def _fast_snapshot(repo_id: str, repo_type: str = "model",
+                       cache_dir=None, **kw) -> str:
+        if repo_type == "dataset":
+            _cache = Path(cache_dir) if cache_dir else _LEROBOT_HUB
+            slug = "datasets--" + repo_id.replace("/", "--")
+            snap_dir = _cache / slug / "snapshots"
+            if snap_dir.is_dir():
+                snaps = sorted(snap_dir.iterdir())
+                if snaps and (snaps[0] / "meta").is_dir():
+                    print(f"[cotrain] snapshot_download bypassed — using cache: {snaps[0]}",
+                          flush=True)
+                    return str(snaps[0])
+        return _orig_snapshot(repo_id=repo_id, repo_type=repo_type,
+                              cache_dir=cache_dir, **kw)
+
+    def _noop_get_safe_version(repo_id: str, version: str) -> str:
+        return version
+
+    # Patch in all modules that import these names directly.
+    for mod_name in (
+        "lerobot.datasets.dataset_metadata",
+        "lerobot.datasets.lerobot_dataset",
+        "lerobot.datasets.utils",
+    ):
+        try:
+            mod = importlib.import_module(mod_name)
+        except ImportError:
+            continue
+        if hasattr(mod, "snapshot_download"):
+            mod.snapshot_download = _fast_snapshot
+        if hasattr(mod, "get_safe_version"):
+            mod.get_safe_version = _noop_get_safe_version
+
+    print("[cotrain] lerobot HF-API calls patched (snapshot_download + get_safe_version)",
+          flush=True)
+
+
+_patch_lerobot_network_calls()
+
 
 # -----------------------------------------------------------------------------
 # CLI
