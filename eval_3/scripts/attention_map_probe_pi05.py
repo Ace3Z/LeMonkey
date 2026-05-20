@@ -127,6 +127,11 @@ def main() -> int:
     p = argparse.ArgumentParser()
     p.add_argument("--repo", default="lerobot/pi05_base")
     p.add_argument("--revision", default=None)
+    p.add_argument("--preprocessor-repo", default=None,
+                   help="load the preprocessor from this repo when --repo "
+                        "lacks policy_preprocessor.json (e.g. lerobot/pi05_base). "
+                        "The prefix (image+language) is unaffected by the "
+                        "state/action stat mismatch.")
     p.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu")
     p.add_argument("--dataset-root", default=str(Path.home() / ".cache/huggingface/lerobot/HBOrtiz/so101_eval3_track3_v3_baseline"))
     p.add_argument("--image-path", default=None,
@@ -146,8 +151,11 @@ def main() -> int:
     print(f"[load] {args.repo}{'@'+args.revision if args.revision else ''}", flush=True)
     kw = {"revision": args.revision} if args.revision else {}
     policy = PI05Policy.from_pretrained(args.repo, **kw).to(args.device).eval()
+    prep_repo = args.preprocessor_repo or args.repo
+    prep_kw = {} if args.preprocessor_repo else kw
+    print(f"[load] preprocessor from {prep_repo}", flush=True)
     preprocessor = DataProcessorPipeline.from_pretrained(
-        args.repo, config_filename="policy_preprocessor.json", **kw
+        prep_repo, config_filename="policy_preprocessor.json", **prep_kw
     )
     tokenizer = None
     for step in preprocessor.steps:
@@ -199,9 +207,19 @@ def main() -> int:
     # camera slots (the prefix will have N×256 image patches where N is
     # the number of image features expected by the policy).
     img_feature_keys = list(policy.config.image_features.keys())
-    state_dim = policy.config.max_state_dim
+    # The preprocessor normalizes the RAW dataset state (SO-101 = 6-d); Pi0.5
+    # pads to max_state_dim internally. Feeding max_state_dim breaks the
+    # normalizer, whose quantiles are sized to the raw state dim.
+    _state_feat = policy.config.input_features.get("observation.state")
+    if _state_feat is not None:
+        state_dim = _state_feat.shape[0]
+    else:
+        state_dim = policy.config.max_state_dim
+        print(f"[WARN] state probe dim: expected observation.state in "
+              f"input_features, got none, fallback=max_state_dim({state_dim})",
+              flush=True)
     print(f"[load] image_features={img_feature_keys}", flush=True)
-    print(f"[load] state_dim={state_dim} (padded to max_state_dim)", flush=True)
+    print(f"[load] state_dim={state_dim}", flush=True)
 
     summary = []
     for short, prompt in PROMPTS.items():
