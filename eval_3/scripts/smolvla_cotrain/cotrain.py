@@ -60,10 +60,6 @@ def parse_args() -> argparse.Namespace:
     # Data
     p.add_argument("--robot_dataset", required=True,
                    help="LeRobotDataset HF repo id (e.g. HBOrtiz/so101_eval3_track3_v3_baseline)")
-    p.add_argument("--robot_local_dir", default=None,
-                   help="Local path to an already-downloaded snapshot of the robot dataset. "
-                        "Passed as root= to LeRobotDataset, bypassing snapshot_download entirely. "
-                        "Use when the HF download stalls (e.g. set to the lerobot hub snapshot dir).")
     p.add_argument("--vl_manifest", required=True,
                    help="VL pairs HF repo id (e.g. HBOrtiz/eval3_objectvla_vl_pairs) "
                         "OR local parquet path")
@@ -365,13 +361,8 @@ def load_robot_dataset(args):
     """
     from lerobot.datasets.lerobot_dataset import LeRobotDataset
 
-    kwargs = dict(repo_id=args.robot_dataset, delta_timestamps=None,
-                  video_backend=args.video_backend)
-    if args.robot_local_dir:
-        kwargs["root"] = args.robot_local_dir
-        print(f"[robot_dataset] using local dir (bypassing HF download): {args.robot_local_dir}",
-              flush=True)
-    ds = LeRobotDataset(**kwargs)
+    ds = LeRobotDataset(repo_id=args.robot_dataset, delta_timestamps=None,
+                        video_backend=args.video_backend)
     print(f"[robot_dataset] {len(ds)} frames across {ds.num_episodes} episodes "
           f"(video_backend={args.video_backend})", flush=True)
     return ds

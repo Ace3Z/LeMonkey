@@ -38,40 +38,50 @@ DTYPE="${DTYPE:-bfloat16}"
 OUT_DIR="${OUT_DIR:-outputs/smolvla_cotrain_${VL_RATIO}to1}"
 PUSH_REPO="${PUSH_REPO:-}"                  # leave empty to skip HF push
 
-# Auto-detect local snapshots to bypass snapshot_download entirely.
-# snapshot_download hits HF API rate limits under parallel workers and
-# stalls indefinitely; root=/local_path skips all network I/O.
+# ---- Offline-mode detection ---------------------------------------------------
+# snapshot_download enumerates every file in a repo via the HF API on every
+# call — even when the data is already cached — triggering rate limits and
+# multi-minute stalls.  Setting HF_HUB_OFFLINE=1 makes huggingface_hub skip
+# all network I/O and serve from local cache only.  We set it automatically
+# once both datasets have been pre-downloaded.
 
-# Robot dataset (lerobot hub cache)
-_LEROBOT_CACHE="${HOME}/.cache/huggingface/lerobot/hub"
+_LEROBOT_HUB="${HOME}/.cache/huggingface/lerobot/hub"
+_HF_HUB="${HOME}/.cache/huggingface/hub"
+
+# Robot dataset: lerobot uses its own cache dir
 _ROBOT_SLUG="datasets--$(echo "$ROBOT_DATASET" | sed 's|/|--|g')"
-_SNAP_DIR="$_LEROBOT_CACHE/$_ROBOT_SLUG/snapshots"
-if [ -d "$_SNAP_DIR" ]; then
-    _SNAP=$(ls -1 "$_SNAP_DIR" 2>/dev/null | head -1)
-    if [ -n "$_SNAP" ] && [ -d "$_SNAP_DIR/$_SNAP/videos" ]; then
-        ROBOT_LOCAL_DIR="${ROBOT_LOCAL_DIR:-$_SNAP_DIR/$_SNAP}"
-        echo "==> robot dataset cached locally, bypassing HF download: $ROBOT_LOCAL_DIR"
+_ROBOT_SNAP_DIR="$_LEROBOT_HUB/$_ROBOT_SLUG/snapshots"
+_ROBOT_SNAP=$(ls -1 "$_ROBOT_SNAP_DIR" 2>/dev/null | head -1)
+_ROBOT_CACHED=false
+if [ -n "$_ROBOT_SNAP" ] && [ -d "$_ROBOT_SNAP_DIR/$_ROBOT_SNAP/videos" ]; then
+    _ROBOT_CACHED=true
+fi
+
+# VL dataset: standard HF hub cache
+_VL_SLUG="datasets--$(echo "${VL_MANIFEST%%/*}--$(echo "$VL_MANIFEST" | cut -d/ -f2)" | sed 's|/|--|g')"
+_VL_SLUG="datasets--$(echo "$VL_MANIFEST" | sed 's|/|--|g')"
+_VL_SNAP_DIR="$_HF_HUB/$_VL_SLUG/snapshots"
+_VL_SNAP=$(ls -1 "$_VL_SNAP_DIR" 2>/dev/null | head -1)
+_VL_CACHED=false
+if [ -n "$_VL_SNAP" ] && [ -f "$_VL_SNAP_DIR/$_VL_SNAP/manifest.parquet" ]; then
+    _VL_CACHED=true
+    # Pass local paths directly — VLPairsDataset accepts a local parquet path
+    # and image root, bypassing any HF download code entirely.
+    if [ -z "${VL_MANIFEST##*/*}" ] && [ -z "${VL_MANIFEST##HBOrtiz*}" ]; then
+        VL_MANIFEST="$_VL_SNAP_DIR/$_VL_SNAP/manifest.parquet"
+        echo "==> VL manifest cached locally: $VL_MANIFEST"
+    fi
+    if [ -z "${VL_IMAGE_ROOT:-}" ] && [ -d "$_VL_SNAP_DIR/$_VL_SNAP/images" ]; then
+        VL_IMAGE_ROOT="$_VL_SNAP_DIR/$_VL_SNAP/images"
+        echo "==> VL images cached locally: $VL_IMAGE_ROOT"
     fi
 fi
 
-# VL manifest (standard HF hub cache — hf_hub_download uses ~/.cache/huggingface/hub)
-_HF_CACHE="${HOME}/.cache/huggingface/hub"
-_VL_SLUG="datasets--$(echo "$VL_MANIFEST" | sed 's|/|--|g')"
-_VL_SNAP_DIR="$_HF_CACHE/$_VL_SLUG/snapshots"
-if [ -z "${VL_IMAGE_ROOT:-}" ] && [ -d "$_VL_SNAP_DIR" ]; then
-    _VL_SNAP=$(ls -1 "$_VL_SNAP_DIR" 2>/dev/null | head -1)
-    if [ -n "$_VL_SNAP" ]; then
-        _VL_LOCAL="$_VL_SNAP_DIR/$_VL_SNAP"
-        # Use the local parquet as --vl_manifest and pre-extracted images as --vl_image_root
-        if [ -f "$_VL_LOCAL/manifest.parquet" ]; then
-            VL_MANIFEST="$_VL_LOCAL/manifest.parquet"
-            echo "==> VL manifest cached locally: $VL_MANIFEST"
-        fi
-        if [ -d "$_VL_LOCAL/images" ]; then
-            VL_IMAGE_ROOT="$_VL_LOCAL/images"
-            echo "==> VL images cached locally: $VL_IMAGE_ROOT"
-        fi
-    fi
+if [ "$_ROBOT_CACHED" = true ] && [ "$_VL_CACHED" = true ]; then
+    export HF_HUB_OFFLINE=1
+    echo "==> Both datasets cached — HF_HUB_OFFLINE=1 (zero network I/O)"
+elif [ "$_ROBOT_CACHED" = false ]; then
+    echo "[WARN] Robot dataset not cached. Run predl_vl.sh equivalent for robot dataset first." >&2
 fi
 
 # ---- Pre-flight ---------------------------------------------------------------
@@ -124,9 +134,8 @@ CMD=( python -u "$SCRIPT"
       --dtype="$DTYPE"
       --output_dir="$OUT_DIR" )
 
-[ -n "${ROBOT_LOCAL_DIR:-}" ] && CMD+=( --robot_local_dir="$ROBOT_LOCAL_DIR" )
-[ -n "$VL_IMAGE_ROOT" ]      && CMD+=( --vl_image_root="$VL_IMAGE_ROOT" )
-[ -n "$VLM_OVERRIDE"  ]      && CMD+=( --vlm_model_name="$VLM_OVERRIDE" )
-[ -n "$PUSH_REPO"     ]      && CMD+=( --push_to_hub_repo="$PUSH_REPO" )
+[ -n "$VL_IMAGE_ROOT" ] && CMD+=( --vl_image_root="$VL_IMAGE_ROOT" )
+[ -n "$VLM_OVERRIDE"  ] && CMD+=( --vlm_model_name="$VLM_OVERRIDE" )
+[ -n "$PUSH_REPO"     ] && CMD+=( --push_to_hub_repo="$PUSH_REPO" )
 
 "${CMD[@]}"
