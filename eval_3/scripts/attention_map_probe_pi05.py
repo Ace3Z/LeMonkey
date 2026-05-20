@@ -39,6 +39,7 @@ from PIL import Image
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "aug"))
 from pi05_inference_patch import apply as _apply_pi05_patch  # noqa: E402
 _apply_pi05_patch()
+from transformers.models.gemma.modeling_gemma import apply_rotary_pos_emb  # noqa: E402
 
 
 PROMPTS = {
@@ -201,6 +202,16 @@ def main() -> int:
             return lambda mod, inp, out: captures[n].__setitem__("k", out.detach())
         handles.append(attn.q_proj.register_forward_hook(mk_q()))
         handles.append(attn.k_proj.register_forward_hook(mk_k()))
+    # RoPE capture — the model's own cos/sin, so the probe measures the real
+    # RoPE'd attention rather than a no-RoPE content-only proxy. rotary_emb is
+    # called once per layer in compute_layer_complete with identical
+    # position_ids; one live capture suffices.
+    rope_capture: dict = {}
+    def _rope_hook(mod, inp, out):
+        cos, sin = out
+        rope_capture["cos"] = cos.detach()
+        rope_capture["sin"] = sin.detach()
+    handles.append(text_model.rotary_emb.register_forward_hook(_rope_hook))
 
     # Pi0.5 needs all image features the policy expects + a state vector.
     # For the bare attention probe we use the same camera frame for all
@@ -270,10 +281,19 @@ def main() -> int:
             B, L, _ = q.shape
             q = q.float().view(B, L, n_heads, head_dim).transpose(1, 2)
             k = k.float().view(B, L, n_kv_heads, head_dim).transpose(1, 2)
+            # Apply the model's own RoPE before QK^T — the real Pi0.5 forward
+            # RoPEs q/k before attention (modeling_pi05.py:257-260). A no-RoPE
+            # recompute measures a proxy, not the policy's real attention.
+            assert rope_capture["cos"].shape[1] >= L, (
+                f"RoPE capture seq-len {rope_capture['cos'].shape[1]} < prefix {L}"
+            )
+            cos = rope_capture["cos"][:, :L].to(q.dtype)
+            sin = rope_capture["sin"][:, :L].to(q.dtype)
+            q, k = apply_rotary_pos_emb(q, k, cos, sin, unsqueeze_dim=1)
             if n_kv_heads != n_heads:
                 k = k.repeat_interleave(n_heads // n_kv_heads, dim=1)
 
-            scores = torch.matmul(q, k.transpose(-2, -1)) / (head_dim ** 0.5)
+            scores = torch.matmul(q, k.transpose(-2, -1)) * text_model.layers[n].self_attn.scaling
             attn = torch.softmax(scores, dim=-1)
             attn_avg = attn.mean(dim=1)  # (B, L, L)
 

@@ -223,8 +223,13 @@ class M2Pi05WrappedPolicy(nn.Module):
             # become prefix-row indices.
             name_pos = sup.get("name_token_positions", None)
             if name_pos is not None and (name_pos >= 0).any():
-                # Determine the number of image-token streams in this prefix
-                # (Pi0.5 with empty_cameras=3 has 4 streams × 256 = 1024).
+                # Number of image-token streams that precede the language
+                # tokens in the prefix = every observation.images.* feature:
+                # the real cameras (camera1, reference) AND the empty_cameras
+                # padding streams. For the Track E dataset that is 5 streams
+                # (camera1 + reference + 3 empties) × 256 = 1280. Counted from
+                # config.image_features so it tracks the actual prefix layout
+                # (verified against modeling_pi05.embed_prefix, 2026-05-20).
                 cfg_img_keys = list(self.policy.config.image_features.keys())
                 n_img_streams = len([k for k in cfg_img_keys if "image" in k])
                 lang_offset = n_img_streams * NUM_PI05_PATCHES
