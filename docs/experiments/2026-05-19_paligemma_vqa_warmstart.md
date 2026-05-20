@@ -273,3 +273,42 @@ real eval task (closed-set celeb selection).
 
 The vanilla Track B run on brev_instance1 is still the primary; its Day-3 Strix
 result is the load-bearing data point.
+
+---
+
+## 10 · v2 — vision-tower LoRA (2026-05-20)
+
+After the probe proved the frozen SigLIP vision tower was the bottleneck
+(identity separation 0.048), v2 LoRA-adapts the vision tower too (q/k/v/
+out_proj/fc1/fc2) at r=64, not just the LM. Data unchanged (VGGFace2).
+Speed-tuned: batch 24, grad-ckpt off (compute-bound — bigger batch doesn't
+help; grad-ckpt off converts spare VRAM to ~1.24x), epochs 0.12. 3.0 h wall,
+final loss ~4.4 (v1 plateaued ~5.0). Pushed `HBOrtiz/pi05_paligemma_celeb_warm_v2`.
+
+### Discrimination eval (same seed=123, n-vggface2=60 as the v1 eval)
+
+| Test | baseline | v1 (LM-only) | v2 (+ vision tower) |
+|---|---|---|---|
+| VGGFace2 5-way (in-distribution) | 20 % | 37 % | **48 %** |
+| our 8 eval celebs, 8-way | 0/8 | 1/8 (collapse) | 2/8 |
+
+### Honest interpretation
+
+- **TEST A is the clean win: 20 → 37 → 48 %, monotonic.** Unfreezing the vision
+  tower works — v2 ~2.4x baseline. The recipe (vision-tower LoRA) is validated:
+  the vision tower was the bottleneck and LoRA-adapting it teaches real face
+  discrimination.
+- **TEST B is partial.** v2 genuinely discriminates Taylor Swift (correct,
+  margin 0.32; v1 got zero genuine hits). But v2 still picks "Cristiano Ronaldo"
+  for 6/8 — the Ronaldo hit is partly collapse-coincidence. Real read: 1 clean
+  genuine hit + residual collapse, better than v1's pure collapse but not solved.
+- **Why TEST B stays weak:** our 8 eval celebs are NOT in VGGFace2. v2 learned
+  face discrimination as a skill (proven in-distribution) that only *partially*
+  transfers to unseen identities.
+
+### Next-step options
+
+- **v3:** VGGFace2 + our 193-celeb scraped bank mixed (our 8 celebs IN the data)
+  + vision-tower LoRA. ~3-4 h. Directly targets the 8-way gap.
+- **Or:** accept v2 as Stage-1 init; let Stage 2 (Track B VLA re-train on the
+  augmented dataset, which contains our celebs) do celeb-specific anchoring.
