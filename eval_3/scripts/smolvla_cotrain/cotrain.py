@@ -206,16 +206,27 @@ class VLPairsDataset(Dataset):
                         token=os.environ.get("HF_TOKEN"),
                     )
                     image_root = Path(full)
-                    # The snapshot may have images.tar.zst still packed; unpack if so.
-                    tar_zst = image_root / "images.tar.zst"
-                    if tar_zst.is_file() and not (image_root / "images").is_dir():
-                        print(f"[vl_dataset] extracting {tar_zst} ...", flush=True)
-                        import subprocess
-                        subprocess.run(
-                            ["tar", "--use-compress-program=unzstd",
-                             "-xf", str(tar_zst), "-C", str(image_root)],
-                            check=True,
-                        )
+                    # The images ship as a packed archive — named data.tar.zst
+                    # or images.tar.zst depending on how the dataset was pushed
+                    # (eval3_objectvla_vl_pairs uses data.tar.zst). Extract
+                    # whichever *.tar.zst exists; it unpacks to images/chunk-*/.
+                    if not (image_root / "images").is_dir():
+                        archives = sorted(image_root.glob("*.tar.zst"))
+                        if archives:
+                            import subprocess
+                            for arch in archives:
+                                print(f"[vl_dataset] extracting {arch.name} ...",
+                                      flush=True)
+                                subprocess.run(
+                                    ["tar", "--use-compress-program=unzstd",
+                                     "-xf", str(arch), "-C", str(image_root)],
+                                    check=True,
+                                )
+                        else:
+                            print(f"[WARN] vl_dataset: no images/ dir and no "
+                                  f"*.tar.zst under {image_root}; expected="
+                                  f"packed images, got=neither, fallback=gray "
+                                  f"placeholders", flush=True)
 
         missing = self.REQUIRED_COLS - set(self.df.columns)
         if missing:
