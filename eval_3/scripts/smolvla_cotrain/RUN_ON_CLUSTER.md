@@ -130,15 +130,21 @@ Every 5k steps: `[cotrain] checkpoint saved → …` then `[cotrain] pushed → 
 |---|---|---|
 | `STEPS` | `25000` | total training steps |
 | `SAVE_FREQ` | `5000` | checkpoint + push interval |
-| `BATCH_SIZE` | `48` | robot batch **per GPU** — measured: 65.5 GB peak on an 80 GB card |
-| `VL_BATCH_SIZE` | `24` | VL batch per GPU |
-| `NUM_WORKERS` | `8` | dataloader workers per GPU process |
+| `BATCH_SIZE` | `200` | robot batch **per GPU** — sized for 141 GB H200 cards |
+| `VL_BATCH_SIZE` | `100` | VL batch per GPU — keep at `BATCH_SIZE/2` |
+| `NUM_WORKERS` | `16` | dataloader workers per GPU process |
 | `OUT_DIR` | `outputs/smolvla_klal_lora_25k` | local checkpoint dir |
 
-`BATCH_SIZE=48 / VL_BATCH_SIZE=24` was measured at **65.5 GB peak on an 80 GB
-card (~80%, no OOM over 220 steps)** — a good fit with safe headroom. Going to
-64/32 extrapolates past 80 GB and risks OOM; 48/24 is the recommended setting
-for 80 GB cards. With 7 GPUs the effective batch is 7×48 = 336 robot / 168 VL.
+`BATCH_SIZE=200 / VL_BATCH_SIZE=100` is sized from two clean VRAM measurements
+— batch 56 → 33.5 GB, batch 96 → 56.1 GB — which give `VRAM ≈ 1.9 GB +
+0.55 GB × BATCH_SIZE`. At 200 that predicts a **~115 GB peak on a 141 GB
+card (~80%)**, with ~26 GB headroom for the extrapolation. With 8 GPUs the
+effective batch is 8×200 = 1600 robot / 800 VL.
+
+**If your cards are not 141 GB**, scale `BATCH_SIZE` to your VRAM:
+`BATCH_SIZE ≈ (0.80 × VRAM_GB − 1.9) / 0.55` (e.g. 80 GB → ~110; 96 GB →
+~135), and keep `VL_BATCH_SIZE = BATCH_SIZE/2`. Watch `nvidia-smi` on the
+first run.
 
 This script targets a **single node** with several GPUs. For a multi-node job,
 replace `--standalone` in `run_cluster.sh` with your cluster's torchrun

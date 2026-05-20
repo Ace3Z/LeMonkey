@@ -40,11 +40,11 @@ export HF_TOKEN
 # ── tunables (override via env) ──────────────────────────────────────────────
 STEPS="${STEPS:-25000}"               # total training steps
 SAVE_FREQ="${SAVE_FREQ:-5000}"        # checkpoint + HF push every N steps
-BATCH_SIZE="${BATCH_SIZE:-48}"        # robot batch PER GPU  (measured: 65.5/80 GB at 48/24)
-VL_BATCH_SIZE="${VL_BATCH_SIZE:-24}"  # VL batch PER GPU     (measured on an 80 GB card)
+BATCH_SIZE="${BATCH_SIZE:-200}"       # robot batch PER GPU  (~115 GB on a 141 GB card)
+VL_BATCH_SIZE="${VL_BATCH_SIZE:-100}" # VL batch PER GPU     (keep at BATCH_SIZE/2)
 VL_RATIO="${VL_RATIO:-10}"            # 10:1 robot:VL (ObjectVLA recipe)
 LR="${LR:-5e-5}"
-NUM_WORKERS="${NUM_WORKERS:-8}"       # dataloader workers per GPU process
+NUM_WORKERS="${NUM_WORKERS:-16}"      # dataloader workers per GPU process
 ROBOT_DATASET="${ROBOT_DATASET:-HBOrtiz/so101_eval3_track3_v3_baseline}"
 VL_MANIFEST="${VL_MANIFEST:-HBOrtiz/eval3_track3_vl_pairs}"
 PRETRAINED="${PRETRAINED:-lerobot/smolvla_base}"
