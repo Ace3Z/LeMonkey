@@ -915,7 +915,8 @@ def main() -> int:
           f"lr={args.lr}", flush=True)
 
     period = args.vl_ratio + 1   # vl_ratio=10 → VL hits at step%11==0
-    last_log_time = time.perf_counter()
+    train_start = time.perf_counter()
+    last_log_time = train_start
     last_flow_loss = float("nan")
     last_vqa_loss = float("nan")
     last_klal_loss = float("nan")
@@ -1010,13 +1011,20 @@ def main() -> int:
         optim.zero_grad(set_to_none=True)
 
         if is_main and (step % args.log_every == 0 or step < 50):
-            dt = time.perf_counter() - last_log_time
-            last_log_time = time.perf_counter()
+            now = time.perf_counter()
+            dt = now - last_log_time
+            last_log_time = now
             steps_per_sec = args.log_every / dt if dt > 0 else 0
+            elapsed_min = (now - train_start) / 60
+            # ETA from the average rate over the whole run so far (smoother
+            # than the noisy instantaneous steps/s).
+            avg_sps = step / (now - train_start) if now > train_start else 0
+            eta_min = (args.steps - step) / avg_sps / 60 if avg_sps > 0 else float("nan")
             print(f"step {step:6d}  {loss_name}={loss.item():.4f}  "
                   f"(last flow={last_flow_loss:.4f} vqa={last_vqa_loss:.4f} "
                   f"klal={last_klal_loss:.4f})  "
-                  f"grad={grad_norm:.2f}  steps/s={steps_per_sec:.2f}",
+                  f"grad={grad_norm:.2f}  steps/s={steps_per_sec:.2f}  "
+                  f"elapsed={elapsed_min:.0f}min  eta={eta_min:.0f}min",
                   flush=True)
 
         if step > 0 and step % args.save_freq == 0:
