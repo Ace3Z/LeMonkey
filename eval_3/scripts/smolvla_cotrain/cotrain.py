@@ -64,8 +64,9 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import torch
+import torch.distributed as dist
 import torch.nn.functional as F
-from torch.utils.data import DataLoader, Dataset
+from torch.utils.data import DataLoader, Dataset, DistributedSampler
 
 # The m2_* helpers (LoRA, KLAL attention supervision) live in eval_3/aug.
 # Add it to the path so the bare `import m2_*` statements resolve regardless
@@ -664,6 +665,67 @@ def compute_klal_loss(hookset, cfg, builder, name_ids, batch, ep_idx, fr_idx,
 
 
 # -----------------------------------------------------------------------------
+# Multi-GPU helpers
+# -----------------------------------------------------------------------------
+
+def _setup_distributed():
+    """Initialise torch.distributed when launched under torchrun (WORLD_SIZE>1).
+
+    Returns (rank, world_size, local_rank, is_main). A plain single-process run
+    returns (0, 1, 0, True) and never touches the process group.
+
+    Data parallelism is done with a MANUAL gradient all-reduce (see the loop) —
+    not DDP — because the VQA step calls the inner `vlm(...)` directly, which
+    would bypass a DDP wrapper's forward and break its gradient sync.
+    """
+    world_size = int(os.environ.get("WORLD_SIZE", "1"))
+    rank = int(os.environ.get("RANK", "0"))
+    local_rank = int(os.environ.get("LOCAL_RANK", "0"))
+    if world_size > 1:
+        dist.init_process_group(backend="nccl")
+        if torch.cuda.is_available():
+            torch.cuda.set_device(local_rank % torch.cuda.device_count())
+        print(f"[cotrain] distributed: rank {rank}/{world_size} "
+              f"(local_rank {local_rank})", flush=True)
+    return rank, world_size, local_rank, (rank == 0)
+
+
+def _save_and_push(policy, preprocessor, postprocessor, lora_registry,
+                   ckpt_dir: Path, push_repo: str | None, path_in_repo: str) -> None:
+    """Save a merged-LoRA checkpoint locally, then (if push_repo) upload it to
+    HF under `path_in_repo`. Rank-0 only. A failed push is logged, not fatal —
+    the run keeps going and the local checkpoint is kept.
+    """
+    ckpt_dir.mkdir(parents=True, exist_ok=True)
+    # merged_lora_for_save folds the LoRA delta into the base for the save, so
+    # the checkpoint is a vanilla SmolVLAPolicy.
+    with merged_lora_for_save(lora_registry):
+        policy.save_pretrained(ckpt_dir)
+    # Processors saved alongside so eval-day inference reproduces normalization.
+    preprocessor.save_pretrained(ckpt_dir)
+    postprocessor.save_pretrained(ckpt_dir)
+    print(f"[cotrain] checkpoint saved → {ckpt_dir}", flush=True)
+    if not push_repo:
+        return
+    try:
+        from huggingface_hub import HfApi, create_repo
+
+        token = os.environ.get("HF_TOKEN")
+        create_repo(push_repo, repo_type="model", exist_ok=True, token=token)
+        HfApi(token=token).upload_folder(
+            folder_path=str(ckpt_dir), repo_id=push_repo,
+            path_in_repo=path_in_repo, repo_type="model",
+        )
+        print(f"[cotrain] pushed → "
+              f"https://huggingface.co/{push_repo}/tree/main/{path_in_repo}",
+              flush=True)
+    except Exception as e:
+        print(f"[WARN] HF push failed: expected=upload {ckpt_dir} to "
+              f"{push_repo}/{path_in_repo}, got={type(e).__name__}: {e}, "
+              f"fallback=local checkpoint kept at {ckpt_dir}", flush=True)
+
+
+# -----------------------------------------------------------------------------
 # Main training loop
 # -----------------------------------------------------------------------------
 
@@ -676,14 +738,22 @@ def main() -> int:
     out_dir = Path(args.output_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
 
-    # Reproducibility.
+    # Distributed setup (no-op for a single-process run).
+    rank, world_size, local_rank, is_main = _setup_distributed()
+
+    # Reproducibility — same seed on every rank so LoRA's random init is
+    # identical; ranks are also explicitly broadcast-synced after model build.
     torch.manual_seed(args.seed)
 
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    print(f"[cotrain] device={device}, dtype={args.dtype}", flush=True)
+    if torch.cuda.is_available():
+        device = torch.device(f"cuda:{local_rank % torch.cuda.device_count()}")
+    else:
+        device = torch.device("cpu")
+    print(f"[cotrain] rank {rank}/{world_size}  device={device}  dtype={args.dtype}",
+          flush=True)
     if device.type == "cuda":
-        print(f"[cotrain] gpu={torch.cuda.get_device_name(0)}, "
-              f"vram={torch.cuda.get_device_properties(0).total_memory / 1e9:.1f}GB",
+        print(f"[cotrain] gpu={torch.cuda.get_device_name(device)}, "
+              f"vram={torch.cuda.get_device_properties(device).total_memory / 1e9:.1f}GB",
               flush=True)
 
     # 1. Policy + processor.
@@ -695,6 +765,17 @@ def main() -> int:
     total_n = sum(p.numel() for p in policy.parameters())
     print(f"[cotrain] trainable params: {trainable_n / 1e6:.1f}M / {total_n / 1e6:.1f}M "
           f"({100 * trainable_n / total_n:.1f}%)", flush=True)
+
+    # Sync every rank to rank 0's weights — LoRA's lora_A is randomly inited;
+    # broadcast so all ranks start bit-identical (the manual gradient
+    # all-reduce in the loop keeps them in sync thereafter).
+    if world_size > 1:
+        for p in policy.parameters():
+            dist.broadcast(p.data, src=0)
+        for b in policy.buffers():
+            dist.broadcast(b.data, src=0)
+        print(f"[cotrain] rank {rank}: broadcast-synced model from rank 0",
+              flush=True)
 
     # 1b. KLAL attention supervision (robot steps only). Teaches the VLM's
     # name-token to attend to the prompted celeb's face patch, against a
@@ -761,10 +842,14 @@ def main() -> int:
         pretrained_path=args.pretrained_path,
         device=device,
     )
+    robot_sampler = (DistributedSampler(robot_ds, num_replicas=world_size, rank=rank,
+                                        shuffle=True, drop_last=True)
+                     if world_size > 1 else None)
     robot_loader = DataLoader(
         robot_ds,
         batch_size=args.batch_size,
-        shuffle=True,
+        sampler=robot_sampler,
+        shuffle=(robot_sampler is None),
         num_workers=args.num_workers,
         pin_memory=device.type == "cuda",
         drop_last=True,
@@ -775,10 +860,14 @@ def main() -> int:
     print(f"[cotrain] loading VL pairs from {args.vl_manifest} ...", flush=True)
     vl_image_root = Path(args.vl_image_root) if args.vl_image_root else None
     vl_ds = VLPairsDataset(args.vl_manifest, image_root=vl_image_root)
+    vl_sampler = (DistributedSampler(vl_ds, num_replicas=world_size, rank=rank,
+                                     shuffle=True, drop_last=True)
+                  if world_size > 1 else None)
     vl_loader = DataLoader(
         vl_ds,
         batch_size=args.vl_batch_size,
-        shuffle=True,
+        sampler=vl_sampler,
+        shuffle=(vl_sampler is None),
         num_workers=args.num_workers,
         collate_fn=make_vl_collator(vl_processor),
         pin_memory=device.type == "cuda",
@@ -804,6 +893,8 @@ def main() -> int:
     last_flow_loss = float("nan")
     last_vqa_loss = float("nan")
     last_klal_loss = float("nan")
+    robot_epoch = 0
+    vl_epoch = 0
 
     for step in range(args.steps):
         is_vl_step = (step % period == 0)
@@ -812,6 +903,9 @@ def main() -> int:
             try:
                 batch = next(vl_iter)
             except StopIteration:
+                vl_epoch += 1
+                if vl_sampler is not None:
+                    vl_sampler.set_epoch(vl_epoch)
                 vl_iter = iter(vl_loader)
                 batch = next(vl_iter)
             with torch.amp.autocast(device_type=device.type,
@@ -824,6 +918,9 @@ def main() -> int:
             try:
                 batch = next(robot_iter)
             except StopIteration:
+                robot_epoch += 1
+                if robot_sampler is not None:
+                    robot_sampler.set_epoch(robot_epoch)
                 robot_iter = iter(robot_loader)
                 batch = next(robot_iter)
             # KLAL: read episode/frame indices off the RAW batch and arm the
@@ -851,13 +948,31 @@ def main() -> int:
                 last_klal_loss = float(klal_v.detach())
             loss_name = "flow_loss"
 
-        if not torch.isfinite(loss):
-            print(f"[WARN] step {step}: non-finite loss ({loss_name}={loss.item()}), "
-                  f"skipping optimizer step", flush=True)
+        # Skip the step if the loss is non-finite on ANY rank. The finite flag
+        # is all-reduced BEFORE backward so every rank decides together — a
+        # lone `continue` would deadlock the others at the next collective.
+        finite = torch.tensor([1.0 if torch.isfinite(loss) else 0.0], device=device)
+        if world_size > 1:
+            dist.all_reduce(finite, op=dist.ReduceOp.MIN)
+        if finite.item() < 1.0:
+            if is_main:
+                print(f"[WARN] step {step}: non-finite loss ({loss_name}), "
+                      f"expected=finite, got={loss.item()}, fallback=skip step",
+                      flush=True)
             optim.zero_grad(set_to_none=True)
             continue
 
         loss.backward()
+
+        # Distributed data parallelism: average gradients across ranks. On a VL
+        # step the action-expert params have grad=None on every rank, so they
+        # are skipped consistently — no DDP `find_unused_parameters` needed.
+        if world_size > 1:
+            for p in policy.parameters():
+                if p.grad is not None:
+                    dist.all_reduce(p.grad, op=dist.ReduceOp.SUM)
+                    p.grad /= world_size
+
         if args.grad_clip > 0:
             grad_norm = torch.nn.utils.clip_grad_norm_(
                 (p for p in policy.parameters() if p.requires_grad),
@@ -868,7 +983,7 @@ def main() -> int:
         optim.step()
         optim.zero_grad(set_to_none=True)
 
-        if step % args.log_every == 0 or step < 50:
+        if is_main and (step % args.log_every == 0 or step < 50):
             dt = time.perf_counter() - last_log_time
             last_log_time = time.perf_counter()
             steps_per_sec = args.log_every / dt if dt > 0 else 0
@@ -879,43 +994,22 @@ def main() -> int:
                   flush=True)
 
         if step > 0 and step % args.save_freq == 0:
-            ckpt_dir = out_dir / f"step_{step:06d}"
-            ckpt_dir.mkdir(parents=True, exist_ok=True)
-            # merged_lora_for_save folds the LoRA delta into the base for the
-            # duration of the save so the checkpoint is a vanilla SmolVLAPolicy.
-            with merged_lora_for_save(lora_registry):
-                policy.save_pretrained(ckpt_dir)
-            # Save preprocessor/postprocessor alongside so eval-day inference
-            # can reproduce normalization + tokenization. Without these, the
-            # checkpoint cannot be deployed.
-            preprocessor.save_pretrained(ckpt_dir)
-            postprocessor.save_pretrained(ckpt_dir)
-            print(f"[cotrain] checkpoint saved → {ckpt_dir}", flush=True)
+            if is_main:
+                _save_and_push(policy, preprocessor, postprocessor, lora_registry,
+                               out_dir / f"step_{step:06d}",
+                               args.push_to_hub_repo, f"step_{step:06d}")
+            # Other ranks wait while rank 0 saves — it swaps LoRA modules for
+            # the save, so no rank may run a forward against a mutated tree.
+            if world_size > 1:
+                dist.barrier()
 
-    # 6. Final save.
-    final_dir = out_dir / "final"
-    final_dir.mkdir(parents=True, exist_ok=True)
-    with merged_lora_for_save(lora_registry):
-        policy.save_pretrained(final_dir)
-    preprocessor.save_pretrained(final_dir)
-    postprocessor.save_pretrained(final_dir)
-    print(f"[cotrain] final checkpoint → {final_dir}", flush=True)
-
-    # 7. HF push (policy + processors).
-    if args.push_to_hub_repo:
-        try:
-            with merged_lora_for_save(lora_registry):
-                policy.push_to_hub(args.push_to_hub_repo)
-            preprocessor.push_to_hub(args.push_to_hub_repo)
-            postprocessor.push_to_hub(args.push_to_hub_repo)
-            print(f"[cotrain] pushed to https://huggingface.co/{args.push_to_hub_repo}",
-                  flush=True)
-        except Exception as e:
-            print(f"[WARN] HF push failed: expected=push policy+preprocessor+postprocessor "
-                  f"to {args.push_to_hub_repo}, got={type(e).__name__}: {e}, "
-                  f"fallback=local-only checkpoint at {final_dir}",
-                  flush=True)
-            return 1
+    # 6. Final save + push (rank 0).
+    if is_main:
+        _save_and_push(policy, preprocessor, postprocessor, lora_registry,
+                       out_dir / "final", args.push_to_hub_repo, "final")
+    if world_size > 1:
+        dist.barrier()
+        dist.destroy_process_group()
 
     return 0
 
