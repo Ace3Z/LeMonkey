@@ -26,11 +26,11 @@ Branch: **`dev/mahbod/kl-divergence`**.
 
 ## 2. Set up the Python environment (one-time)
 
-Python 3.10–3.12. Conda or venv — either works.
+Python **3.12** (lerobot v0.5.1 requires `>=3.12`). Conda or venv — either works.
 
 ```bash
-conda create -y -n cotrain python=3.11 && conda activate cotrain
-# (or: python -m venv .venv && source .venv/bin/activate)
+conda create -y -n cotrain python=3.12 && conda activate cotrain
+# (or, with a system python3.12:  python3.12 -m venv .venv && source .venv/bin/activate)
 
 # 1) PyTorch for your CUDA (H200 = Hopper; cu124 wheels are fine):
 pip install torch torchvision --index-url https://download.pytorch.org/whl/cu124
