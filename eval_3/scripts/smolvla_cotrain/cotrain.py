@@ -61,6 +61,7 @@ import sys
 import time
 from contextlib import contextmanager
 from dataclasses import dataclass
+from datetime import timedelta
 from pathlib import Path
 
 import torch
@@ -576,6 +577,24 @@ def build_robot_preprocessor(policy_cfg, dataset, pretrained_path: str, device: 
 # -----------------------------------------------------------------------------
 
 @contextmanager
+def main_process_first(is_main: bool, world_size: int):
+    """Rank 0 runs the body first (e.g. a dataset download); the other ranks
+    wait at a barrier, then run it against the now-warm shared cache.
+
+    Without this, all N ranks construct the LeRobotDataset / VLPairsDataset at
+    once and hammer the HF API in parallel — which gets the whole job
+    429-rate-limited. With it, exactly one rank downloads.
+    """
+    if world_size > 1 and not is_main:
+        dist.barrier()
+    try:
+        yield
+    finally:
+        if world_size > 1 and is_main:
+            dist.barrier()
+
+
+@contextmanager
 def merged_lora_for_save(lora_registry):
     """Within this block LoRA modules are swapped for plain merged Linears so
     `save_pretrained` / `push_to_hub` write a vanilla SmolVLAPolicy checkpoint
@@ -684,7 +703,10 @@ def _setup_distributed():
         # nccl for real multi-GPU. COTRAIN_DDP_BACKEND=gloo is a fallback that
         # also lets the distributed path be exercised on a single-GPU box.
         backend = os.environ.get("COTRAIN_DDP_BACKEND", "nccl")
-        dist.init_process_group(backend=backend)
+        # Generous timeout: rank 0 downloads the full ~15 GB dataset inside a
+        # main_process_first() barrier while the other ranks wait — that can
+        # exceed the default 10-minute collective timeout.
+        dist.init_process_group(backend=backend, timeout=timedelta(hours=2))
         if torch.cuda.is_available():
             torch.cuda.set_device(local_rank % torch.cuda.device_count())
         print(f"[cotrain] distributed: rank {rank}/{world_size} "
@@ -836,7 +858,8 @@ def main() -> int:
 
     # 2. Robot dataset + preprocessor + dataloader.
     print(f"[cotrain] loading robot dataset {args.robot_dataset} ...", flush=True)
-    robot_ds = load_robot_dataset(args, policy_cfg)
+    with main_process_first(is_main, world_size):
+        robot_ds = load_robot_dataset(args, policy_cfg)
     print("[cotrain] building robot preprocessor (tokenizer + normalizer + device) ...", flush=True)
     preprocessor, postprocessor = build_robot_preprocessor(
         policy_cfg=policy_cfg,
@@ -861,7 +884,8 @@ def main() -> int:
     # 3. VL dataset + dataloader.
     print(f"[cotrain] loading VL pairs from {args.vl_manifest} ...", flush=True)
     vl_image_root = Path(args.vl_image_root) if args.vl_image_root else None
-    vl_ds = VLPairsDataset(args.vl_manifest, image_root=vl_image_root)
+    with main_process_first(is_main, world_size):
+        vl_ds = VLPairsDataset(args.vl_manifest, image_root=vl_image_root)
     vl_sampler = (DistributedSampler(vl_ds, num_replicas=world_size, rank=rank,
                                      shuffle=True, drop_last=True)
                   if world_size > 1 else None)
