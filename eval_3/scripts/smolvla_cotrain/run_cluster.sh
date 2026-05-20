@@ -20,9 +20,21 @@
 
 set -euo pipefail
 
-# ── required from the user ───────────────────────────────────────────────────
-: "${HF_TOKEN:?set HF_TOKEN — a HuggingFace token with WRITE access (checkpoints are pushed)}"
-: "${PUSH_REPO:?set PUSH_REPO — the HF model repo to push checkpoints to, e.g. youruser/smolvla_klal_lora_25k}"
+HERE="$(cd "$(dirname "$0")" && pwd)"
+REPO_ROOT="$(cd "$HERE/../../.." && pwd)"
+
+# ── HuggingFace token (needed to push checkpoints every 5k steps) ────────────
+# Provide it EITHER via the HF_TOKEN env var, OR in a local token file
+# ($HERE/.hf_token — gitignored, so the token is never committed). Do NOT
+# hard-code a token into this script: it would be pushed to the git remote,
+# and HuggingFace auto-revokes tokens it finds in public repos.
+HF_TOKEN_FILE="${HF_TOKEN_FILE:-$HERE/.hf_token}"
+if [ -z "${HF_TOKEN:-}" ] && [ -f "$HF_TOKEN_FILE" ]; then
+    HF_TOKEN="$(tr -d ' \t\r\n' < "$HF_TOKEN_FILE")"
+    echo "==> HF_TOKEN loaded from $HF_TOKEN_FILE"
+fi
+: "${HF_TOKEN:?provide HF_TOKEN — export it, or write it into $HERE/.hf_token (gitignored)}"
+: "${PUSH_REPO:?set PUSH_REPO — the HF model repo for checkpoints, e.g. youruser/smolvla_klal_lora_25k}"
 export HF_TOKEN
 
 # ── tunables (override via env) ──────────────────────────────────────────────
@@ -43,9 +55,6 @@ KLAL_LAMBDA="${KLAL_LAMBDA:-1.0}"
 KLAL_SIGMA="${KLAL_SIGMA:-1.0}"
 LORA_R="${LORA_R:-16}"
 LORA_ALPHA="${LORA_ALPHA:-32}"
-
-HERE="$(cd "$(dirname "$0")" && pwd)"
-REPO_ROOT="$(cd "$HERE/../../.." && pwd)"
 
 # ── GPU autodetect ───────────────────────────────────────────────────────────
 if ! command -v nvidia-smi >/dev/null 2>&1; then

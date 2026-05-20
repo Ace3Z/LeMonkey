@@ -52,10 +52,24 @@ commands above are the portable path.)
 
 ---
 
-## 3. Export your HuggingFace token + push target
+## 3. HuggingFace token + push target
 
+The script needs an HF token with **write** access (checkpoints are pushed).
+Give it the token one of two ways — **never commit a token into the repo**:
+
+**Option A — env var:**
 ```bash
-export HF_TOKEN=hf_xxxxxxxxxxxxxxxxxxxxx          # must have WRITE access
+export HF_TOKEN=hf_xxxxxxxxxxxxxxxxxxxxx
+```
+
+**Option B — token file (set once, gitignored):**
+```bash
+echo "hf_xxxxxxxxxxxxxxxxxxxxx" > eval_3/scripts/smolvla_cotrain/.hf_token
+```
+`.hf_token` is in `.gitignore`, so it stays local and is never pushed.
+
+Either way, also set the push target:
+```bash
 export PUSH_REPO=youruser/smolvla_klal_lora_25k   # HF model repo for checkpoints
 ```
 
