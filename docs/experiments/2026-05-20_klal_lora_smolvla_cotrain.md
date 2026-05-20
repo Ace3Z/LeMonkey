@@ -109,6 +109,28 @@ Reaching a green smoke required fixing **five pre-existing bugs in the
 5. `VLPairsDataset` only extracted `images.tar.zst`; the dataset ships
    `data.tar.zst`, so all 176k VL images had fallen back to gray.
 
+## Multi-GPU cluster run
+
+`run_cluster.sh` + `RUN_ON_CLUSTER.md` (`eval_3/scripts/smolvla_cotrain/`)
+let another cluster run the 25k-step KLAL+LoRA cotrain, one command:
+
+- `cotrain.py` gained torchrun **manual-DDP** data parallelism — explicit
+  gradient all-reduce, not a DDP wrapper, because the VQA step calls
+  `vlm(...)` directly and would bypass DDP's forward. DistributedSampler on
+  both loaders, rank-0 broadcast sync after LoRA inject, distributed-safe
+  non-finite skip (all-reduced finite flag), rank-0 save + barrier.
+- Verified with a **2-rank `gloo` run on a-toy-pi05**: broadcast sync,
+  all-reduce, save+barrier, 24/24 steps, flow/vqa/klal all fire,
+  `step_000012` + `final` saved. NCCL on real multi-GPU uses the identical
+  collective API (the test used gloo only because NCCL forbids 2 ranks on
+  one GPU).
+- `_save_and_push` uploads each checkpoint to `<repo>/step_NNNNNN` every 5k
+  steps. `m2_klal_data.tar.zst` (9 MB, in-repo) bundles the KLAL bbox data
+  so the cluster needs no extra access.
+- **Not live-tested:** the HF upload itself (no write token on the test box)
+  — wrapped in try/except, logs `[WARN]` and keeps the local checkpoint if it
+  fails, never kills the run.
+
 ## Open risks / to verify on a longer run
 
 1. **Smoke ≠ convergence.** 200 steps confirms the mechanics, not that KLAL
