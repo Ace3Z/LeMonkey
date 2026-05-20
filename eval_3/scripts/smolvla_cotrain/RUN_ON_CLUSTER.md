@@ -146,8 +146,12 @@ rendezvous arguments.
 
 ## If something fails
 
+- `third_party/lerobot` is empty → the submodule wasn't fetched. From the
+  repo root: `git pull && git submodule sync && git submodule update --init
+  --recursive`. (If you cloned before the submodule pin was fixed, `git pull`
+  first so it points at the v0.5.1 tag.)
 - `cannot import lerobot SmolVLA` → the env isn't active or step 2 didn't
-  finish — re-do step 2.
+  finish — re-do step 2 (needs `third_party/lerobot` populated first).
 - `nvidia-smi not found` / `no GPUs` → run on a GPU node.
 - HF push errors mid-run are logged as `[WARN]` and **do not stop training** —
   the local checkpoint under `OUT_DIR` is kept; check `HF_TOKEN` write access.
