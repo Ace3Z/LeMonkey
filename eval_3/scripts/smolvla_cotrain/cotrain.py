@@ -98,6 +98,9 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--dtype", default="bfloat16", choices=["bfloat16", "float32"])
     p.add_argument("--compile_model", action="store_true",
                    help="torch.compile the policy. Recommend OFF for smoke, ON for full run.")
+    p.add_argument("--video_backend", default="pyav",
+                   help="LeRobotDataset video backend. Default pyav — torchcodec leaks "
+                        "~35 GB/worker over long runs (see TORCHCODEC_OOM_REPORT.md).")
     return p.parse_args()
 
 
@@ -350,8 +353,10 @@ def load_robot_dataset(args):
     """
     from lerobot.datasets.lerobot_dataset import LeRobotDataset
 
-    ds = LeRobotDataset(repo_id=args.robot_dataset, delta_timestamps=None)
-    print(f"[robot_dataset] {len(ds)} frames across {ds.num_episodes} episodes", flush=True)
+    ds = LeRobotDataset(repo_id=args.robot_dataset, delta_timestamps=None,
+                        video_backend=args.video_backend)
+    print(f"[robot_dataset] {len(ds)} frames across {ds.num_episodes} episodes "
+          f"(video_backend={args.video_backend})", flush=True)
     return ds
 
 
