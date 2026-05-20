@@ -123,6 +123,9 @@ def parse_args() -> argparse.Namespace:
     # Data
     p.add_argument("--robot_dataset", required=True,
                    help="LeRobotDataset HF repo id (e.g. HBOrtiz/so101_eval3_track3_v3_baseline)")
+    p.add_argument("--robot_max_episodes", type=int, default=None,
+                   help="Cap dataset to the first N episodes. Use when only a subset of video "
+                        "files are cached locally to avoid FileNotFoundError mid-training.")
     p.add_argument("--vl_manifest", required=True,
                    help="VL pairs HF repo id (e.g. HBOrtiz/eval3_objectvla_vl_pairs) "
                         "OR local parquet path")
@@ -428,10 +431,13 @@ def load_robot_dataset(args):
     """
     from lerobot.datasets.lerobot_dataset import LeRobotDataset
 
+    episodes = list(range(args.robot_max_episodes)) if args.robot_max_episodes else None
     ds = LeRobotDataset(repo_id=args.robot_dataset, delta_timestamps=None,
-                        video_backend=args.video_backend)
+                        video_backend=args.video_backend, episodes=episodes)
     print(f"[robot_dataset] {len(ds)} frames across {ds.num_episodes} episodes "
-          f"(video_backend={args.video_backend})", flush=True)
+          f"(video_backend={args.video_backend}"
+          + (f", capped at {args.robot_max_episodes}" if args.robot_max_episodes else "")
+          + ")", flush=True)
     return ds
 
 

@@ -84,6 +84,21 @@ elif [ "$_ROBOT_CACHED" = false ]; then
     echo "[WARN] Robot dataset not cached. Run predl_vl.sh equivalent for robot dataset first." >&2
 fi
 
+# Auto-cap episodes to however many have complete multi-stream video coverage.
+# The reference stream is the bottleneck — count its chunk-000 files (each = one episode).
+if [ -z "${ROBOT_MAX_EPISODES:-}" ] && [ -n "$_ROBOT_SNAP" ]; then
+    _REF_DIR="$_ROBOT_SNAP_DIR/$_ROBOT_SNAP/videos/observation.images.reference/chunk-000"
+    if [ -d "$_REF_DIR" ]; then
+        _N_REF=$(ls "$_REF_DIR" 2>/dev/null | wc -l)
+        _N_TOTAL=$(ls "$_ROBOT_SNAP_DIR/$_ROBOT_SNAP/videos/observation.images.camera1" 2>/dev/null | \
+                   find "$_ROBOT_SNAP_DIR/$_ROBOT_SNAP/videos/observation.images.camera1" -name "*.mp4" 2>/dev/null | wc -l)
+        if [ "$_N_REF" -lt "$_N_TOTAL" ] 2>/dev/null; then
+            ROBOT_MAX_EPISODES="$_N_REF"
+            echo "==> reference stream partially cached ($_N_REF/$_N_TOTAL) — capping to $_N_REF episodes"
+        fi
+    fi
+fi
+
 # ---- Pre-flight ---------------------------------------------------------------
 
 if [ -z "${HF_TOKEN:-}" ]; then
@@ -134,8 +149,9 @@ CMD=( python -u "$SCRIPT"
       --dtype="$DTYPE"
       --output_dir="$OUT_DIR" )
 
-[ -n "$VL_IMAGE_ROOT" ] && CMD+=( --vl_image_root="$VL_IMAGE_ROOT" )
-[ -n "$VLM_OVERRIDE"  ] && CMD+=( --vlm_model_name="$VLM_OVERRIDE" )
-[ -n "$PUSH_REPO"     ] && CMD+=( --push_to_hub_repo="$PUSH_REPO" )
+[ -n "${ROBOT_MAX_EPISODES:-}" ] && CMD+=( --robot_max_episodes="$ROBOT_MAX_EPISODES" )
+[ -n "$VL_IMAGE_ROOT" ]         && CMD+=( --vl_image_root="$VL_IMAGE_ROOT" )
+[ -n "$VLM_OVERRIDE"  ]         && CMD+=( --vlm_model_name="$VLM_OVERRIDE" )
+[ -n "$PUSH_REPO"     ]         && CMD+=( --push_to_hub_repo="$PUSH_REPO" )
 
 "${CMD[@]}"
