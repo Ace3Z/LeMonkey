@@ -494,20 +494,29 @@ def load_policy_and_processor(args, device: torch.device):
     return policy, vl_processor, cfg, lora_registry, lora_layers
 
 
-def load_robot_dataset(args):
+def load_robot_dataset(args, policy_cfg):
     """Loads the LeRobot dataset.
 
     We use LeRobotDataset directly (not make_dataset()) to avoid the full
-    TrainPipelineConfig surface. The dataset's per-frame items are RAW —
-    they need to be put through the policy's preprocessor (see
-    `build_robot_preprocessor` below) before `policy.forward()`.
+    TrainPipelineConfig surface, but we DO reuse lerobot's
+    `resolve_delta_timestamps` so each frame carries the action CHUNK
+    (`chunk_size` future steps) SmolVLA's flow-matching head needs — without
+    it `policy.forward` raises a prefix/suffix mask-size mismatch. The
+    dataset's per-frame items are otherwise RAW and need the policy's
+    preprocessor (see `build_robot_preprocessor`) before `policy.forward()`.
     """
-    from lerobot.datasets.lerobot_dataset import LeRobotDataset
+    from lerobot.datasets.factory import resolve_delta_timestamps
+    from lerobot.datasets.lerobot_dataset import LeRobotDataset, LeRobotDatasetMetadata
 
-    ds = LeRobotDataset(repo_id=args.robot_dataset, delta_timestamps=None,
+    ds_meta = LeRobotDatasetMetadata(args.robot_dataset)
+    delta_timestamps = resolve_delta_timestamps(policy_cfg, ds_meta)
+    ds = LeRobotDataset(repo_id=args.robot_dataset, delta_timestamps=delta_timestamps,
                         video_backend=args.video_backend)
+    dt_summary = ({k: len(v) for k, v in delta_timestamps.items()}
+                  if delta_timestamps else None)
     print(f"[robot_dataset] {len(ds)} frames across {ds.num_episodes} episodes "
-          f"(video_backend={args.video_backend})", flush=True)
+          f"(video_backend={args.video_backend}, delta_timestamps={dt_summary})",
+          flush=True)
     return ds
 
 
@@ -733,7 +742,7 @@ def main() -> int:
 
     # 2. Robot dataset + preprocessor + dataloader.
     print(f"[cotrain] loading robot dataset {args.robot_dataset} ...", flush=True)
-    robot_ds = load_robot_dataset(args)
+    robot_ds = load_robot_dataset(args, policy_cfg)
     print("[cotrain] building robot preprocessor (tokenizer + normalizer + device) ...", flush=True)
     preprocessor, postprocessor = build_robot_preprocessor(
         policy_cfg=policy_cfg,
