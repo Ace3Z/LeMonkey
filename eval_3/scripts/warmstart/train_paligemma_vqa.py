@@ -134,7 +134,17 @@ def main() -> int:
     ap.add_argument("--save-steps", type=int, default=2000)
     ap.add_argument("--seed", type=int, default=42)
     ap.add_argument("--smoke", action="store_true",
-                     help="Use only 200 manifest rows + skip push, for smoke testing")
+                     help="Use only 200 rows + skip push, for smoke testing")
+    ap.add_argument("--train-vision-tower", action="store_true",
+                     help="C1 recipe: also LoRA the SigLIP vision tower (q/k/v/out_proj/"
+                          "fc1/fc2), not just the LM. The 2026-05-20 probe proved the "
+                          "FROZEN vision tower is the bottleneck — its features have "
+                          "near-zero identity separation (0.048). Without this flag, no "
+                          "amount of LM LoRA can learn face ID.")
+    ap.add_argument("--augment", action="store_true",
+                     help="Apply on-the-fly image augmentation (flip / rotate / color "
+                          "jitter / resized-crop). Needed for the small scraped bank "
+                          "(~1700 imgs) so the trainable vision tower doesn't overfit.")
     args = ap.parse_args()
 
     args.output_dir.mkdir(parents=True, exist_ok=True)
@@ -151,26 +161,37 @@ def main() -> int:
     paligemma = policy.model.paligemma_with_expert.paligemma  # PaliGemmaForConditionalGenerationWithPiGemma
 
     # ── 2. Freeze everything we don't want to train ─────────────────────────
-    print("==> [2/6] freezing vision_tower, projector, lm_head, action expert", flush=True)
-    for p in paligemma.model.vision_tower.parameters():
-        p.requires_grad = False
+    if args.train_vision_tower:
+        print("==> [2/6] freezing projector, lm_head, action expert "
+              "(vision_tower STAYS TRAINABLE — C1 recipe)", flush=True)
+    else:
+        print("==> [2/6] freezing vision_tower, projector, lm_head, action expert", flush=True)
+        for p in paligemma.model.vision_tower.parameters():
+            p.requires_grad = False
     for p in paligemma.model.multi_modal_projector.parameters():
         p.requires_grad = False
     for p in paligemma.lm_head.parameters():
         p.requires_grad = False
-    # Action expert + projections are owned by paligemma_with_expert; freeze:
     for p in policy.model.paligemma_with_expert.gemma_expert.parameters():
         p.requires_grad = False
 
-    # ── 3. Apply LoRA to PaliGemma's language_model layers ──────────────────
+    # ── 3. Apply LoRA ───────────────────────────────────────────────────────
+    target_modules = list(args.target_modules)
+    if args.train_vision_tower:
+        # SigLIP's leaf-linear names: attention out_proj (vs LM's o_proj),
+        # MLP fc1/fc2 (vs LM's gate/up/down). q/k/v_proj are shared names so
+        # PEFT LoRAs them in BOTH towers. Adding these covers SigLIP fully.
+        for m in ("out_proj", "fc1", "fc2"):
+            if m not in target_modules:
+                target_modules.append(m)
     print(f"==> [3/6] applying LoRA r={args.lora_r} alpha={args.lora_alpha} "
-          f"targets={args.target_modules}", flush=True)
+          f"targets={target_modules}", flush=True)
     from peft import LoraConfig, get_peft_model, TaskType
     peft_config = LoraConfig(
         r=args.lora_r,
         lora_alpha=args.lora_alpha,
         lora_dropout=args.lora_dropout,
-        target_modules=args.target_modules,
+        target_modules=target_modules,
         bias="none",
         task_type=TaskType.CAUSAL_LM,
     )
@@ -187,13 +208,15 @@ def main() -> int:
 
     processor = AutoProcessor.from_pretrained(args.processor_name)
 
-    # Validate mode: exactly one of --manifest, --hf-dataset, --local-parquet-dir
+    # Validate mode: exactly one of --manifest, --hf-dataset, --local-parquet-dir,
+    # --scraped-bank
     n_modes = sum(x is not None for x in
-                   (args.manifest, args.hf_dataset, args.local_parquet_dir))
+                   (args.manifest, args.hf_dataset, args.local_parquet_dir,
+                    args.scraped_bank))
     if n_modes != 1:
         raise SystemExit(
-            f"[FATAL] exactly one of --manifest / --hf-dataset / --local-parquet-dir "
-            f"required (got {n_modes})"
+            f"[FATAL] exactly one of --manifest / --hf-dataset / "
+            f"--local-parquet-dir / --scraped-bank required (got {n_modes})"
         )
 
     # Resolve VGGFace2 id → human-name mapping if we'll need it.
@@ -225,7 +248,7 @@ def main() -> int:
             )
         print(f"  identity_meta.csv: {len(id_to_name)} names loaded", flush=True)
 
-    # Load dataset — three modes (manifest, hf-dataset, local-parquet-dir)
+    # Load dataset — four modes (manifest, hf-dataset, local-parquet-dir, scraped-bank)
     PROMPT_TEMPLATE = "<image>Who is the person in this image?\n"
     if args.manifest is not None:
         # Legacy file-path manifest from prepare_vggface2_vqa.py
@@ -238,6 +261,23 @@ def main() -> int:
             raise SystemExit(f"[FATAL] no *.parquet under {args.local_parquet_dir}")
         ds = load_dataset("parquet", data_files=parquets, split="train")
         ds_kind = "local_parquet"
+    elif args.scraped_bank is not None:
+        # C1: our 193-celeb scraped bank, layout <bank>/<slug>/<photo>.jpg.
+        # Build an in-memory {image_path, target} dataset; _resolve_row reads it.
+        from datasets import Dataset
+        rows = []
+        for ident_dir in sorted(p for p in args.scraped_bank.iterdir() if p.is_dir()):
+            slug = ident_dir.name
+            name = " ".join(w.capitalize()
+                             for w in slug.replace("-", " ").split("_"))
+            for ph in sorted(ident_dir.iterdir()):
+                if ph.suffix.lower() in {".jpg", ".jpeg", ".png"}:
+                    rows.append({"image_path": str(ph), "target": name,
+                                 "prompt": PROMPT_TEMPLATE})
+        if not rows:
+            raise SystemExit(f"[FATAL] no images under {args.scraped_bank}")
+        ds = Dataset.from_list(rows)
+        ds_kind = f"scraped_bank ({len(set(r['target'] for r in rows))} celebs)"
     else:
         # Stream from HF Hub
         ds = load_dataset(args.hf_dataset, split="train")
@@ -263,17 +303,33 @@ def main() -> int:
         label_feat = None
 
     if args.smoke:
-        ds = ds.shuffle(seed=args.seed).select(range(200))
+        ds = ds.shuffle(seed=args.seed).select(range(min(200, len(ds))))
         print(f"==> SMOKE: trimmed dataset to {len(ds)} rows", flush=True)
     print(f"dataset rows ({ds_kind}): {len(ds)}", flush=True)
+
+    # Optional on-the-fly augmentation (for the small scraped bank). Applied to
+    # the PIL image BEFORE the processor's resize+normalize, so each epoch the
+    # model sees a fresh variant — multiplies effective dataset size.
+    _augment = None
+    if args.augment:
+        from torchvision import transforms as _T
+        _augment = _T.Compose([
+            _T.RandomResizedCrop(224, scale=(0.75, 1.0), ratio=(0.85, 1.18)),
+            _T.RandomHorizontalFlip(p=0.5),
+            _T.RandomRotation(12),
+            _T.ColorJitter(brightness=0.25, contrast=0.25,
+                            saturation=0.20, hue=0.03),
+        ])
+        print("  augmentation: ON (resized-crop / flip / rotate / color-jitter)",
+              flush=True)
 
     def _resolve_row(ex):
         """Return (PIL.Image, prompt, target) for one row, regardless of source schema.
 
-        Three input row shapes are supported:
-          (a) manifest:    {image_path, prompt, target}     → open path
-          (b) chronopt:    {image: HF Image, label: int}    → use auto-decoded PIL, resolve label
-          (c) raw bank:    {image_path, target}             → like (a) but build prompt
+        Input row shapes supported:
+          (a) manifest / scraped:  {image_path, target[, prompt]}  → open path
+          (b) chronopt:            {image: HF Image, label: int}   → decoded PIL + resolve label
+        If --augment is set, the PIL image is augmented before return.
         """
         if "image_path" in ex and ex.get("image_path"):
             img = Image.open(ex["image_path"]).convert("RGB")
@@ -293,6 +349,8 @@ def main() -> int:
             prompt = PROMPT_TEMPLATE
         else:
             raise ValueError(f"unrecognized row schema; keys={list(ex.keys())}")
+        if _augment is not None:
+            img = _augment(img)
         return img, prompt, target
 
     def collate(batch):
