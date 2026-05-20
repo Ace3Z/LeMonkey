@@ -61,12 +61,14 @@ if ! command -v nvidia-smi >/dev/null 2>&1; then
     echo "[ERROR] nvidia-smi not found — this run needs CUDA GPUs" >&2
     exit 1
 fi
-NGPU="$(nvidia-smi -L | wc -l | tr -d ' ')"
+# GPU count: auto-detected, or pin it via the NGPU env var (e.g. NGPU=7 to
+# leave one GPU free). torchrun then runs that many ranks on cuda:0..NGPU-1.
+NGPU="${NGPU:-$(nvidia-smi -L | wc -l | tr -d ' ')}"
 if [ "${NGPU:-0}" -lt 1 ]; then
-    echo "[ERROR] no GPUs detected by nvidia-smi" >&2
+    echo "[ERROR] no GPUs detected / NGPU invalid" >&2
     exit 1
 fi
-echo "==> $NGPU GPU(s) detected:"
+echo "==> using $NGPU GPU(s):"
 nvidia-smi --query-gpu=index,name,memory.total --format=csv,noheader
 
 # ── extract the bundled KLAL data (once) ─────────────────────────────────────
