@@ -319,11 +319,18 @@ def smolvla_action_loss(policy, batch: dict) -> torch.Tensor:
 
 def load_policy_and_processor(args, device: torch.device):
     """Constructs SmolVLAPolicy with cotrain-friendly flags."""
+    from lerobot.configs.policies import PreTrainedConfig
     from lerobot.policies.smolvla.modeling_smolvla import SmolVLAPolicy
     from lerobot.policies.smolvla.configuration_smolvla import SmolVLAConfig
 
-    # Load config from the pretrained checkpoint; override the cotrain-critical flags.
-    cfg = SmolVLAConfig.from_pretrained(args.pretrained_path)
+    # Load config via the ChoiceRegistry base so draccus can dispatch on the
+    # "type" field stored in the checkpoint's config.json.  Calling
+    # SmolVLAConfig.from_pretrained() directly fails because draccus tries to
+    # decode "type" as a dataclass field of the concrete subclass.
+    cfg = PreTrainedConfig.from_pretrained(args.pretrained_path)
+    assert isinstance(cfg, SmolVLAConfig), (
+        f"Expected SmolVLAConfig from {args.pretrained_path}, got {type(cfg)}"
+    )
     cfg.train_expert_only = False    # CRITICAL: VLM body must be trainable for VQA CE.
     cfg.freeze_vision_encoder = True # Keep SigLIP frozen — RT-2 doesn't tune it either.
     cfg.empty_cameras = max(0, cfg.empty_cameras) if hasattr(cfg, "empty_cameras") else 0
