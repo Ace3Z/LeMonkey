@@ -84,20 +84,12 @@ elif [ "$_ROBOT_CACHED" = false ]; then
     echo "[WARN] Robot dataset not cached. Run predl_vl.sh equivalent for robot dataset first." >&2
 fi
 
-# Auto-cap episodes to however many have complete multi-stream video coverage.
-# The reference stream is the bottleneck — count its chunk-000 files (each = one episode).
-if [ -z "${ROBOT_MAX_EPISODES:-}" ] && [ -n "$_ROBOT_SNAP" ]; then
-    _REF_DIR="$_ROBOT_SNAP_DIR/$_ROBOT_SNAP/videos/observation.images.reference/chunk-000"
-    if [ -d "$_REF_DIR" ]; then
-        _N_REF=$(ls "$_REF_DIR" 2>/dev/null | wc -l)
-        _N_TOTAL=$(ls "$_ROBOT_SNAP_DIR/$_ROBOT_SNAP/videos/observation.images.camera1" 2>/dev/null | \
-                   find "$_ROBOT_SNAP_DIR/$_ROBOT_SNAP/videos/observation.images.camera1" -name "*.mp4" 2>/dev/null | wc -l)
-        if [ "$_N_REF" -lt "$_N_TOTAL" ] 2>/dev/null; then
-            ROBOT_MAX_EPISODES="$_N_REF"
-            echo "==> reference stream partially cached ($_N_REF/$_N_TOTAL) — capping to $_N_REF episodes"
-        fi
-    fi
-fi
+# Episode coverage is handled inside cotrain.py (_episodes_with_complete_files):
+# it filters to episodes whose data+video files are all present in the cache,
+# which is correct even when the partial download has non-contiguous gaps (a
+# file-count heuristic here cannot — it once capped to 938 and then crashed on
+# the missing reference/file-934.mp4 inside that range). Set ROBOT_MAX_EPISODES
+# explicitly only to deliberately shrink the run (e.g. a fast smoke test).
 
 # ---- Pre-flight ---------------------------------------------------------------
 

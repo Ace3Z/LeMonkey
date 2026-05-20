@@ -421,6 +421,58 @@ def load_policy_and_processor(args, device: torch.device):
     return policy, vl_processor, cfg
 
 
+def _episodes_with_complete_files(meta) -> list[int]:
+    """Episode indices whose every data + video file is present in the cache.
+
+    The lerobot cache may hold only a *partial* download. LeRobotDataset builds
+    fine from metadata regardless, but raises FileNotFoundError inside a
+    DataLoader worker the first time `__getitem__` touches an episode whose
+    file is absent (observed: reference/file-934.mp4 missing from an otherwise
+    near-contiguous cache, crashing the run ~100 steps in). We pre-filter to
+    fully-covered episodes so training never hits a missing file mid-run.
+
+    Each episode's metadata row records the (chunk_index, file_index) of its
+    data parquet and of every video stream; we resolve those against the
+    on-disk path templates and keep only episodes where all files exist.
+    """
+    import re
+
+    root = Path(meta.root)
+    ep = meta.episodes.to_pandas()
+
+    # (path_template, video_key_or_None) for every file an episode references.
+    file_specs: list[tuple[str, str | None]] = [(meta.info.data_path, None)]
+    for col in ep.columns:
+        m = re.fullmatch(r"videos/(.+)/file_index", col)
+        if m:
+            file_specs.append((meta.info.video_path, m.group(1)))
+
+    valid: list[int] = []
+    missing: set[str] = set()
+    for _, row in ep.iterrows():
+        complete = True
+        for tmpl, vkey in file_specs:
+            prefix = f"videos/{vkey}/" if vkey else "data/"
+            rel = tmpl.format(
+                video_key=vkey,
+                chunk_index=int(row[f"{prefix}chunk_index"]),
+                file_index=int(row[f"{prefix}file_index"]),
+            )
+            if not (root / rel).is_file():
+                complete = False
+                missing.add(rel)
+        if complete:
+            valid.append(int(row["episode_index"]))
+
+    if missing:
+        print(f"[WARN] robot_dataset: partial cache — expected all {len(ep)} "
+              f"episodes covered, got={len(valid)} fully-covered, "
+              f"fallback=train on the {len(valid)}-episode subset "
+              f"({len(missing)} files missing, e.g. {sorted(missing)[:2]})",
+              flush=True)
+    return valid
+
+
 def load_robot_dataset(args, policy_cfg):
     """Loads the LeRobot dataset.
 
@@ -436,6 +488,10 @@ def load_robot_dataset(args, policy_cfg):
     mismatch). We build delta_timestamps from the policy config exactly as
     lerobot's own `make_dataset()` factory does (resolve_delta_timestamps):
     action → chunk_size future steps, observations → [0].
+
+    Episodes are filtered to those with complete data+video file coverage in
+    the local cache (see `_episodes_with_complete_files`) — a partial download
+    otherwise crashes mid-run on the first missing file.
     """
     from lerobot.datasets.lerobot_dataset import LeRobotDataset, LeRobotDatasetMetadata
     from lerobot.datasets.factory import resolve_delta_timestamps
@@ -449,12 +505,22 @@ def load_robot_dataset(args, policy_cfg):
             f"flow-matching loss cannot run on single-step actions."
         )
 
-    episodes = list(range(args.robot_max_episodes)) if args.robot_max_episodes else None
+    episodes = _episodes_with_complete_files(meta)
+    if not episodes:
+        raise RuntimeError(
+            f"robot_dataset {args.robot_dataset}: no episode has a complete set of "
+            f"data+video files in the local cache — cannot train. Re-download the "
+            f"dataset or check the cache path."
+        )
+    if args.robot_max_episodes:
+        episodes = episodes[: args.robot_max_episodes]
+
     ds = LeRobotDataset(repo_id=args.robot_dataset, delta_timestamps=delta_timestamps,
                         video_backend=args.video_backend, episodes=episodes)
     print(f"[robot_dataset] {len(ds)} frames across {ds.num_episodes} episodes "
           f"(video_backend={args.video_backend}, "
-          f"action chunk={len(delta_timestamps['action'])}"
+          f"action chunk={len(delta_timestamps['action'])}, "
+          f"{len(episodes)} episodes with complete file coverage"
           + (f", capped at {args.robot_max_episodes}" if args.robot_max_episodes else "")
           + ")", flush=True)
     return ds
