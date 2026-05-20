@@ -49,6 +49,10 @@ import torch
 import torch.nn.functional as F
 from torch.utils.data import DataLoader, Dataset
 
+# KLAL lives next to this script; make it importable when run from repo root.
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from smolvla_klal import KLALConfig, KLALHookSet, bbox_to_patch_mask, klal_loss  # noqa: E402
+
 
 # -----------------------------------------------------------------------------
 # CLI
@@ -87,6 +91,29 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--grad_clip", type=float, default=10.0)
     p.add_argument("--num_workers", type=int, default=4)
     p.add_argument("--seed", type=int, default=42)
+    # VL caption selection.
+    #   qa_grounded      → target is the bare celeb name ("Barack Obama"); use
+    #                      this for the KLAL attention-supervision experiment so
+    #                      every label position is a name token.
+    #   location_explicit→ target encodes the bbox as text ("...is at [0.06,..]");
+    #                      this is the CHEAP ObjectVLA bbox-prediction approach —
+    #                      trains via VQA CE alone, no KLAL needed.
+    #   all              → use both caption types.
+    p.add_argument("--caption_filter", default="all",
+                   choices=["all", "qa_grounded", "location_explicit"],
+                   help="Which caption_type rows to keep in the VL stream.")
+    # KLAL attention-supervision loss (L_attn).
+    p.add_argument("--use_klal", action="store_true",
+                   help="Add the KL attention-supervision loss on VL steps. "
+                        "Requires bbox_xyxy_norm in the manifest. Pair with "
+                        "--caption_filter=qa_grounded.")
+    p.add_argument("--klal_lam", type=float, default=1.0,
+                   help="Weight λ on L_attn (total = vqa + λ·klal on VL steps).")
+    p.add_argument("--klal_layers", default="6,9,12,15",
+                   help="Comma-list of text-layer indices to supervise. MUST be "
+                        "in [0,15] (SmolVLA truncates to 16 layers).")
+    p.add_argument("--klal_sigma", type=float, default=1.0,
+                   help="Gaussian target std in 8x8-grid patch units.")
     # Output
     p.add_argument("--output_dir", required=True)
     p.add_argument("--save_freq", type=int, default=5000,
@@ -113,7 +140,8 @@ class VLPairsDataset(Dataset):
 
     REQUIRED_COLS = {"image_path", "prompt", "target", "celeb_slug", "caption_type"}
 
-    def __init__(self, manifest_path_or_id: str, image_root: Path | None = None):
+    def __init__(self, manifest_path_or_id: str, image_root: Path | None = None,
+                 caption_filter: str = "all", need_bbox: bool = False):
         try:
             import pandas as pd
         except ImportError as e:
@@ -156,10 +184,26 @@ class VLPairsDataset(Dataset):
                             check=True,
                         )
 
-        missing = self.REQUIRED_COLS - set(self.df.columns)
+        required = set(self.REQUIRED_COLS)
+        if need_bbox:
+            required.add("bbox_xyxy_norm")
+        missing = required - set(self.df.columns)
         if missing:
             raise ValueError(f"VL manifest missing columns: {missing}; "
                              f"got {list(self.df.columns)}")
+
+        # Caption-type filter (qa_grounded for KLAL, location_explicit for the
+        # cheap bbox-as-text approach, all for both).
+        self.need_bbox = need_bbox
+        if caption_filter != "all":
+            before = len(self.df)
+            self.df = self.df[self.df["caption_type"] == caption_filter].reset_index(drop=True)
+            print(f"[vl_dataset] caption_filter={caption_filter}: kept {len(self.df)}/{before} rows",
+                  flush=True)
+            if len(self.df) == 0:
+                raise ValueError(f"caption_filter={caption_filter} left 0 rows; "
+                                 f"available types: "
+                                 f"{list(self.df['caption_type'].unique())}")
 
         self.image_root = image_root
         print(f"[vl_dataset] {len(self.df)} pairs, {self.df['celeb_slug'].nunique()} celebs, "
@@ -196,15 +240,28 @@ class VLPairsDataset(Dataset):
                       f"{img_path}: {e}, fallback=gray", flush=True)
                 img = Image.new("RGB", (224, 224), color=(128, 128, 128))
 
-        return {
+        item = {
             "image": img,
             "prompt": str(row["prompt"]),
             "target": str(row["target"]),
             "celeb_slug": str(row["celeb_slug"]),
         }
+        if self.need_bbox:
+            # bbox_xyxy_norm is a list/array [x1,y1,x2,y2] in [0,1]; may be None
+            # for rows without a localised face — emit a sentinel all-zero box
+            # (KLAL treats an all-zero target mask as "no supervision").
+            bb = row["bbox_xyxy_norm"]
+            if bb is None or (hasattr(bb, "__len__") and len(bb) != 4):
+                print(f"[WARN] vl_dataset row {idx}: expected 4-elt bbox_xyxy_norm, "
+                      f"got={bb}, fallback=zeros (no KLAL supervision this sample)",
+                      flush=True)
+                bb = [0.0, 0.0, 0.0, 0.0]
+            item["bbox_xyxy_norm"] = [float(v) for v in bb]
+        return item
 
 
-def make_vl_collator(processor, max_text_len: int = 256):
+def make_vl_collator(processor, max_text_len: int = 256,
+                     need_klal: bool = False, image_token_id: int | None = None):
     """Builds VL batches for SmolVLM2's LM head.
 
     SmolVLM2 uses an Idefics3-style processor that expands the `<image>`
@@ -219,6 +276,16 @@ def make_vl_collator(processor, max_text_len: int = 256):
     wrong — it does NOT run the image-token expansion, so prompt_lens were
     off by ~80-170 tokens and the model would have trained to predict
     image-placeholder tokens.)
+
+    KLAL mode (need_klal=True) additionally returns, per batch:
+      - "image_cols"      (B, 64) long: image-token column indices (input_ids
+                          == image_token_id). do_image_splitting is pinned False
+                          so each image expands to exactly 64 tokens (the 8x8
+                          pixel-shuffle grid), matching SmolVLA's deployed
+                          single-global-image behaviour.
+      - "name_positions"  (B, K_max) long, -1 padded: positions where
+                          labels != -100 (the target-name token rows).
+      - "bbox"            (B, 4) float: [x1,y1,x2,y2] normalised face boxes.
     """
     image_token = "<image>"
 
@@ -230,44 +297,66 @@ def make_vl_collator(processor, max_text_len: int = 256):
         prompts_full = [f"{p} {ex['target']}" for p, ex in zip(prompts_only, batch)]
         images = [ex["image"] for ex in batch]
 
-        # 1. Process full (prompt + target) text + images. This is what we
-        #    feed to the VLM forward.
-        full_inputs = processor(
-            text=prompts_full,
-            images=images,
-            return_tensors="pt",
-            padding="longest",
-            truncation=True,
-            max_length=max_text_len,
+        # Pin do_image_splitting=False: one global image → exactly 64 image
+        # tokens (8x8 grid). This is what SmolVLA uses at inference and what the
+        # KLAL bbox→grid mapping assumes. Without it the processor may tile the
+        # image (variable token count, broken grid).
+        proc_kwargs = dict(
+            return_tensors="pt", padding="longest",
+            truncation=True, max_length=max_text_len,
+            do_image_splitting=False,
         )
 
-        # 2. Process prompt-only with the SAME images so image-token
-        #    expansion matches identically. We discard the resulting
-        #    pixel_values; we only need the input_ids length.
-        prompt_inputs = processor(
-            text=prompts_only,
-            images=images,
-            return_tensors="pt",
-            padding="longest",
-            truncation=True,
-            max_length=max_text_len,
-        )
-        # Per-sample prompt token length (number of non-pad tokens).
+        full_inputs = processor(text=prompts_full, images=images, **proc_kwargs)
+        prompt_inputs = processor(text=prompts_only, images=images, **proc_kwargs)
         prompt_lens = prompt_inputs["attention_mask"].sum(dim=1).tolist()
 
-        # 3. Build labels: -100 on prompt portion + pad; target tokens elsewhere.
         input_ids = full_inputs["input_ids"]
         attn = full_inputs["attention_mask"]
         labels = input_ids.clone()
         for i, plen in enumerate(prompt_lens):
-            # Always leave at least one position to predict — otherwise the
-            # CE loss is undefined for that sample.
             cap = max(1, min(int(plen), input_ids.shape[1] - 1))
             labels[i, :cap] = -100
         labels = labels.masked_fill(attn == 0, -100)
 
         out = dict(full_inputs)
         out["labels"] = labels
+
+        if need_klal:
+            if image_token_id is None:
+                raise ValueError("need_klal=True requires image_token_id")
+            B, L = input_ids.shape
+            # Image columns: positions where input_ids == image_token_id.
+            # With do_image_splitting=False + 1 image/sample this is exactly 64
+            # per sample, so we can stack to (B, 64). If a sample has a
+            # different count (shouldn't happen), warn + pad/truncate to 64.
+            EXPECT_P = 64
+            img_cols_rows = []
+            for b in range(B):
+                cols = (input_ids[b] == image_token_id).nonzero(as_tuple=True)[0]
+                if cols.numel() != EXPECT_P:
+                    print(f"[WARN] vl_collator KLAL: sample {b} has {cols.numel()} "
+                          f"image tokens, expected={EXPECT_P}, "
+                          f"fallback=pad/truncate to {EXPECT_P}", flush=True)
+                    if cols.numel() > EXPECT_P:
+                        cols = cols[:EXPECT_P]
+                    else:
+                        pad = torch.full((EXPECT_P - cols.numel(),), cols[-1] if cols.numel() else 0,
+                                         dtype=cols.dtype)
+                        cols = torch.cat([cols, pad])
+                img_cols_rows.append(cols)
+            out["image_cols"] = torch.stack(img_cols_rows, dim=0)  # (B, 64)
+
+            # Name-token positions: where labels != -100, padded with -1.
+            name_rows = [(labels[b] != -100).nonzero(as_tuple=True)[0] for b in range(B)]
+            k_max = max(1, max(r.numel() for r in name_rows))
+            name_pos = torch.full((B, k_max), -1, dtype=torch.long)
+            for b, r in enumerate(name_rows):
+                name_pos[b, : r.numel()] = r
+            out["name_positions"] = name_pos
+
+            out["bbox"] = torch.tensor([ex["bbox_xyxy_norm"] for ex in batch],
+                                       dtype=torch.float32)
         return out
 
     return collate
@@ -447,17 +536,45 @@ def main() -> int:
     # 3. VL dataset + dataloader.
     print(f"[cotrain] loading VL pairs from {args.vl_manifest} ...", flush=True)
     vl_image_root = Path(args.vl_image_root) if args.vl_image_root else None
-    vl_ds = VLPairsDataset(args.vl_manifest, image_root=vl_image_root)
+    vl_ds = VLPairsDataset(args.vl_manifest, image_root=vl_image_root,
+                           caption_filter=args.caption_filter,
+                           need_bbox=args.use_klal)
+    # image_token_id from the VLM config (verified 49190 for SmolVLM2-500M).
+    image_token_id = policy.model.vlm_with_expert.vlm.config.image_token_id
     vl_loader = DataLoader(
         vl_ds,
         batch_size=args.vl_batch_size,
         shuffle=True,
         num_workers=args.num_workers,
-        collate_fn=make_vl_collator(vl_processor),
+        collate_fn=make_vl_collator(vl_processor, need_klal=args.use_klal,
+                                    image_token_id=image_token_id),
         pin_memory=device.type == "cuda",
         drop_last=True,
     )
     vl_iter = iter(vl_loader)
+
+    # 3b. KLAL hookset (L_attn) — registers q_proj/k_proj/rotary hooks on the
+    # truncated SmolVLM2 text layers. Recomputes name→image-patch attention.
+    klal_hooks = None
+    klal_cfg = None
+    if args.use_klal:
+        text_model = policy.model.vlm_with_expert.vlm.model.text_model
+        tcfg = policy.model.vlm_with_expert.vlm.config.text_config
+        capture_layers = tuple(int(x) for x in args.klal_layers.split(","))
+        klal_cfg = KLALConfig(capture_layers=capture_layers,
+                              target_sigma_patches=args.klal_sigma,
+                              lam=1.0)  # λ applied in the loop, keep cfg.lam=1
+        klal_hooks = KLALHookSet(
+            text_model=text_model,
+            layers=capture_layers,
+            n_heads=tcfg.num_attention_heads,
+            n_kv_heads=tcfg.num_key_value_heads,
+            head_dim=tcfg.head_dim,
+        )
+        print(f"[cotrain] KLAL enabled: layers={capture_layers}, "
+              f"λ={args.klal_lam}, σ={args.klal_sigma}, "
+              f"heads={tcfg.num_attention_heads}/{tcfg.num_key_value_heads}, "
+              f"head_dim={tcfg.head_dim}", flush=True)
 
     # 4. Optimizer — one AdamW over all trainable params.
     optim = torch.optim.AdamW(
@@ -476,6 +593,7 @@ def main() -> int:
     last_log_time = time.perf_counter()
     last_flow_loss = float("nan")
     last_vqa_loss = float("nan")
+    last_klal_loss = float("nan")
 
     for step in range(args.steps):
         is_vl_step = (step % period == 0)
@@ -486,12 +604,31 @@ def main() -> int:
             except StopIteration:
                 vl_iter = iter(vl_loader)
                 batch = next(vl_iter)
+            if klal_hooks is not None:
+                klal_hooks.reset()
             with torch.amp.autocast(device_type=device.type,
                                      dtype=torch.bfloat16 if args.dtype == "bfloat16"
                                                           else torch.float32):
-                loss = smolvla_vqa_loss(policy, batch, device)
+                vqa = smolvla_vqa_loss(policy, batch, device)
+                if klal_hooks is not None:
+                    # Build per-sample target masks from the bbox on the 8x8 grid.
+                    image_cols = batch["image_cols"].to(device)
+                    name_pos = batch["name_positions"].to(device)
+                    bbox = batch["bbox"].to(device)
+                    grid = int(round(image_cols.shape[1] ** 0.5))
+                    masks = torch.stack(
+                        [bbox_to_patch_mask(bbox[b].tolist(), grid, device)
+                         for b in range(bbox.shape[0])],
+                        dim=0,
+                    )  # (B, P) bool
+                    attn_loss = klal_loss(klal_hooks, image_cols, name_pos,
+                                          masks, klal_cfg)
+                    loss = vqa + args.klal_lam * attn_loss
+                    last_klal_loss = float(attn_loss.item())
+                else:
+                    loss = vqa
             loss_name = "vqa_loss"
-            last_vqa_loss = loss.item()
+            last_vqa_loss = float(vqa.item())
         else:
             try:
                 batch = next(robot_iter)
@@ -531,7 +668,8 @@ def main() -> int:
             last_log_time = time.perf_counter()
             steps_per_sec = args.log_every / dt if dt > 0 else 0
             print(f"step {step:6d}  {loss_name}={loss.item():.4f}  "
-                  f"(last flow={last_flow_loss:.4f} vqa={last_vqa_loss:.4f})  "
+                  f"(last flow={last_flow_loss:.4f} vqa={last_vqa_loss:.4f} "
+                  f"klal={last_klal_loss:.4f})  "
                   f"grad={grad_norm:.2f}  steps/s={steps_per_sec:.2f}",
                   flush=True)
 
@@ -545,6 +683,10 @@ def main() -> int:
             preprocessor.save_pretrained(ckpt_dir)
             postprocessor.save_pretrained(ckpt_dir)
             print(f"[cotrain] checkpoint saved → {ckpt_dir}", flush=True)
+
+    # Remove KLAL hooks before save/push (they hold references to activations).
+    if klal_hooks is not None:
+        klal_hooks.remove()
 
     # 6. Final save.
     final_dir = out_dir / "final"

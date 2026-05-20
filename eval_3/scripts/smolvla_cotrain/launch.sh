@@ -38,6 +38,15 @@ DTYPE="${DTYPE:-bfloat16}"
 OUT_DIR="${OUT_DIR:-outputs/smolvla_cotrain_${VL_RATIO}to1}"
 PUSH_REPO="${PUSH_REPO:-}"                  # leave empty to skip HF push
 
+# VL caption selection + KLAL attention-supervision (L_attn).
+#   CAPTION_FILTER=qa_grounded USE_KLAL=1   → KLAL experiment
+#   CAPTION_FILTER=location_explicit        → cheap bbox-as-text (no KLAL)
+CAPTION_FILTER="${CAPTION_FILTER:-all}"
+USE_KLAL="${USE_KLAL:-0}"                   # 1 to enable the KL attention loss
+KLAL_LAM="${KLAL_LAM:-1.0}"
+KLAL_LAYERS="${KLAL_LAYERS:-6,9,12,15}"     # must be in [0,15]
+KLAL_SIGMA="${KLAL_SIGMA:-1.0}"
+
 # ---- Pre-flight ---------------------------------------------------------------
 
 if [ -z "${HF_TOKEN:-}" ]; then
@@ -86,10 +95,15 @@ CMD=( python -u "$SCRIPT"
       --num_workers="$NUM_WORKERS"
       --seed="$SEED"
       --dtype="$DTYPE"
+      --caption_filter="$CAPTION_FILTER"
       --output_dir="$OUT_DIR" )
 
 [ -n "$VL_IMAGE_ROOT" ] && CMD+=( --vl_image_root="$VL_IMAGE_ROOT" )
 [ -n "$VLM_OVERRIDE"  ] && CMD+=( --vlm_model_name="$VLM_OVERRIDE" )
 [ -n "$PUSH_REPO"     ] && CMD+=( --push_to_hub_repo="$PUSH_REPO" )
+if [ "$USE_KLAL" = "1" ]; then
+    CMD+=( --use_klal --klal_lam="$KLAL_LAM" --klal_layers="$KLAL_LAYERS" --klal_sigma="$KLAL_SIGMA" )
+    echo "    KLAL       : ON (λ=$KLAL_LAM layers=$KLAL_LAYERS σ=$KLAL_SIGMA)"
+fi
 
 "${CMD[@]}"

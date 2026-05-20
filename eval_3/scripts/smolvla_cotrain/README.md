@@ -93,11 +93,59 @@ If still broken at step 15k, the candidate fixes (in order):
 - This script has been **written and statically reviewed but NOT smoke-tested** on a real GPU. CLAUDE.md §7 rigour bar: someone must run the 200-step smoke before trusting it for a 24h run. The reviewer specifically flagged two crash-by-step-1 bugs in the original draft (preprocessor not applied to robot batches; VL label masking off by ~80-170 image tokens); both are fixed in the current version but verify on smoke.
 - Action-head dim mismatch (low-probability): when loading `lerobot/smolvla_base`, if the checkpoint's `action_in_proj`/`action_out_proj` dimensions disagree with the config's `max_action_dim`, lerobot's `strict=False` silently keeps random-init projections. The first few steps' `flow_loss` will be very large if this happens. Watch step 0-10.
 
+## L_attn — KLAL attention supervision (added on hans-smolvla-cotrain-klal)
+
+The base script co-trains `L_action` (flow) + `L_name` (VQA CE). On top of that
+we optionally add `L_attn` — a KL attention-supervision loss that pushes the
+name-token→image-patch attention toward the prompted celeb's face bbox. This is
+the SmolVLM2 port of the Pi0.5 KLAL (`eval_3/aug/m2_klal.py`); see
+`smolvla_klal.py` for the verified SmolVLM2 specifics (8×8 pixel-shuffle grid,
+Llama RoPE, GQA 15/5, image_token_id 49190, capture layers ≤15).
+
+Total on a VL step: `loss = vqa + klal_lam · klal`. KLAL recomputes attention
+from hooked q_proj/k_proj outputs, so it runs under SDPA (no eager-attention /
+`output_attentions` needed).
+
+### Two experiments to run in parallel
+
+**A — cheap ObjectVLA bbox-as-text** (no KLAL; bbox encoded in the target text):
+```bash
+CAPTION_FILTER=location_explicit \
+PUSH_REPO=HBOrtiz/smolvla_eval3_cotrain_bboxtext \
+OUT_DIR=outputs/smolvla_cotrain_bboxtext \
+bash launch.sh
+```
+
+**B — KLAL attention supervision** (bare-name captions + the KL loss):
+```bash
+CAPTION_FILTER=qa_grounded USE_KLAL=1 KLAL_LAM=0.1 \
+PUSH_REPO=HBOrtiz/smolvla_eval3_cotrain_klal \
+OUT_DIR=outputs/smolvla_cotrain_klal \
+bash launch.sh
+```
+
+Start `KLAL_LAM` small (0.05–0.2): LoRA's low rank means few params absorb the
+attention signal, and KLAL can dominate the VQA CE if λ is too high. Watch the
+`klal=` term in the step logs — it should fall over the first few hundred steps.
+
+### KLAL smoke gates (in addition to the base gates above)
+- `grep klal smoke.log` shows a finite, decreasing `klal=` value (not NaN, not stuck).
+- Capture layers must be in [0,15] or the hookset raises at construction.
+- If `klal=0.0000` every step → bboxes aren't reaching the loss (check the
+  manifest has `bbox_xyxy_norm` and `--caption_filter=qa_grounded` kept rows).
+
+> **Review status (CLAUDE.md §9):** `smolvla_klal.py` is non-trivial. The pure
+> geometry (bbox→8×8 grid→Gaussian, empty-bbox→no-supervision) is unit-checked
+> on CPU. The attention recompute (RoPE capture, GQA expand, causal-column
+> renorm) is **statically written, not yet smoke-tested on a GPU** and has not
+> had a second-reviewer pass — do both before a long run.
+
 ## File layout
 
 ```
 eval_3/scripts/smolvla_cotrain/
-├── cotrain.py    # the training script
-├── launch.sh     # env-var-driven launcher
-└── README.md     # this file
+├── cotrain.py        # the training script (L_action + L_name + optional L_attn)
+├── smolvla_klal.py   # KLAL attention-supervision loss, SmolVLM2 port
+├── launch.sh         # env-var-driven launcher
+└── README.md         # this file
 ```
