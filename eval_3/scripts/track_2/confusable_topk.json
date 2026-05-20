@@ -1,0 +1,4802 @@
+{
+  "adam_sandler": {
+    "top_k": [
+      {
+        "slug": "jackie_chan",
+        "cos": 0.1548946052789688
+      },
+      {
+        "slug": "beyonce",
+        "cos": 0.13916373252868652
+      },
+      {
+        "slug": "edward_norton",
+        "cos": 0.1294936090707779
+      },
+      {
+        "slug": "matt_damon",
+        "cos": 0.12619765102863312
+      },
+      {
+        "slug": "denzel_washington",
+        "cos": 0.12496542930603027
+      }
+    ],
+    "n_above_threshold": 0
+  },
+  "al_pacino": {
+    "top_k": [
+      {
+        "slug": "steve_carell",
+        "cos": 0.13439339399337769
+      },
+      {
+        "slug": "chris_pratt",
+        "cos": 0.13328756392002106
+      },
+      {
+        "slug": "antonio_banderas",
+        "cos": 0.1307542324066162
+      },
+      {
+        "slug": "tim_allen",
+        "cos": 0.12406644970178604
+      },
+      {
+        "slug": "robert_downey_jr",
+        "cos": 0.11767562478780746
+      }
+    ],
+    "n_above_threshold": 0
+  },
+  "andrej_karpathy": {
+    "top_k": [
+      {
+        "slug": "jim_carrey",
+        "cos": 0.16205386817455292
+      },
+      {
+        "slug": "marco_hutter",
+        "cos": 0.1329554319381714
+      },
+      {
+        "slug": "demis_hassabis",
+        "cos": 0.12741024792194366
+      },
+      {
+        "slug": "orlando_bloom",
+        "cos": 0.12579461932182312
+      },
+      {
+        "slug": "ilya_sutskever",
+        "cos": 0.11989222466945648
+      }
+    ],
+    "n_above_threshold": 0
+  },
+  "andrew_ng": {
+    "top_k": [
+      {
+        "slug": "christopher_nolan",
+        "cos": 0.18270725011825562
+      },
+      {
+        "slug": "nicolas_cage",
+        "cos": 0.16573457419872284
+      },
+      {
+        "slug": "julia_roberts",
+        "cos": 0.1300164759159088
+      },
+      {
+        "slug": "sylvester_stallone",
+        "cos": 0.12834851443767548
+      },
+      {
+        "slug": "oprah_winfrey",
+        "cos": 0.12340083718299866
+      }
+    ],
+    "n_above_threshold": 0
+  },
+  "andy_jassy": {
+    "top_k": [
+      {
+        "slug": "steve_jobs",
+        "cos": 0.17272821068763733
+      },
+      {
+        "slug": "liam_neeson",
+        "cos": 0.1592259556055069
+      },
+      {
+        "slug": "chris_evans",
+        "cos": 0.14481039345264435
+      },
+      {
+        "slug": "bill_gates",
+        "cos": 0.13044312596321106
+      },
+      {
+        "slug": "karol_hausman",
+        "cos": 0.10649174451828003
+      }
+    ],
+    "n_above_threshold": 0
+  },
+  "angelina_jolie": {
+    "top_k": [
+      {
+        "slug": "cameron_diaz",
+        "cos": 0.2521551251411438
+      },
+      {
+        "slug": "jennifer_lopez",
+        "cos": 0.1898498684167862
+      },
+      {
+        "slug": "kylie_jenner",
+        "cos": 0.15378305315971375
+      },
+      {
+        "slug": "roger_federer",
+        "cos": 0.14891859889030457
+      },
+      {
+        "slug": "chappell_roan",
+        "cos": 0.1391051709651947
+      }
+    ],
+    "n_above_threshold": 0
+  },
+  "anne_hathaway": {
+    "top_k": [
+      {
+        "slug": "dua_lipa",
+        "cos": 0.17503494024276733
+      },
+      {
+        "slug": "natalie_portman",
+        "cos": 0.1674940437078476
+      },
+      {
+        "slug": "margot_robbie",
+        "cos": 0.16331931948661804
+      },
+      {
+        "slug": "sergey_levine",
+        "cos": 0.15681977570056915
+      },
+      {
+        "slug": "julia_roberts",
+        "cos": 0.15466094017028809
+      }
+    ],
+    "n_above_threshold": 0
+  },
+  "antonio_banderas": {
+    "top_k": [
+      {
+        "slug": "mel_gibson",
+        "cos": 0.21878430247306824
+      },
+      {
+        "slug": "donald_trump",
+        "cos": 0.18520589172840118
+      },
+      {
+        "slug": "pierce_brosnan",
+        "cos": 0.1581842005252838
+      },
+      {
+        "slug": "julia_roberts",
+        "cos": 0.13511806726455688
+      },
+      {
+        "slug": "al_pacino",
+        "cos": 0.1307542324066162
+      }
+    ],
+    "n_above_threshold": 0
+  },
+  "anya_taylor-joy": {
+    "top_k": [
+      {
+        "slug": "lady_gaga",
+        "cos": 0.2291029691696167
+      },
+      {
+        "slug": "kendall_jenner",
+        "cos": 0.21429666876792908
+      },
+      {
+        "slug": "emma_stone",
+        "cos": 0.193922758102417
+      },
+      {
+        "slug": "richard_sutton",
+        "cos": 0.12357105314731598
+      },
+      {
+        "slug": "mira_murati",
+        "cos": 0.11444719135761261
+      }
+    ],
+    "n_above_threshold": 0
+  },
+  "aravind_srinivas": {
+    "top_k": [
+      {
+        "slug": "davide_scaramuzza",
+        "cos": 0.16241884231567383
+      },
+      {
+        "slug": "khloe_kardashian",
+        "cos": 0.13039430975914001
+      },
+      {
+        "slug": "bertrand_piccard",
+        "cos": 0.11760179698467255
+      },
+      {
+        "slug": "daniel_craig",
+        "cos": 0.11585228145122528
+      },
+      {
+        "slug": "clement_delangue",
+        "cos": 0.1157069131731987
+      }
+    ],
+    "n_above_threshold": 0
+  },
+  "ariana_grande": {
+    "top_k": [
+      {
+        "slug": "chappell_roan",
+        "cos": 0.22248810529708862
+      },
+      {
+        "slug": "selena_gomez",
+        "cos": 0.2087211310863495
+      },
+      {
+        "slug": "jessica_alba",
+        "cos": 0.154901385307312
+      },
+      {
+        "slug": "dua_lipa",
+        "cos": 0.13289278745651245
+      },
+      {
+        "slug": "samuel_l_jackson",
+        "cos": 0.1322297751903534
+      }
+    ],
+    "n_above_threshold": 0
+  },
+  "arnold_schwarzenegger": {
+    "top_k": [
+      {
+        "slug": "tom_hanks",
+        "cos": 0.28563591837882996
+      },
+      {
+        "slug": "pierce_brosnan",
+        "cos": 0.19949859380722046
+      },
+      {
+        "slug": "tom_holland",
+        "cos": 0.17229020595550537
+      },
+      {
+        "slug": "mark_wahlberg",
+        "cos": 0.1719963699579239
+      },
+      {
+        "slug": "cristiano_ronaldo",
+        "cos": 0.17092153429985046
+      }
+    ],
+    "n_above_threshold": 0
+  },
+  "bad_bunny": {
+    "top_k": [
+      {
+        "slug": "demis_hassabis",
+        "cos": 0.15826688706874847
+      },
+      {
+        "slug": "cardi_b",
+        "cos": 0.14170724153518677
+      },
+      {
+        "slug": "fei-fei_li",
+        "cos": 0.12977369129657745
+      },
+      {
+        "slug": "vin_diesel",
+        "cos": 0.12835480272769928
+      },
+      {
+        "slug": "chris_hemsworth",
+        "cos": 0.12367524206638336
+      }
+    ],
+    "n_above_threshold": 0
+  },
+  "barack_obama": {
+    "top_k": [
+      {
+        "slug": "denzel_washington",
+        "cos": 0.16119739413261414
+      },
+      {
+        "slug": "robert_downey_jr",
+        "cos": 0.15804579854011536
+      },
+      {
+        "slug": "timothee_chalamet",
+        "cos": 0.1428605616092682
+      },
+      {
+        "slug": "rowan_atkinson",
+        "cos": 0.13507342338562012
+      },
+      {
+        "slug": "dwayne_johnson",
+        "cos": 0.12866009771823883
+      }
+    ],
+    "n_above_threshold": 0
+  },
+  "ben_affleck": {
+    "top_k": [
+      {
+        "slug": "chris_pratt",
+        "cos": 0.16997714340686798
+      },
+      {
+        "slug": "bill_murray",
+        "cos": 0.16066797077655792
+      },
+      {
+        "slug": "elon_musk",
+        "cos": 0.16032031178474426
+      },
+      {
+        "slug": "chris_evans",
+        "cos": 0.1518092155456543
+      },
+      {
+        "slug": "bertrand_piccard",
+        "cos": 0.1461893618106842
+      }
+    ],
+    "n_above_threshold": 0
+  },
+  "ben_stiller": {
+    "top_k": [
+      {
+        "slug": "steve_carell",
+        "cos": 0.18752804398536682
+      },
+      {
+        "slug": "daniel_craig",
+        "cos": 0.16284611821174622
+      },
+      {
+        "slug": "bradley_cooper",
+        "cos": 0.14932473003864288
+      },
+      {
+        "slug": "john_travolta",
+        "cos": 0.1430467963218689
+      },
+      {
+        "slug": "arnold_schwarzenegger",
+        "cos": 0.1379958540201187
+      }
+    ],
+    "n_above_threshold": 0
+  },
+  "bertrand_piccard": {
+    "top_k": [
+      {
+        "slug": "margot_robbie",
+        "cos": 0.17059579491615295
+      },
+      {
+        "slug": "ben_affleck",
+        "cos": 0.1461893618106842
+      },
+      {
+        "slug": "elon_musk",
+        "cos": 0.14018452167510986
+      },
+      {
+        "slug": "brad_pitt",
+        "cos": 0.13901370763778687
+      },
+      {
+        "slug": "harrison_ford",
+        "cos": 0.1296175718307495
+      }
+    ],
+    "n_above_threshold": 0
+  },
+  "beyonce": {
+    "top_k": [
+      {
+        "slug": "katy_perry",
+        "cos": 0.2610495686531067
+      },
+      {
+        "slug": "chris_brown",
+        "cos": 0.1668851226568222
+      },
+      {
+        "slug": "shakira",
+        "cos": 0.16185514628887177
+      },
+      {
+        "slug": "sydney_sweeney",
+        "cos": 0.14477074146270752
+      },
+      {
+        "slug": "adam_sandler",
+        "cos": 0.13916373252868652
+      }
+    ],
+    "n_above_threshold": 0
+  },
+  "bill_gates": {
+    "top_k": [
+      {
+        "slug": "timothee_chalamet",
+        "cos": 0.17303133010864258
+      },
+      {
+        "slug": "andy_jassy",
+        "cos": 0.13044312596321106
+      },
+      {
+        "slug": "brendan_fraser",
+        "cos": 0.12537764012813568
+      },
+      {
+        "slug": "hugh_jackman",
+        "cos": 0.11128726601600647
+      },
+      {
+        "slug": "xherdan_shaqiri",
+        "cos": 0.10880966484546661
+      }
+    ],
+    "n_above_threshold": 0
+  },
+  "bill_murray": {
+    "top_k": [
+      {
+        "slug": "tom_hanks",
+        "cos": 0.16388151049613953
+      },
+      {
+        "slug": "ben_affleck",
+        "cos": 0.16066797077655792
+      },
+      {
+        "slug": "jeremy_allen_white",
+        "cos": 0.15654940903186798
+      },
+      {
+        "slug": "pedro_pascal",
+        "cos": 0.1480099856853485
+      },
+      {
+        "slug": "stan_wawrinka",
+        "cos": 0.120756134390831
+      }
+    ],
+    "n_above_threshold": 0
+  },
+  "billie_eilish": {
+    "top_k": [
+      {
+        "slug": "sydney_sweeney",
+        "cos": 0.240742027759552
+      },
+      {
+        "slug": "scarlett_johansson",
+        "cos": 0.18871146440505981
+      },
+      {
+        "slug": "olivia_rodrigo",
+        "cos": 0.15564167499542236
+      },
+      {
+        "slug": "emma_watson",
+        "cos": 0.1291884481906891
+      },
+      {
+        "slug": "sabrina_carpenter",
+        "cos": 0.12880688905715942
+      }
+    ],
+    "n_above_threshold": 0
+  },
+  "brad_pitt": {
+    "top_k": [
+      {
+        "slug": "pierce_brosnan",
+        "cos": 0.23205715417861938
+      },
+      {
+        "slug": "leonardo_dicaprio",
+        "cos": 0.2173912525177002
+      },
+      {
+        "slug": "steve_carell",
+        "cos": 0.19115395843982697
+      },
+      {
+        "slug": "tom_cruise",
+        "cos": 0.16316887736320496
+      },
+      {
+        "slug": "chris_hemsworth",
+        "cos": 0.16279855370521545
+      }
+    ],
+    "n_above_threshold": 0
+  },
+  "bradley_cooper": {
+    "top_k": [
+      {
+        "slug": "chris_evans",
+        "cos": 0.17867623269557953
+      },
+      {
+        "slug": "timothee_chalamet",
+        "cos": 0.17441482841968536
+      },
+      {
+        "slug": "cillian_murphy",
+        "cos": 0.16410455107688904
+      },
+      {
+        "slug": "keanu_reeves",
+        "cos": 0.16302433609962463
+      },
+      {
+        "slug": "jake_gyllenhaal",
+        "cos": 0.16093261539936066
+      }
+    ],
+    "n_above_threshold": 0
+  },
+  "brendan_fraser": {
+    "top_k": [
+      {
+        "slug": "vin_diesel",
+        "cos": 0.17559736967086792
+      },
+      {
+        "slug": "tom_hanks",
+        "cos": 0.16122989356517792
+      },
+      {
+        "slug": "mrbeast",
+        "cos": 0.1519741714000702
+      },
+      {
+        "slug": "chris_brown",
+        "cos": 0.14866706728935242
+      },
+      {
+        "slug": "orlando_bloom",
+        "cos": 0.13782380521297455
+      }
+    ],
+    "n_above_threshold": 0
+  },
+  "bruce_willis": {
+    "top_k": [
+      {
+        "slug": "will_ferrell",
+        "cos": 0.17335635423660278
+      },
+      {
+        "slug": "stuart_russell",
+        "cos": 0.16688239574432373
+      },
+      {
+        "slug": "edward_norton",
+        "cos": 0.15184766054153442
+      },
+      {
+        "slug": "timothee_chalamet",
+        "cos": 0.13693812489509583
+      },
+      {
+        "slug": "nicolas_cage",
+        "cos": 0.13588911294937134
+      }
+    ],
+    "n_above_threshold": 0
+  },
+  "cameron_diaz": {
+    "top_k": [
+      {
+        "slug": "angelina_jolie",
+        "cos": 0.2521551251411438
+      },
+      {
+        "slug": "james_mcavoy",
+        "cos": 0.14713317155838013
+      },
+      {
+        "slug": "charli_xcx",
+        "cos": 0.12032338976860046
+      },
+      {
+        "slug": "jennifer_lopez",
+        "cos": 0.11828623712062836
+      },
+      {
+        "slug": "jet_li",
+        "cos": 0.11249451339244843
+      }
+    ],
+    "n_above_threshold": 0
+  },
+  "cardi_b": {
+    "top_k": [
+      {
+        "slug": "zendaya",
+        "cos": 0.17070862650871277
+      },
+      {
+        "slug": "bad_bunny",
+        "cos": 0.14170724153518677
+      },
+      {
+        "slug": "bruce_willis",
+        "cos": 0.12307516485452652
+      },
+      {
+        "slug": "james_mcavoy",
+        "cos": 0.11860929429531097
+      },
+      {
+        "slug": "tom_holland",
+        "cos": 0.11688064783811569
+      }
+    ],
+    "n_above_threshold": 0
+  },
+  "chappell_roan": {
+    "top_k": [
+      {
+        "slug": "ariana_grande",
+        "cos": 0.22248810529708862
+      },
+      {
+        "slug": "selena_gomez",
+        "cos": 0.1628306359052658
+      },
+      {
+        "slug": "olivia_rodrigo",
+        "cos": 0.1563052088022232
+      },
+      {
+        "slug": "angelina_jolie",
+        "cos": 0.1391051709651947
+      },
+      {
+        "slug": "sabrina_carpenter",
+        "cos": 0.13526509702205658
+      }
+    ],
+    "n_above_threshold": 0
+  },
+  "charli_xcx": {
+    "top_k": [
+      {
+        "slug": "kim_kardashian",
+        "cos": 0.14393456280231476
+      },
+      {
+        "slug": "ryan_reynolds",
+        "cos": 0.13396002352237701
+      },
+      {
+        "slug": "kendall_jenner",
+        "cos": 0.13228419423103333
+      },
+      {
+        "slug": "olivia_rodrigo",
+        "cos": 0.12226183712482452
+      },
+      {
+        "slug": "cameron_diaz",
+        "cos": 0.12032338976860046
+      }
+    ],
+    "n_above_threshold": 0
+  },
+  "chelsea_finn": {
+    "top_k": [
+      {
+        "slug": "james_mcavoy",
+        "cos": 0.1278931349515915
+      },
+      {
+        "slug": "orlando_bloom",
+        "cos": 0.12664979696273804
+      },
+      {
+        "slug": "dwayne_johnson",
+        "cos": 0.11845681071281433
+      },
+      {
+        "slug": "ed_sheeran",
+        "cos": 0.1128552109003067
+      },
+      {
+        "slug": "james_cameron",
+        "cos": 0.10986367613077164
+      }
+    ],
+    "n_above_threshold": 0
+  },
+  "chris_brown": {
+    "top_k": [
+      {
+        "slug": "kanye_west",
+        "cos": 0.2055635005235672
+      },
+      {
+        "slug": "emma_watson",
+        "cos": 0.1696203202009201
+      },
+      {
+        "slug": "beyonce",
+        "cos": 0.1668851226568222
+      },
+      {
+        "slug": "liam_neeson",
+        "cos": 0.15564459562301636
+      },
+      {
+        "slug": "brendan_fraser",
+        "cos": 0.14866706728935242
+      }
+    ],
+    "n_above_threshold": 0
+  },
+  "chris_evans": {
+    "top_k": [
+      {
+        "slug": "nicolas_cage",
+        "cos": 0.1877526193857193
+      },
+      {
+        "slug": "chris_hemsworth",
+        "cos": 0.18295639753341675
+      },
+      {
+        "slug": "bradley_cooper",
+        "cos": 0.17867623269557953
+      },
+      {
+        "slug": "ben_affleck",
+        "cos": 0.1518092155456543
+      },
+      {
+        "slug": "steve_jobs",
+        "cos": 0.14830414950847626
+      }
+    ],
+    "n_above_threshold": 0
+  },
+  "chris_hemsworth": {
+    "top_k": [
+      {
+        "slug": "chris_evans",
+        "cos": 0.18295639753341675
+      },
+      {
+        "slug": "christopher_nolan",
+        "cos": 0.17546476423740387
+      },
+      {
+        "slug": "brad_pitt",
+        "cos": 0.16279855370521545
+      },
+      {
+        "slug": "sylvester_stallone",
+        "cos": 0.1500263810157776
+      },
+      {
+        "slug": "john_travolta",
+        "cos": 0.14695346355438232
+      }
+    ],
+    "n_above_threshold": 0
+  },
+  "chris_pratt": {
+    "top_k": [
+      {
+        "slug": "mark_wahlberg",
+        "cos": 0.18505242466926575
+      },
+      {
+        "slug": "matt_damon",
+        "cos": 0.17118267714977264
+      },
+      {
+        "slug": "ben_affleck",
+        "cos": 0.16997714340686798
+      },
+      {
+        "slug": "arnold_schwarzenegger",
+        "cos": 0.1665833443403244
+      },
+      {
+        "slug": "lady_gaga",
+        "cos": 0.16225938498973846
+      }
+    ],
+    "n_above_threshold": 0
+  },
+  "christian_bale": {
+    "top_k": [
+      {
+        "slug": "timothee_chalamet",
+        "cos": 0.16161343455314636
+      },
+      {
+        "slug": "brad_pitt",
+        "cos": 0.15914221107959747
+      },
+      {
+        "slug": "bradley_cooper",
+        "cos": 0.15642905235290527
+      },
+      {
+        "slug": "stan_wawrinka",
+        "cos": 0.14406201243400574
+      },
+      {
+        "slug": "leonardo_dicaprio",
+        "cos": 0.14299023151397705
+      }
+    ],
+    "n_above_threshold": 0
+  },
+  "christopher_nolan": {
+    "top_k": [
+      {
+        "slug": "oier_mees",
+        "cos": 0.18478159606456757
+      },
+      {
+        "slug": "dario_amodei",
+        "cos": 0.18443991243839264
+      },
+      {
+        "slug": "andrew_ng",
+        "cos": 0.18270725011825562
+      },
+      {
+        "slug": "nicolas_cage",
+        "cos": 0.17992863059043884
+      },
+      {
+        "slug": "chris_hemsworth",
+        "cos": 0.17546476423740387
+      }
+    ],
+    "n_above_threshold": 0
+  },
+  "cillian_murphy": {
+    "top_k": [
+      {
+        "slug": "bradley_cooper",
+        "cos": 0.16410455107688904
+      },
+      {
+        "slug": "owen_wilson",
+        "cos": 0.13596691191196442
+      },
+      {
+        "slug": "christopher_nolan",
+        "cos": 0.13035672903060913
+      },
+      {
+        "slug": "antonio_banderas",
+        "cos": 0.12443077564239502
+      },
+      {
+        "slug": "james_mcavoy",
+        "cos": 0.11767475306987762
+      }
+    ],
+    "n_above_threshold": 0
+  },
+  "clement_delangue": {
+    "top_k": [
+      {
+        "slug": "roland_siegwart",
+        "cos": 0.19161337614059448
+      },
+      {
+        "slug": "cristiano_ronaldo",
+        "cos": 0.1582963615655899
+      },
+      {
+        "slug": "ed_sheeran",
+        "cos": 0.15632778406143188
+      },
+      {
+        "slug": "tom_holland",
+        "cos": 0.127372145652771
+      },
+      {
+        "slug": "aravind_srinivas",
+        "cos": 0.1157069131731987
+      }
+    ],
+    "n_above_threshold": 0
+  },
+  "cristiano_ronaldo": {
+    "top_k": [
+      {
+        "slug": "tom_holland",
+        "cos": 0.24416571855545044
+      },
+      {
+        "slug": "sylvester_stallone",
+        "cos": 0.20348036289215088
+      },
+      {
+        "slug": "olivia_rodrigo",
+        "cos": 0.18247710168361664
+      },
+      {
+        "slug": "arnold_schwarzenegger",
+        "cos": 0.17092153429985046
+      },
+      {
+        "slug": "jean-claude_van_damme",
+        "cos": 0.1616964042186737
+      }
+    ],
+    "n_above_threshold": 0
+  },
+  "daisy_ridley": {
+    "top_k": [
+      {
+        "slug": "scarlett_johansson",
+        "cos": 0.2063276171684265
+      },
+      {
+        "slug": "demi_lovato",
+        "cos": 0.1856222003698349
+      },
+      {
+        "slug": "keira_knightley",
+        "cos": 0.18319466710090637
+      },
+      {
+        "slug": "selena_gomez",
+        "cos": 0.1795838475227356
+      },
+      {
+        "slug": "megan_fox",
+        "cos": 0.1681637465953827
+      }
+    ],
+    "n_above_threshold": 0
+  },
+  "daniel_craig": {
+    "top_k": [
+      {
+        "slug": "jennifer_aniston",
+        "cos": 0.17873290181159973
+      },
+      {
+        "slug": "ben_stiller",
+        "cos": 0.16284611821174622
+      },
+      {
+        "slug": "drew_barrymore",
+        "cos": 0.16202303767204285
+      },
+      {
+        "slug": "heath_ledger",
+        "cos": 0.16084225475788116
+      },
+      {
+        "slug": "richard_sutton",
+        "cos": 0.15227575600147247
+      }
+    ],
+    "n_above_threshold": 0
+  },
+  "daniel_radcliffe": {
+    "top_k": [
+      {
+        "slug": "sabrina_carpenter",
+        "cos": 0.2053370177745819
+      },
+      {
+        "slug": "jake_gyllenhaal",
+        "cos": 0.2045612931251526
+      },
+      {
+        "slug": "timothee_chalamet",
+        "cos": 0.19439125061035156
+      },
+      {
+        "slug": "tim_allen",
+        "cos": 0.18088945746421814
+      },
+      {
+        "slug": "elon_musk",
+        "cos": 0.16219967603683472
+      }
+    ],
+    "n_above_threshold": 0
+  },
+  "daniela_amodei": {
+    "top_k": [
+      {
+        "slug": "liam_neeson",
+        "cos": 0.1384676694869995
+      },
+      {
+        "slug": "tom_hiddleston",
+        "cos": 0.13089388608932495
+      },
+      {
+        "slug": "robin_williams",
+        "cos": 0.12074689567089081
+      },
+      {
+        "slug": "chappell_roan",
+        "cos": 0.11952102184295654
+      },
+      {
+        "slug": "roger_federer",
+        "cos": 0.11492697894573212
+      }
+    ],
+    "n_above_threshold": 0
+  },
+  "dario_amodei": {
+    "top_k": [
+      {
+        "slug": "jared_kaplan",
+        "cos": 0.19718018174171448
+      },
+      {
+        "slug": "christopher_nolan",
+        "cos": 0.18443991243839264
+      },
+      {
+        "slug": "steven_spielberg",
+        "cos": 0.17751172184944153
+      },
+      {
+        "slug": "james_franco",
+        "cos": 0.13172245025634766
+      },
+      {
+        "slug": "sergey_levine",
+        "cos": 0.12524984776973724
+      }
+    ],
+    "n_above_threshold": 0
+  },
+  "davide_scaramuzza": {
+    "top_k": [
+      {
+        "slug": "aravind_srinivas",
+        "cos": 0.16241884231567383
+      },
+      {
+        "slug": "satya_nadella",
+        "cos": 0.1501728594303131
+      },
+      {
+        "slug": "elon_musk",
+        "cos": 0.14757061004638672
+      },
+      {
+        "slug": "greg_brockman",
+        "cos": 0.1437986195087433
+      },
+      {
+        "slug": "jenna_ortega",
+        "cos": 0.12190142273902893
+      }
+    ],
+    "n_above_threshold": 0
+  },
+  "demi_lovato": {
+    "top_k": [
+      {
+        "slug": "daisy_ridley",
+        "cos": 0.1856222003698349
+      },
+      {
+        "slug": "mark_wahlberg",
+        "cos": 0.13641873002052307
+      },
+      {
+        "slug": "tommy_lee_jones",
+        "cos": 0.13287405669689178
+      },
+      {
+        "slug": "zendaya",
+        "cos": 0.12323510646820068
+      },
+      {
+        "slug": "oier_mees",
+        "cos": 0.12203070521354675
+      }
+    ],
+    "n_above_threshold": 0
+  },
+  "demis_hassabis": {
+    "top_k": [
+      {
+        "slug": "bad_bunny",
+        "cos": 0.15826688706874847
+      },
+      {
+        "slug": "kim_kardashian",
+        "cos": 0.13574425876140594
+      },
+      {
+        "slug": "chris_evans",
+        "cos": 0.13123555481433868
+      },
+      {
+        "slug": "halle_berry",
+        "cos": 0.13085533678531647
+      },
+      {
+        "slug": "ilya_sutskever",
+        "cos": 0.12769973278045654
+      }
+    ],
+    "n_above_threshold": 0
+  },
+  "denzel_washington": {
+    "top_k": [
+      {
+        "slug": "george_clooney",
+        "cos": 0.18706661462783813
+      },
+      {
+        "slug": "barack_obama",
+        "cos": 0.16119739413261414
+      },
+      {
+        "slug": "will_smith",
+        "cos": 0.1397150456905365
+      },
+      {
+        "slug": "adam_sandler",
+        "cos": 0.12496542930603027
+      },
+      {
+        "slug": "tom_hanks",
+        "cos": 0.11884783208370209
+      }
+    ],
+    "n_above_threshold": 0
+  },
+  "donald_trump": {
+    "top_k": [
+      {
+        "slug": "antonio_banderas",
+        "cos": 0.18520589172840118
+      },
+      {
+        "slug": "owen_wilson",
+        "cos": 0.18296341598033905
+      },
+      {
+        "slug": "pierce_brosnan",
+        "cos": 0.1304810643196106
+      },
+      {
+        "slug": "miley_cyrus",
+        "cos": 0.1275828629732132
+      },
+      {
+        "slug": "brendan_fraser",
+        "cos": 0.11257454752922058
+      }
+    ],
+    "n_above_threshold": 0
+  },
+  "drake": {
+    "top_k": [
+      {
+        "slug": "pedro_pascal",
+        "cos": 0.14405862987041473
+      },
+      {
+        "slug": "meryl_streep",
+        "cos": 0.11602436006069183
+      },
+      {
+        "slug": "tim_cook",
+        "cos": 0.1057252585887909
+      },
+      {
+        "slug": "sigourney_weaver",
+        "cos": 0.10396617650985718
+      },
+      {
+        "slug": "jet_li",
+        "cos": 0.10207227617502213
+      }
+    ],
+    "n_above_threshold": 0
+  },
+  "drew_barrymore": {
+    "top_k": [
+      {
+        "slug": "julia_roberts",
+        "cos": 0.17614135146141052
+      },
+      {
+        "slug": "daniel_craig",
+        "cos": 0.16202303767204285
+      },
+      {
+        "slug": "stuart_russell",
+        "cos": 0.1578124463558197
+      },
+      {
+        "slug": "angelina_jolie",
+        "cos": 0.13529691100120544
+      },
+      {
+        "slug": "scarlett_johansson",
+        "cos": 0.12131187319755554
+      }
+    ],
+    "n_above_threshold": 0
+  },
+  "dua_lipa": {
+    "top_k": [
+      {
+        "slug": "keira_knightley",
+        "cos": 0.25305360555648804
+      },
+      {
+        "slug": "jessica_alba",
+        "cos": 0.19138219952583313
+      },
+      {
+        "slug": "anne_hathaway",
+        "cos": 0.17503494024276733
+      },
+      {
+        "slug": "taylor_swift",
+        "cos": 0.16114090383052826
+      },
+      {
+        "slug": "scarlett_johansson",
+        "cos": 0.15502314269542694
+      }
+    ],
+    "n_above_threshold": 0
+  },
+  "dwayne_johnson": {
+    "top_k": [
+      {
+        "slug": "vin_diesel",
+        "cos": 0.18349361419677734
+      },
+      {
+        "slug": "sergey_levine",
+        "cos": 0.17941626906394958
+      },
+      {
+        "slug": "steve_carell",
+        "cos": 0.15940503776073456
+      },
+      {
+        "slug": "arnold_schwarzenegger",
+        "cos": 0.152856707572937
+      },
+      {
+        "slug": "chris_pratt",
+        "cos": 0.1522674560546875
+      }
+    ],
+    "n_above_threshold": 0
+  },
+  "ed_sheeran": {
+    "top_k": [
+      {
+        "slug": "karol_hausman",
+        "cos": 0.17669689655303955
+      },
+      {
+        "slug": "clement_delangue",
+        "cos": 0.15632778406143188
+      },
+      {
+        "slug": "james_mcavoy",
+        "cos": 0.1305399388074875
+      },
+      {
+        "slug": "dario_amodei",
+        "cos": 0.11419878900051117
+      },
+      {
+        "slug": "chelsea_finn",
+        "cos": 0.1128552109003067
+      }
+    ],
+    "n_above_threshold": 0
+  },
+  "edward_norton": {
+    "top_k": [
+      {
+        "slug": "james_mcavoy",
+        "cos": 0.22613662481307983
+      },
+      {
+        "slug": "nicolas_cage",
+        "cos": 0.20456169545650482
+      },
+      {
+        "slug": "kim_kardashian",
+        "cos": 0.1711200773715973
+      },
+      {
+        "slug": "leonardo_dicaprio",
+        "cos": 0.1639196276664734
+      },
+      {
+        "slug": "tom_hiddleston",
+        "cos": 0.15510904788970947
+      }
+    ],
+    "n_above_threshold": 0
+  },
+  "elon_musk": {
+    "top_k": [
+      {
+        "slug": "leonardo_dicaprio",
+        "cos": 0.16654184460639954
+      },
+      {
+        "slug": "daniel_radcliffe",
+        "cos": 0.16219967603683472
+      },
+      {
+        "slug": "ben_affleck",
+        "cos": 0.16032031178474426
+      },
+      {
+        "slug": "james_mcavoy",
+        "cos": 0.15398064255714417
+      },
+      {
+        "slug": "davide_scaramuzza",
+        "cos": 0.14757061004638672
+      }
+    ],
+    "n_above_threshold": 0
+  },
+  "emma_stone": {
+    "top_k": [
+      {
+        "slug": "margot_robbie",
+        "cos": 0.20233704149723053
+      },
+      {
+        "slug": "anya_taylor-joy",
+        "cos": 0.193922758102417
+      },
+      {
+        "slug": "jim_carrey",
+        "cos": 0.17875468730926514
+      },
+      {
+        "slug": "kendall_jenner",
+        "cos": 0.14313912391662598
+      },
+      {
+        "slug": "kate_beckinsale",
+        "cos": 0.14303016662597656
+      }
+    ],
+    "n_above_threshold": 0
+  },
+  "emma_watson": {
+    "top_k": [
+      {
+        "slug": "sigourney_weaver",
+        "cos": 0.18165399134159088
+      },
+      {
+        "slug": "chris_brown",
+        "cos": 0.1696203202009201
+      },
+      {
+        "slug": "julia_roberts",
+        "cos": 0.16050341725349426
+      },
+      {
+        "slug": "daisy_ridley",
+        "cos": 0.15213043987751007
+      },
+      {
+        "slug": "halle_berry",
+        "cos": 0.13043582439422607
+      }
+    ],
+    "n_above_threshold": 0
+  },
+  "fei-fei_li": {
+    "top_k": [
+      {
+        "slug": "halle_berry",
+        "cos": 0.13319703936576843
+      },
+      {
+        "slug": "bad_bunny",
+        "cos": 0.12977369129657745
+      },
+      {
+        "slug": "lebron_james",
+        "cos": 0.1219395250082016
+      },
+      {
+        "slug": "richard_sutton",
+        "cos": 0.11429136991500854
+      },
+      {
+        "slug": "jenna_ortega",
+        "cos": 0.11177075654268265
+      }
+    ],
+    "n_above_threshold": 0
+  },
+  "geoffrey_hinton": {
+    "top_k": [
+      {
+        "slug": "robert_downey_jr",
+        "cos": 0.2127293050289154
+      },
+      {
+        "slug": "jennifer_aniston",
+        "cos": 0.19526585936546326
+      },
+      {
+        "slug": "kate_beckinsale",
+        "cos": 0.16612732410430908
+      },
+      {
+        "slug": "stuart_russell",
+        "cos": 0.14572829008102417
+      },
+      {
+        "slug": "shakira",
+        "cos": 0.14511218667030334
+      }
+    ],
+    "n_above_threshold": 0
+  },
+  "george_clooney": {
+    "top_k": [
+      {
+        "slug": "denzel_washington",
+        "cos": 0.18706661462783813
+      },
+      {
+        "slug": "bradley_cooper",
+        "cos": 0.14912380278110504
+      },
+      {
+        "slug": "tim_cook",
+        "cos": 0.13668332993984222
+      },
+      {
+        "slug": "daniel_craig",
+        "cos": 0.12721383571624756
+      },
+      {
+        "slug": "jake_gyllenhaal",
+        "cos": 0.12607373297214508
+      }
+    ],
+    "n_above_threshold": 0
+  },
+  "greg_brockman": {
+    "top_k": [
+      {
+        "slug": "heath_ledger",
+        "cos": 0.19721955060958862
+      },
+      {
+        "slug": "kate_beckinsale",
+        "cos": 0.1850840300321579
+      },
+      {
+        "slug": "mira_murati",
+        "cos": 0.16335731744766235
+      },
+      {
+        "slug": "davide_scaramuzza",
+        "cos": 0.1437986195087433
+      },
+      {
+        "slug": "arnold_schwarzenegger",
+        "cos": 0.14174306392669678
+      }
+    ],
+    "n_above_threshold": 0
+  },
+  "halle_berry": {
+    "top_k": [
+      {
+        "slug": "john_jumper",
+        "cos": 0.15222936868667603
+      },
+      {
+        "slug": "nicole_kidman",
+        "cos": 0.15121786296367645
+      },
+      {
+        "slug": "ursula_andress",
+        "cos": 0.14824149012565613
+      },
+      {
+        "slug": "jennifer_lopez",
+        "cos": 0.14480017125606537
+      },
+      {
+        "slug": "scarlett_johansson",
+        "cos": 0.1383930742740631
+      }
+    ],
+    "n_above_threshold": 0
+  },
+  "harrison_ford": {
+    "top_k": [
+      {
+        "slug": "bertrand_piccard",
+        "cos": 0.1296175718307495
+      },
+      {
+        "slug": "tom_hanks",
+        "cos": 0.1256657838821411
+      },
+      {
+        "slug": "jessica_alba",
+        "cos": 0.12469412386417389
+      },
+      {
+        "slug": "jet_li",
+        "cos": 0.11879530549049377
+      },
+      {
+        "slug": "pedro_pascal",
+        "cos": 0.11822903156280518
+      }
+    ],
+    "n_above_threshold": 0
+  },
+  "heath_ledger": {
+    "top_k": [
+      {
+        "slug": "greg_brockman",
+        "cos": 0.19721955060958862
+      },
+      {
+        "slug": "daniel_craig",
+        "cos": 0.16084225475788116
+      },
+      {
+        "slug": "tommy_lee_jones",
+        "cos": 0.14951714873313904
+      },
+      {
+        "slug": "johnny_depp",
+        "cos": 0.14183324575424194
+      },
+      {
+        "slug": "orlando_bloom",
+        "cos": 0.13979527354240417
+      }
+    ],
+    "n_above_threshold": 0
+  },
+  "hugh_jackman": {
+    "top_k": [
+      {
+        "slug": "robert_downey_jr",
+        "cos": 0.23283472657203674
+      },
+      {
+        "slug": "jim_carrey",
+        "cos": 0.2191091924905777
+      },
+      {
+        "slug": "orlando_bloom",
+        "cos": 0.15036974847316742
+      },
+      {
+        "slug": "arnold_schwarzenegger",
+        "cos": 0.14524739980697632
+      },
+      {
+        "slug": "daniel_radcliffe",
+        "cos": 0.13868646323680878
+      }
+    ],
+    "n_above_threshold": 0
+  },
+  "ian_mckellen": {
+    "top_k": [
+      {
+        "slug": "russell_crowe",
+        "cos": 0.19563186168670654
+      },
+      {
+        "slug": "jessica_alba",
+        "cos": 0.1771349012851715
+      },
+      {
+        "slug": "tom_hanks",
+        "cos": 0.17054986953735352
+      },
+      {
+        "slug": "vin_diesel",
+        "cos": 0.15548840165138245
+      },
+      {
+        "slug": "oier_mees",
+        "cos": 0.137970432639122
+      }
+    ],
+    "n_above_threshold": 0
+  },
+  "ilya_sutskever": {
+    "top_k": [
+      {
+        "slug": "sam_altman",
+        "cos": 0.1871805042028427
+      },
+      {
+        "slug": "orlando_bloom",
+        "cos": 0.17380675673484802
+      },
+      {
+        "slug": "demis_hassabis",
+        "cos": 0.12769973278045654
+      },
+      {
+        "slug": "brendan_fraser",
+        "cos": 0.12662053108215332
+      },
+      {
+        "slug": "pierce_brosnan",
+        "cos": 0.12624645233154297
+      }
+    ],
+    "n_above_threshold": 0
+  },
+  "jack_black": {
+    "top_k": [
+      {
+        "slug": "keanu_reeves",
+        "cos": 0.15100082755088806
+      },
+      {
+        "slug": "robert_downey_jr",
+        "cos": 0.15094392001628876
+      },
+      {
+        "slug": "pedro_pascal",
+        "cos": 0.13917580246925354
+      },
+      {
+        "slug": "kendall_jenner",
+        "cos": 0.1366826444864273
+      },
+      {
+        "slug": "liam_neeson",
+        "cos": 0.12285873293876648
+      }
+    ],
+    "n_above_threshold": 0
+  },
+  "jackie_chan": {
+    "top_k": [
+      {
+        "slug": "jensen_huang",
+        "cos": 0.17389488220214844
+      },
+      {
+        "slug": "nicole_kidman",
+        "cos": 0.16295580565929413
+      },
+      {
+        "slug": "adam_sandler",
+        "cos": 0.1548946052789688
+      },
+      {
+        "slug": "sylvester_stallone",
+        "cos": 0.12745116651058197
+      },
+      {
+        "slug": "jennifer_aniston",
+        "cos": 0.12480897456407547
+      }
+    ],
+    "n_above_threshold": 0
+  },
+  "jacob_elordi": {
+    "top_k": [
+      {
+        "slug": "timothee_chalamet",
+        "cos": 0.18858343362808228
+      },
+      {
+        "slug": "natalie_portman",
+        "cos": 0.15858665108680725
+      },
+      {
+        "slug": "taylor_swift",
+        "cos": 0.1397974193096161
+      },
+      {
+        "slug": "keira_knightley",
+        "cos": 0.12222521007061005
+      },
+      {
+        "slug": "orlando_bloom",
+        "cos": 0.11880923062562943
+      }
+    ],
+    "n_above_threshold": 0
+  },
+  "jake_gyllenhaal": {
+    "top_k": [
+      {
+        "slug": "daniel_radcliffe",
+        "cos": 0.2045612931251526
+      },
+      {
+        "slug": "tim_allen",
+        "cos": 0.16340003907680511
+      },
+      {
+        "slug": "bradley_cooper",
+        "cos": 0.16093261539936066
+      },
+      {
+        "slug": "john_travolta",
+        "cos": 0.1464482843875885
+      },
+      {
+        "slug": "lisa_su",
+        "cos": 0.1336582452058792
+      }
+    ],
+    "n_above_threshold": 0
+  },
+  "james_cameron": {
+    "top_k": [
+      {
+        "slug": "peter_jackson",
+        "cos": 0.14825952053070068
+      },
+      {
+        "slug": "kylie_jenner",
+        "cos": 0.1413080394268036
+      },
+      {
+        "slug": "halle_berry",
+        "cos": 0.12032098323106766
+      },
+      {
+        "slug": "geoffrey_hinton",
+        "cos": 0.11733246594667435
+      },
+      {
+        "slug": "chelsea_finn",
+        "cos": 0.10986367613077164
+      }
+    ],
+    "n_above_threshold": 0
+  },
+  "james_franco": {
+    "top_k": [
+      {
+        "slug": "tom_hiddleston",
+        "cos": 0.21701663732528687
+      },
+      {
+        "slug": "christian_bale",
+        "cos": 0.1388590931892395
+      },
+      {
+        "slug": "dario_amodei",
+        "cos": 0.13172245025634766
+      },
+      {
+        "slug": "lisa_su",
+        "cos": 0.12336007505655289
+      },
+      {
+        "slug": "leonardo_dicaprio",
+        "cos": 0.12136231362819672
+      }
+    ],
+    "n_above_threshold": 0
+  },
+  "james_mcavoy": {
+    "top_k": [
+      {
+        "slug": "edward_norton",
+        "cos": 0.22613662481307983
+      },
+      {
+        "slug": "russell_crowe",
+        "cos": 0.17285361886024475
+      },
+      {
+        "slug": "will_ferrell",
+        "cos": 0.17231424152851105
+      },
+      {
+        "slug": "elon_musk",
+        "cos": 0.15398064255714417
+      },
+      {
+        "slug": "leonardo_dicaprio",
+        "cos": 0.14969509840011597
+      }
+    ],
+    "n_above_threshold": 0
+  },
+  "jared_kaplan": {
+    "top_k": [
+      {
+        "slug": "dario_amodei",
+        "cos": 0.19718018174171448
+      },
+      {
+        "slug": "oprah_winfrey",
+        "cos": 0.1593017429113388
+      },
+      {
+        "slug": "scarlett_johansson",
+        "cos": 0.1344107985496521
+      },
+      {
+        "slug": "roland_siegwart",
+        "cos": 0.12568862736225128
+      },
+      {
+        "slug": "john_jumper",
+        "cos": 0.11432451754808426
+      }
+    ],
+    "n_above_threshold": 0
+  },
+  "jason_statham": {
+    "top_k": [
+      {
+        "slug": "cristiano_ronaldo",
+        "cos": 0.1615953892469406
+      },
+      {
+        "slug": "orlando_bloom",
+        "cos": 0.13051830232143402
+      },
+      {
+        "slug": "greg_brockman",
+        "cos": 0.13026800751686096
+      },
+      {
+        "slug": "lady_gaga",
+        "cos": 0.11574843525886536
+      },
+      {
+        "slug": "satya_nadella",
+        "cos": 0.11459894478321075
+      }
+    ],
+    "n_above_threshold": 0
+  },
+  "jean-claude_van_damme": {
+    "top_k": [
+      {
+        "slug": "tommy_lee_jones",
+        "cos": 0.1730266511440277
+      },
+      {
+        "slug": "cristiano_ronaldo",
+        "cos": 0.1616964042186737
+      },
+      {
+        "slug": "arnold_schwarzenegger",
+        "cos": 0.15241122245788574
+      },
+      {
+        "slug": "daniel_craig",
+        "cos": 0.14500346779823303
+      },
+      {
+        "slug": "ben_affleck",
+        "cos": 0.13506148755550385
+      }
+    ],
+    "n_above_threshold": 0
+  },
+  "jeff_bezos": {
+    "top_k": [
+      {
+        "slug": "satya_nadella",
+        "cos": 0.22501206398010254
+      },
+      {
+        "slug": "roland_siegwart",
+        "cos": 0.16475142538547516
+      },
+      {
+        "slug": "robin_williams",
+        "cos": 0.14631308615207672
+      },
+      {
+        "slug": "anne_hathaway",
+        "cos": 0.1363753080368042
+      },
+      {
+        "slug": "sergey_levine",
+        "cos": 0.12418955564498901
+      }
+    ],
+    "n_above_threshold": 0
+  },
+  "jenna_ortega": {
+    "top_k": [
+      {
+        "slug": "shakira",
+        "cos": 0.255329430103302
+      },
+      {
+        "slug": "kylie_jenner",
+        "cos": 0.1836167871952057
+      },
+      {
+        "slug": "rachel_mcadams",
+        "cos": 0.15867450833320618
+      },
+      {
+        "slug": "justin_bieber",
+        "cos": 0.1414153277873993
+      },
+      {
+        "slug": "khloe_kardashian",
+        "cos": 0.140462726354599
+      }
+    ],
+    "n_above_threshold": 0
+  },
+  "jennifer_aniston": {
+    "top_k": [
+      {
+        "slug": "geoffrey_hinton",
+        "cos": 0.19526585936546326
+      },
+      {
+        "slug": "tom_hanks",
+        "cos": 0.18917368352413177
+      },
+      {
+        "slug": "sylvester_stallone",
+        "cos": 0.18410471081733704
+      },
+      {
+        "slug": "daniel_craig",
+        "cos": 0.17873290181159973
+      },
+      {
+        "slug": "shakira",
+        "cos": 0.16890060901641846
+      }
+    ],
+    "n_above_threshold": 0
+  },
+  "jennifer_lawrence": {
+    "top_k": [
+      {
+        "slug": "jennifer_lopez",
+        "cos": 0.17111730575561523
+      },
+      {
+        "slug": "kate_winslet",
+        "cos": 0.16392217576503754
+      },
+      {
+        "slug": "margot_robbie",
+        "cos": 0.14761166274547577
+      },
+      {
+        "slug": "lisa_su",
+        "cos": 0.1286683976650238
+      },
+      {
+        "slug": "chappell_roan",
+        "cos": 0.1250429004430771
+      }
+    ],
+    "n_above_threshold": 0
+  },
+  "jennifer_lopez": {
+    "top_k": [
+      {
+        "slug": "angelina_jolie",
+        "cos": 0.1898498684167862
+      },
+      {
+        "slug": "jennifer_lawrence",
+        "cos": 0.17111730575561523
+      },
+      {
+        "slug": "shakira",
+        "cos": 0.1505548357963562
+      },
+      {
+        "slug": "halle_berry",
+        "cos": 0.14480017125606537
+      },
+      {
+        "slug": "ursula_andress",
+        "cos": 0.13196226954460144
+      }
+    ],
+    "n_above_threshold": 0
+  },
+  "jensen_huang": {
+    "top_k": [
+      {
+        "slug": "jackie_chan",
+        "cos": 0.17389488220214844
+      },
+      {
+        "slug": "sergey_levine",
+        "cos": 0.1485171765089035
+      },
+      {
+        "slug": "lady_gaga",
+        "cos": 0.12656746804714203
+      },
+      {
+        "slug": "halle_berry",
+        "cos": 0.12418483197689056
+      },
+      {
+        "slug": "megan_fox",
+        "cos": 0.12367983162403107
+      }
+    ],
+    "n_above_threshold": 0
+  },
+  "jeremy_allen_white": {
+    "top_k": [
+      {
+        "slug": "bill_murray",
+        "cos": 0.15654940903186798
+      },
+      {
+        "slug": "kanye_west",
+        "cos": 0.15421965718269348
+      },
+      {
+        "slug": "selena_gomez",
+        "cos": 0.14275407791137695
+      },
+      {
+        "slug": "chris_hemsworth",
+        "cos": 0.12247909605503082
+      },
+      {
+        "slug": "lady_gaga",
+        "cos": 0.11610934138298035
+      }
+    ],
+    "n_above_threshold": 0
+  },
+  "jessica_alba": {
+    "top_k": [
+      {
+        "slug": "sydney_sweeney",
+        "cos": 0.22407346963882446
+      },
+      {
+        "slug": "dua_lipa",
+        "cos": 0.19138219952583313
+      },
+      {
+        "slug": "ian_mckellen",
+        "cos": 0.1771349012851715
+      },
+      {
+        "slug": "miley_cyrus",
+        "cos": 0.15854698419570923
+      },
+      {
+        "slug": "ariana_grande",
+        "cos": 0.154901385307312
+      }
+    ],
+    "n_above_threshold": 0
+  },
+  "jet_li": {
+    "top_k": [
+      {
+        "slug": "pedro_pascal",
+        "cos": 0.13774698972702026
+      },
+      {
+        "slug": "edward_norton",
+        "cos": 0.1356874406337738
+      },
+      {
+        "slug": "jim_carrey",
+        "cos": 0.13254109025001526
+      },
+      {
+        "slug": "sergey_levine",
+        "cos": 0.1269317865371704
+      },
+      {
+        "slug": "brad_pitt",
+        "cos": 0.11995778232812881
+      }
+    ],
+    "n_above_threshold": 0
+  },
+  "jim_carrey": {
+    "top_k": [
+      {
+        "slug": "hugh_jackman",
+        "cos": 0.2191091924905777
+      },
+      {
+        "slug": "tom_hiddleston",
+        "cos": 0.1833907663822174
+      },
+      {
+        "slug": "emma_stone",
+        "cos": 0.17875468730926514
+      },
+      {
+        "slug": "pedro_pascal",
+        "cos": 0.17425525188446045
+      },
+      {
+        "slug": "christopher_nolan",
+        "cos": 0.16702760756015778
+      }
+    ],
+    "n_above_threshold": 0
+  },
+  "john_jumper": {
+    "top_k": [
+      {
+        "slug": "steven_spielberg",
+        "cos": 0.21935389935970306
+      },
+      {
+        "slug": "tom_hiddleston",
+        "cos": 0.19649511575698853
+      },
+      {
+        "slug": "halle_berry",
+        "cos": 0.15222936868667603
+      },
+      {
+        "slug": "pieter_abbeel",
+        "cos": 0.14978834986686707
+      },
+      {
+        "slug": "jake_gyllenhaal",
+        "cos": 0.12929891049861908
+      }
+    ],
+    "n_above_threshold": 0
+  },
+  "john_travolta": {
+    "top_k": [
+      {
+        "slug": "cristiano_ronaldo",
+        "cos": 0.14727678894996643
+      },
+      {
+        "slug": "chris_hemsworth",
+        "cos": 0.14695346355438232
+      },
+      {
+        "slug": "jake_gyllenhaal",
+        "cos": 0.1464482843875885
+      },
+      {
+        "slug": "ben_stiller",
+        "cos": 0.1430467963218689
+      },
+      {
+        "slug": "pierce_brosnan",
+        "cos": 0.14096122980117798
+      }
+    ],
+    "n_above_threshold": 0
+  },
+  "johnny_depp": {
+    "top_k": [
+      {
+        "slug": "pedro_pascal",
+        "cos": 0.2103486955165863
+      },
+      {
+        "slug": "mira_murati",
+        "cos": 0.16313469409942627
+      },
+      {
+        "slug": "kate_winslet",
+        "cos": 0.15344366431236267
+      },
+      {
+        "slug": "pieter_abbeel",
+        "cos": 0.14293822646141052
+      },
+      {
+        "slug": "heath_ledger",
+        "cos": 0.14183324575424194
+      }
+    ],
+    "n_above_threshold": 0
+  },
+  "julia_roberts": {
+    "top_k": [
+      {
+        "slug": "ursula_andress",
+        "cos": 0.18511733412742615
+      },
+      {
+        "slug": "drew_barrymore",
+        "cos": 0.17614135146141052
+      },
+      {
+        "slug": "natalie_portman",
+        "cos": 0.16790957748889923
+      },
+      {
+        "slug": "emma_watson",
+        "cos": 0.16050341725349426
+      },
+      {
+        "slug": "anne_hathaway",
+        "cos": 0.15466094017028809
+      }
+    ],
+    "n_above_threshold": 0
+  },
+  "justin_bieber": {
+    "top_k": [
+      {
+        "slug": "mel_gibson",
+        "cos": 0.1859583854675293
+      },
+      {
+        "slug": "shakira",
+        "cos": 0.1516321450471878
+      },
+      {
+        "slug": "jenna_ortega",
+        "cos": 0.1414153277873993
+      },
+      {
+        "slug": "miley_cyrus",
+        "cos": 0.13491323590278625
+      },
+      {
+        "slug": "marco_hutter",
+        "cos": 0.12880201637744904
+      }
+    ],
+    "n_above_threshold": 0
+  },
+  "kanye_west": {
+    "top_k": [
+      {
+        "slug": "chris_brown",
+        "cos": 0.2055635005235672
+      },
+      {
+        "slug": "jeremy_allen_white",
+        "cos": 0.15421965718269348
+      },
+      {
+        "slug": "mira_murati",
+        "cos": 0.12309908866882324
+      },
+      {
+        "slug": "sydney_sweeney",
+        "cos": 0.11505986750125885
+      },
+      {
+        "slug": "morgan_freeman",
+        "cos": 0.11406861245632172
+      }
+    ],
+    "n_above_threshold": 0
+  },
+  "karol_hausman": {
+    "top_k": [
+      {
+        "slug": "ed_sheeran",
+        "cos": 0.17669689655303955
+      },
+      {
+        "slug": "chris_pratt",
+        "cos": 0.14125576615333557
+      },
+      {
+        "slug": "daniel_radcliffe",
+        "cos": 0.12402965128421783
+      },
+      {
+        "slug": "yoshua_bengio",
+        "cos": 0.11944089829921722
+      },
+      {
+        "slug": "ben_stiller",
+        "cos": 0.10787094384431839
+      }
+    ],
+    "n_above_threshold": 0
+  },
+  "kate_beckinsale": {
+    "top_k": [
+      {
+        "slug": "mira_murati",
+        "cos": 0.3159310221672058
+      },
+      {
+        "slug": "ryan_reynolds",
+        "cos": 0.21070915460586548
+      },
+      {
+        "slug": "greg_brockman",
+        "cos": 0.1850840300321579
+      },
+      {
+        "slug": "geoffrey_hinton",
+        "cos": 0.16612732410430908
+      },
+      {
+        "slug": "robert_de_niro",
+        "cos": 0.15679650008678436
+      }
+    ],
+    "n_above_threshold": 1
+  },
+  "kate_winslet": {
+    "top_k": [
+      {
+        "slug": "katy_perry",
+        "cos": 0.17500010132789612
+      },
+      {
+        "slug": "jennifer_lawrence",
+        "cos": 0.16392217576503754
+      },
+      {
+        "slug": "nicole_kidman",
+        "cos": 0.15675216913223267
+      },
+      {
+        "slug": "johnny_depp",
+        "cos": 0.15344366431236267
+      },
+      {
+        "slug": "kendall_jenner",
+        "cos": 0.15301655232906342
+      }
+    ],
+    "n_above_threshold": 0
+  },
+  "katy_perry": {
+    "top_k": [
+      {
+        "slug": "beyonce",
+        "cos": 0.2610495686531067
+      },
+      {
+        "slug": "sydney_sweeney",
+        "cos": 0.1927369236946106
+      },
+      {
+        "slug": "kate_winslet",
+        "cos": 0.17500010132789612
+      },
+      {
+        "slug": "miley_cyrus",
+        "cos": 0.1545390635728836
+      },
+      {
+        "slug": "khloe_kardashian",
+        "cos": 0.15408730506896973
+      }
+    ],
+    "n_above_threshold": 0
+  },
+  "keanu_reeves": {
+    "top_k": [
+      {
+        "slug": "bradley_cooper",
+        "cos": 0.16302433609962463
+      },
+      {
+        "slug": "jack_black",
+        "cos": 0.15100082755088806
+      },
+      {
+        "slug": "virat_kohli",
+        "cos": 0.1304217278957367
+      },
+      {
+        "slug": "bertrand_piccard",
+        "cos": 0.1256035566329956
+      },
+      {
+        "slug": "ben_affleck",
+        "cos": 0.12073225528001785
+      }
+    ],
+    "n_above_threshold": 0
+  },
+  "keira_knightley": {
+    "top_k": [
+      {
+        "slug": "natalie_portman",
+        "cos": 0.2936142086982727
+      },
+      {
+        "slug": "dua_lipa",
+        "cos": 0.25305360555648804
+      },
+      {
+        "slug": "daisy_ridley",
+        "cos": 0.18319466710090637
+      },
+      {
+        "slug": "taylor_swift",
+        "cos": 0.16080030798912048
+      },
+      {
+        "slug": "margot_robbie",
+        "cos": 0.15801990032196045
+      }
+    ],
+    "n_above_threshold": 0
+  },
+  "kendall_jenner": {
+    "top_k": [
+      {
+        "slug": "anya_taylor-joy",
+        "cos": 0.21429666876792908
+      },
+      {
+        "slug": "kim_kardashian",
+        "cos": 0.19905586540699005
+      },
+      {
+        "slug": "kylie_jenner",
+        "cos": 0.18878230452537537
+      },
+      {
+        "slug": "lady_gaga",
+        "cos": 0.17372359335422516
+      },
+      {
+        "slug": "khloe_kardashian",
+        "cos": 0.15307003259658813
+      }
+    ],
+    "n_above_threshold": 0
+  },
+  "khloe_kardashian": {
+    "top_k": [
+      {
+        "slug": "katy_perry",
+        "cos": 0.15408730506896973
+      },
+      {
+        "slug": "kendall_jenner",
+        "cos": 0.15307003259658813
+      },
+      {
+        "slug": "kim_kardashian",
+        "cos": 0.1467071920633316
+      },
+      {
+        "slug": "matt_damon",
+        "cos": 0.14391763508319855
+      },
+      {
+        "slug": "jenna_ortega",
+        "cos": 0.140462726354599
+      }
+    ],
+    "n_above_threshold": 0
+  },
+  "kim_kardashian": {
+    "top_k": [
+      {
+        "slug": "kylie_jenner",
+        "cos": 0.28256142139434814
+      },
+      {
+        "slug": "matt_damon",
+        "cos": 0.19928549230098724
+      },
+      {
+        "slug": "kendall_jenner",
+        "cos": 0.19905586540699005
+      },
+      {
+        "slug": "edward_norton",
+        "cos": 0.1711200773715973
+      },
+      {
+        "slug": "lady_gaga",
+        "cos": 0.16835960745811462
+      }
+    ],
+    "n_above_threshold": 0
+  },
+  "kylie_jenner": {
+    "top_k": [
+      {
+        "slug": "kim_kardashian",
+        "cos": 0.28256142139434814
+      },
+      {
+        "slug": "kendall_jenner",
+        "cos": 0.18878230452537537
+      },
+      {
+        "slug": "jenna_ortega",
+        "cos": 0.1836167871952057
+      },
+      {
+        "slug": "zendaya",
+        "cos": 0.17994415760040283
+      },
+      {
+        "slug": "angelina_jolie",
+        "cos": 0.15378305315971375
+      }
+    ],
+    "n_above_threshold": 0
+  },
+  "lady_gaga": {
+    "top_k": [
+      {
+        "slug": "anya_taylor-joy",
+        "cos": 0.2291029691696167
+      },
+      {
+        "slug": "kendall_jenner",
+        "cos": 0.17372359335422516
+      },
+      {
+        "slug": "kim_kardashian",
+        "cos": 0.16835960745811462
+      },
+      {
+        "slug": "chris_pratt",
+        "cos": 0.16225938498973846
+      },
+      {
+        "slug": "scarlett_johansson",
+        "cos": 0.1406298726797104
+      }
+    ],
+    "n_above_threshold": 0
+  },
+  "lebron_james": {
+    "top_k": [
+      {
+        "slug": "meryl_streep",
+        "cos": 0.23169872164726257
+      },
+      {
+        "slug": "ursula_andress",
+        "cos": 0.1628800630569458
+      },
+      {
+        "slug": "fei-fei_li",
+        "cos": 0.1219395250082016
+      },
+      {
+        "slug": "oier_mees",
+        "cos": 0.10126126557588577
+      },
+      {
+        "slug": "andrej_karpathy",
+        "cos": 0.09643266350030899
+      }
+    ],
+    "n_above_threshold": 0
+  },
+  "leonardo_dicaprio": {
+    "top_k": [
+      {
+        "slug": "matt_damon",
+        "cos": 0.21767506003379822
+      },
+      {
+        "slug": "brad_pitt",
+        "cos": 0.2173912525177002
+      },
+      {
+        "slug": "virat_kohli",
+        "cos": 0.17654268443584442
+      },
+      {
+        "slug": "elon_musk",
+        "cos": 0.16654184460639954
+      },
+      {
+        "slug": "edward_norton",
+        "cos": 0.1639196276664734
+      }
+    ],
+    "n_above_threshold": 0
+  },
+  "liam_neeson": {
+    "top_k": [
+      {
+        "slug": "andy_jassy",
+        "cos": 0.1592259556055069
+      },
+      {
+        "slug": "chris_brown",
+        "cos": 0.15564459562301636
+      },
+      {
+        "slug": "brad_pitt",
+        "cos": 0.14324304461479187
+      },
+      {
+        "slug": "owen_wilson",
+        "cos": 0.1407633274793625
+      },
+      {
+        "slug": "daniela_amodei",
+        "cos": 0.1384676694869995
+      }
+    ],
+    "n_above_threshold": 0
+  },
+  "liang_wenfeng": {
+    "top_k": [
+      {
+        "slug": "satya_nadella",
+        "cos": 0.14218670129776
+      },
+      {
+        "slug": "sergey_levine",
+        "cos": 0.12452931702136993
+      },
+      {
+        "slug": "lisa_su",
+        "cos": 0.12052921950817108
+      },
+      {
+        "slug": "greg_brockman",
+        "cos": 0.11403267085552216
+      },
+      {
+        "slug": "marc_pollefeys",
+        "cos": 0.10888786613941193
+      }
+    ],
+    "n_above_threshold": 0
+  },
+  "lionel_messi": {
+    "top_k": [
+      {
+        "slug": "tom_holland",
+        "cos": 0.1514466404914856
+      },
+      {
+        "slug": "beyonce",
+        "cos": 0.13885459303855896
+      },
+      {
+        "slug": "jenna_ortega",
+        "cos": 0.1317562460899353
+      },
+      {
+        "slug": "chris_brown",
+        "cos": 0.12987151741981506
+      },
+      {
+        "slug": "julia_roberts",
+        "cos": 0.1291303038597107
+      }
+    ],
+    "n_above_threshold": 0
+  },
+  "lisa_blackpink": {
+    "top_k": [
+      {
+        "slug": "jennifer_aniston",
+        "cos": 0.153593972325325
+      },
+      {
+        "slug": "steve_carell",
+        "cos": 0.11940604448318481
+      },
+      {
+        "slug": "fei-fei_li",
+        "cos": 0.11028415709733963
+      },
+      {
+        "slug": "sam_altman",
+        "cos": 0.1012030690908432
+      },
+      {
+        "slug": "nicole_kidman",
+        "cos": 0.10003041476011276
+      }
+    ],
+    "n_above_threshold": 0
+  },
+  "lisa_su": {
+    "top_k": [
+      {
+        "slug": "arnold_schwarzenegger",
+        "cos": 0.16898038983345032
+      },
+      {
+        "slug": "dua_lipa",
+        "cos": 0.13944143056869507
+      },
+      {
+        "slug": "rowan_atkinson",
+        "cos": 0.13933344185352325
+      },
+      {
+        "slug": "tom_hanks",
+        "cos": 0.13635993003845215
+      },
+      {
+        "slug": "jake_gyllenhaal",
+        "cos": 0.1336582452058792
+      }
+    ],
+    "n_above_threshold": 0
+  },
+  "marc_pollefeys": {
+    "top_k": [
+      {
+        "slug": "will_ferrell",
+        "cos": 0.12896670401096344
+      },
+      {
+        "slug": "morgan_freeman",
+        "cos": 0.11301068961620331
+      },
+      {
+        "slug": "kate_beckinsale",
+        "cos": 0.1117447093129158
+      },
+      {
+        "slug": "liang_wenfeng",
+        "cos": 0.10888786613941193
+      },
+      {
+        "slug": "ursula_andress",
+        "cos": 0.10098326206207275
+      }
+    ],
+    "n_above_threshold": 0
+  },
+  "marc_raibert": {
+    "top_k": [
+      {
+        "slug": "timothee_chalamet",
+        "cos": 0.12466098368167877
+      },
+      {
+        "slug": "miley_cyrus",
+        "cos": 0.12166506052017212
+      },
+      {
+        "slug": "daniel_craig",
+        "cos": 0.1194484755396843
+      },
+      {
+        "slug": "john_travolta",
+        "cos": 0.1140412837266922
+      },
+      {
+        "slug": "meryl_streep",
+        "cos": 0.11149843037128448
+      }
+    ],
+    "n_above_threshold": 0
+  },
+  "marco_hutter": {
+    "top_k": [
+      {
+        "slug": "snoop_dogg",
+        "cos": 0.15447500348091125
+      },
+      {
+        "slug": "katy_perry",
+        "cos": 0.14664754271507263
+      },
+      {
+        "slug": "robert_downey_jr",
+        "cos": 0.13663142919540405
+      },
+      {
+        "slug": "andrej_karpathy",
+        "cos": 0.1329554319381714
+      },
+      {
+        "slug": "christian_bale",
+        "cos": 0.13196063041687012
+      }
+    ],
+    "n_above_threshold": 0
+  },
+  "margot_robbie": {
+    "top_k": [
+      {
+        "slug": "emma_stone",
+        "cos": 0.20233704149723053
+      },
+      {
+        "slug": "natalie_portman",
+        "cos": 0.19268019497394562
+      },
+      {
+        "slug": "bertrand_piccard",
+        "cos": 0.17059579491615295
+      },
+      {
+        "slug": "anne_hathaway",
+        "cos": 0.16331931948661804
+      },
+      {
+        "slug": "keira_knightley",
+        "cos": 0.15801990032196045
+      }
+    ],
+    "n_above_threshold": 0
+  },
+  "mark_wahlberg": {
+    "top_k": [
+      {
+        "slug": "matt_damon",
+        "cos": 0.188142791390419
+      },
+      {
+        "slug": "chris_pratt",
+        "cos": 0.18505242466926575
+      },
+      {
+        "slug": "arnold_schwarzenegger",
+        "cos": 0.1719963699579239
+      },
+      {
+        "slug": "tim_cook",
+        "cos": 0.1474325954914093
+      },
+      {
+        "slug": "jennifer_aniston",
+        "cos": 0.14113110303878784
+      }
+    ],
+    "n_above_threshold": 0
+  },
+  "mark_zuckerberg": {
+    "top_k": [
+      {
+        "slug": "chris_brown",
+        "cos": 0.13740143179893494
+      },
+      {
+        "slug": "jeff_bezos",
+        "cos": 0.12339726090431213
+      },
+      {
+        "slug": "robin_williams",
+        "cos": 0.11461426317691803
+      },
+      {
+        "slug": "cillian_murphy",
+        "cos": 0.11389321088790894
+      },
+      {
+        "slug": "halle_berry",
+        "cos": 0.11355060338973999
+      }
+    ],
+    "n_above_threshold": 0
+  },
+  "masayoshi_son": {
+    "top_k": [
+      {
+        "slug": "tommy_lee_jones",
+        "cos": 0.18617139756679535
+      },
+      {
+        "slug": "sam_altman",
+        "cos": 0.1371794193983078
+      },
+      {
+        "slug": "peter_jackson",
+        "cos": 0.1096108928322792
+      },
+      {
+        "slug": "tom_cruise",
+        "cos": 0.10521379113197327
+      },
+      {
+        "slug": "olivia_rodrigo",
+        "cos": 0.10191956162452698
+      }
+    ],
+    "n_above_threshold": 0
+  },
+  "matt_damon": {
+    "top_k": [
+      {
+        "slug": "leonardo_dicaprio",
+        "cos": 0.21767506003379822
+      },
+      {
+        "slug": "kim_kardashian",
+        "cos": 0.19928549230098724
+      },
+      {
+        "slug": "mark_wahlberg",
+        "cos": 0.188142791390419
+      },
+      {
+        "slug": "russell_crowe",
+        "cos": 0.1799497902393341
+      },
+      {
+        "slug": "chris_pratt",
+        "cos": 0.17118267714977264
+      }
+    ],
+    "n_above_threshold": 0
+  },
+  "megan_fox": {
+    "top_k": [
+      {
+        "slug": "sean_connery",
+        "cos": 0.20001929998397827
+      },
+      {
+        "slug": "ursula_andress",
+        "cos": 0.19398987293243408
+      },
+      {
+        "slug": "daisy_ridley",
+        "cos": 0.1681637465953827
+      },
+      {
+        "slug": "cristiano_ronaldo",
+        "cos": 0.16026827692985535
+      },
+      {
+        "slug": "rachel_mcadams",
+        "cos": 0.15931951999664307
+      }
+    ],
+    "n_above_threshold": 0
+  },
+  "mel_gibson": {
+    "top_k": [
+      {
+        "slug": "antonio_banderas",
+        "cos": 0.21878430247306824
+      },
+      {
+        "slug": "justin_bieber",
+        "cos": 0.1859583854675293
+      },
+      {
+        "slug": "satya_nadella",
+        "cos": 0.14443831145763397
+      },
+      {
+        "slug": "chris_hemsworth",
+        "cos": 0.1409643590450287
+      },
+      {
+        "slug": "bruce_willis",
+        "cos": 0.13213923573493958
+      }
+    ],
+    "n_above_threshold": 0
+  },
+  "meryl_streep": {
+    "top_k": [
+      {
+        "slug": "lebron_james",
+        "cos": 0.23169872164726257
+      },
+      {
+        "slug": "sigourney_weaver",
+        "cos": 0.1642402708530426
+      },
+      {
+        "slug": "ursula_andress",
+        "cos": 0.13567402958869934
+      },
+      {
+        "slug": "drake",
+        "cos": 0.11602436006069183
+      },
+      {
+        "slug": "marc_raibert",
+        "cos": 0.11149843037128448
+      }
+    ],
+    "n_above_threshold": 0
+  },
+  "miley_cyrus": {
+    "top_k": [
+      {
+        "slug": "jessica_alba",
+        "cos": 0.15854698419570923
+      },
+      {
+        "slug": "katy_perry",
+        "cos": 0.1545390635728836
+      },
+      {
+        "slug": "justin_bieber",
+        "cos": 0.13491323590278625
+      },
+      {
+        "slug": "samuel_l_jackson",
+        "cos": 0.13298289477825165
+      },
+      {
+        "slug": "donald_trump",
+        "cos": 0.1275828629732132
+      }
+    ],
+    "n_above_threshold": 0
+  },
+  "mira_murati": {
+    "top_k": [
+      {
+        "slug": "kate_beckinsale",
+        "cos": 0.3159310221672058
+      },
+      {
+        "slug": "greg_brockman",
+        "cos": 0.16335731744766235
+      },
+      {
+        "slug": "johnny_depp",
+        "cos": 0.16313469409942627
+      },
+      {
+        "slug": "lady_gaga",
+        "cos": 0.1358533799648285
+      },
+      {
+        "slug": "jean-claude_van_damme",
+        "cos": 0.13030670583248138
+      }
+    ],
+    "n_above_threshold": 1
+  },
+  "morgan_freeman": {
+    "top_k": [
+      {
+        "slug": "roland_siegwart",
+        "cos": 0.1200781911611557
+      },
+      {
+        "slug": "george_clooney",
+        "cos": 0.11786994338035583
+      },
+      {
+        "slug": "kanye_west",
+        "cos": 0.11406861245632172
+      },
+      {
+        "slug": "marc_pollefeys",
+        "cos": 0.11301068961620331
+      },
+      {
+        "slug": "ian_mckellen",
+        "cos": 0.10193049907684326
+      }
+    ],
+    "n_above_threshold": 0
+  },
+  "mrbeast": {
+    "top_k": [
+      {
+        "slug": "brendan_fraser",
+        "cos": 0.1519741714000702
+      },
+      {
+        "slug": "robin_williams",
+        "cos": 0.13403216004371643
+      },
+      {
+        "slug": "robert_downey_jr",
+        "cos": 0.1234821230173111
+      },
+      {
+        "slug": "chris_evans",
+        "cos": 0.11359766870737076
+      },
+      {
+        "slug": "ben_stiller",
+        "cos": 0.11326921731233597
+      }
+    ],
+    "n_above_threshold": 0
+  },
+  "mustafa_suleyman": {
+    "top_k": [
+      {
+        "slug": "rowan_atkinson",
+        "cos": 0.16546154022216797
+      },
+      {
+        "slug": "russell_crowe",
+        "cos": 0.16297245025634766
+      },
+      {
+        "slug": "chris_pratt",
+        "cos": 0.13808010518550873
+      },
+      {
+        "slug": "will_ferrell",
+        "cos": 0.12441223859786987
+      },
+      {
+        "slug": "ben_affleck",
+        "cos": 0.12041078507900238
+      }
+    ],
+    "n_above_threshold": 0
+  },
+  "natalie_portman": {
+    "top_k": [
+      {
+        "slug": "keira_knightley",
+        "cos": 0.2936142086982727
+      },
+      {
+        "slug": "margot_robbie",
+        "cos": 0.19268019497394562
+      },
+      {
+        "slug": "ursula_andress",
+        "cos": 0.17872467637062073
+      },
+      {
+        "slug": "julia_roberts",
+        "cos": 0.16790957748889923
+      },
+      {
+        "slug": "anne_hathaway",
+        "cos": 0.1674940437078476
+      }
+    ],
+    "n_above_threshold": 0
+  },
+  "nicolas_cage": {
+    "top_k": [
+      {
+        "slug": "edward_norton",
+        "cos": 0.20456169545650482
+      },
+      {
+        "slug": "chris_evans",
+        "cos": 0.1877526193857193
+      },
+      {
+        "slug": "christopher_nolan",
+        "cos": 0.17992863059043884
+      },
+      {
+        "slug": "rihanna",
+        "cos": 0.17049969732761383
+      },
+      {
+        "slug": "andrew_ng",
+        "cos": 0.16573457419872284
+      }
+    ],
+    "n_above_threshold": 0
+  },
+  "nicole_kidman": {
+    "top_k": [
+      {
+        "slug": "jackie_chan",
+        "cos": 0.16295580565929413
+      },
+      {
+        "slug": "kate_winslet",
+        "cos": 0.15675216913223267
+      },
+      {
+        "slug": "halle_berry",
+        "cos": 0.15121786296367645
+      },
+      {
+        "slug": "sundar_pichai",
+        "cos": 0.13514190912246704
+      },
+      {
+        "slug": "will_smith",
+        "cos": 0.13043002784252167
+      }
+    ],
+    "n_above_threshold": 0
+  },
+  "oier_mees": {
+    "top_k": [
+      {
+        "slug": "christopher_nolan",
+        "cos": 0.18478159606456757
+      },
+      {
+        "slug": "ian_mckellen",
+        "cos": 0.137970432639122
+      },
+      {
+        "slug": "matt_damon",
+        "cos": 0.12224892526865005
+      },
+      {
+        "slug": "demi_lovato",
+        "cos": 0.12203070521354675
+      },
+      {
+        "slug": "daniel_craig",
+        "cos": 0.10973824560642242
+      }
+    ],
+    "n_above_threshold": 0
+  },
+  "olivia_rodrigo": {
+    "top_k": [
+      {
+        "slug": "selena_gomez",
+        "cos": 0.263161301612854
+      },
+      {
+        "slug": "cristiano_ronaldo",
+        "cos": 0.18247710168361664
+      },
+      {
+        "slug": "chappell_roan",
+        "cos": 0.1563052088022232
+      },
+      {
+        "slug": "billie_eilish",
+        "cos": 0.15564167499542236
+      },
+      {
+        "slug": "tom_holland",
+        "cos": 0.1471187174320221
+      }
+    ],
+    "n_above_threshold": 0
+  },
+  "oprah_winfrey": {
+    "top_k": [
+      {
+        "slug": "samuel_l_jackson",
+        "cos": 0.18488207459449768
+      },
+      {
+        "slug": "jared_kaplan",
+        "cos": 0.1593017429113388
+      },
+      {
+        "slug": "nicole_kidman",
+        "cos": 0.12419313192367554
+      },
+      {
+        "slug": "andrew_ng",
+        "cos": 0.12340083718299866
+      },
+      {
+        "slug": "tom_hanks",
+        "cos": 0.12128256261348724
+      }
+    ],
+    "n_above_threshold": 0
+  },
+  "orlando_bloom": {
+    "top_k": [
+      {
+        "slug": "xherdan_shaqiri",
+        "cos": 0.259682834148407
+      },
+      {
+        "slug": "pedro_pascal",
+        "cos": 0.17585597932338715
+      },
+      {
+        "slug": "ilya_sutskever",
+        "cos": 0.17380675673484802
+      },
+      {
+        "slug": "hugh_jackman",
+        "cos": 0.15036974847316742
+      },
+      {
+        "slug": "kylie_jenner",
+        "cos": 0.14841213822364807
+      }
+    ],
+    "n_above_threshold": 0
+  },
+  "owen_wilson": {
+    "top_k": [
+      {
+        "slug": "donald_trump",
+        "cos": 0.18296341598033905
+      },
+      {
+        "slug": "christopher_nolan",
+        "cos": 0.14109322428703308
+      },
+      {
+        "slug": "liam_neeson",
+        "cos": 0.1407633274793625
+      },
+      {
+        "slug": "sandra_bullock",
+        "cos": 0.14044085144996643
+      },
+      {
+        "slug": "cillian_murphy",
+        "cos": 0.13596691191196442
+      }
+    ],
+    "n_above_threshold": 0
+  },
+  "pedro_pascal": {
+    "top_k": [
+      {
+        "slug": "johnny_depp",
+        "cos": 0.2103486955165863
+      },
+      {
+        "slug": "orlando_bloom",
+        "cos": 0.17585597932338715
+      },
+      {
+        "slug": "jim_carrey",
+        "cos": 0.17425525188446045
+      },
+      {
+        "slug": "bill_murray",
+        "cos": 0.1480099856853485
+      },
+      {
+        "slug": "drake",
+        "cos": 0.14405862987041473
+      }
+    ],
+    "n_above_threshold": 0
+  },
+  "peter_jackson": {
+    "top_k": [
+      {
+        "slug": "scarlett_johansson",
+        "cos": 0.1513117402791977
+      },
+      {
+        "slug": "james_cameron",
+        "cos": 0.14825952053070068
+      },
+      {
+        "slug": "chris_pratt",
+        "cos": 0.1264815330505371
+      },
+      {
+        "slug": "mark_wahlberg",
+        "cos": 0.12513945996761322
+      },
+      {
+        "slug": "mustafa_suleyman",
+        "cos": 0.11377129703760147
+      }
+    ],
+    "n_above_threshold": 0
+  },
+  "pierce_brosnan": {
+    "top_k": [
+      {
+        "slug": "brad_pitt",
+        "cos": 0.23205715417861938
+      },
+      {
+        "slug": "arnold_schwarzenegger",
+        "cos": 0.19949859380722046
+      },
+      {
+        "slug": "tom_cruise",
+        "cos": 0.17166560888290405
+      },
+      {
+        "slug": "antonio_banderas",
+        "cos": 0.1581842005252838
+      },
+      {
+        "slug": "john_travolta",
+        "cos": 0.14096122980117798
+      }
+    ],
+    "n_above_threshold": 0
+  },
+  "pieter_abbeel": {
+    "top_k": [
+      {
+        "slug": "tom_hiddleston",
+        "cos": 0.17834630608558655
+      },
+      {
+        "slug": "christopher_nolan",
+        "cos": 0.16973616182804108
+      },
+      {
+        "slug": "jim_carrey",
+        "cos": 0.16412325203418732
+      },
+      {
+        "slug": "sundar_pichai",
+        "cos": 0.1625489592552185
+      },
+      {
+        "slug": "john_jumper",
+        "cos": 0.14978834986686707
+      }
+    ],
+    "n_above_threshold": 0
+  },
+  "rachel_mcadams": {
+    "top_k": [
+      {
+        "slug": "steven_spielberg",
+        "cos": 0.18565641343593597
+      },
+      {
+        "slug": "ursula_andress",
+        "cos": 0.1856285035610199
+      },
+      {
+        "slug": "megan_fox",
+        "cos": 0.15931951999664307
+      },
+      {
+        "slug": "jenna_ortega",
+        "cos": 0.15867450833320618
+      },
+      {
+        "slug": "natalie_portman",
+        "cos": 0.1502475142478943
+      }
+    ],
+    "n_above_threshold": 0
+  },
+  "richard_sutton": {
+    "top_k": [
+      {
+        "slug": "daniel_craig",
+        "cos": 0.15227575600147247
+      },
+      {
+        "slug": "timothee_chalamet",
+        "cos": 0.1500115990638733
+      },
+      {
+        "slug": "anya_taylor-joy",
+        "cos": 0.12357105314731598
+      },
+      {
+        "slug": "hugh_jackman",
+        "cos": 0.11861638724803925
+      },
+      {
+        "slug": "fei-fei_li",
+        "cos": 0.11429136991500854
+      }
+    ],
+    "n_above_threshold": 0
+  },
+  "rihanna": {
+    "top_k": [
+      {
+        "slug": "nicolas_cage",
+        "cos": 0.17049969732761383
+      },
+      {
+        "slug": "will_smith",
+        "cos": 0.15903010964393616
+      },
+      {
+        "slug": "rachel_mcadams",
+        "cos": 0.13633942604064941
+      },
+      {
+        "slug": "emma_watson",
+        "cos": 0.13024938106536865
+      },
+      {
+        "slug": "daisy_ridley",
+        "cos": 0.12729783356189728
+      }
+    ],
+    "n_above_threshold": 0
+  },
+  "robert_de_niro": {
+    "top_k": [
+      {
+        "slug": "tommy_lee_jones",
+        "cos": 0.27227622270584106
+      },
+      {
+        "slug": "steven_spielberg",
+        "cos": 0.16414478421211243
+      },
+      {
+        "slug": "jim_carrey",
+        "cos": 0.16277608275413513
+      },
+      {
+        "slug": "kate_beckinsale",
+        "cos": 0.15679650008678436
+      },
+      {
+        "slug": "sylvester_stallone",
+        "cos": 0.11905693262815475
+      }
+    ],
+    "n_above_threshold": 0
+  },
+  "robert_downey_jr": {
+    "top_k": [
+      {
+        "slug": "hugh_jackman",
+        "cos": 0.23283472657203674
+      },
+      {
+        "slug": "geoffrey_hinton",
+        "cos": 0.2127293050289154
+      },
+      {
+        "slug": "vin_diesel",
+        "cos": 0.16368895769119263
+      },
+      {
+        "slug": "barack_obama",
+        "cos": 0.15804579854011536
+      },
+      {
+        "slug": "jack_black",
+        "cos": 0.15094392001628876
+      }
+    ],
+    "n_above_threshold": 0
+  },
+  "robin_williams": {
+    "top_k": [
+      {
+        "slug": "tim_allen",
+        "cos": 0.17133508622646332
+      },
+      {
+        "slug": "tim_cook",
+        "cos": 0.15811488032341003
+      },
+      {
+        "slug": "jeff_bezos",
+        "cos": 0.14631308615207672
+      },
+      {
+        "slug": "mrbeast",
+        "cos": 0.13403216004371643
+      },
+      {
+        "slug": "chris_evans",
+        "cos": 0.12345951795578003
+      }
+    ],
+    "n_above_threshold": 0
+  },
+  "roger_federer": {
+    "top_k": [
+      {
+        "slug": "angelina_jolie",
+        "cos": 0.14891859889030457
+      },
+      {
+        "slug": "chris_brown",
+        "cos": 0.1280694156885147
+      },
+      {
+        "slug": "owen_wilson",
+        "cos": 0.1156034916639328
+      },
+      {
+        "slug": "antonio_banderas",
+        "cos": 0.11534292995929718
+      },
+      {
+        "slug": "jennifer_lawrence",
+        "cos": 0.11517474800348282
+      }
+    ],
+    "n_above_threshold": 0
+  },
+  "roland_siegwart": {
+    "top_k": [
+      {
+        "slug": "clement_delangue",
+        "cos": 0.19161337614059448
+      },
+      {
+        "slug": "satya_nadella",
+        "cos": 0.17796486616134644
+      },
+      {
+        "slug": "jeff_bezos",
+        "cos": 0.16475142538547516
+      },
+      {
+        "slug": "jared_kaplan",
+        "cos": 0.12568862736225128
+      },
+      {
+        "slug": "morgan_freeman",
+        "cos": 0.1200781911611557
+      }
+    ],
+    "n_above_threshold": 0
+  },
+  "rowan_atkinson": {
+    "top_k": [
+      {
+        "slug": "mustafa_suleyman",
+        "cos": 0.16546154022216797
+      },
+      {
+        "slug": "lisa_su",
+        "cos": 0.13933344185352325
+      },
+      {
+        "slug": "barack_obama",
+        "cos": 0.13507342338562012
+      },
+      {
+        "slug": "samuel_l_jackson",
+        "cos": 0.11569029092788696
+      },
+      {
+        "slug": "hugh_jackman",
+        "cos": 0.11422228068113327
+      }
+    ],
+    "n_above_threshold": 0
+  },
+  "russell_crowe": {
+    "top_k": [
+      {
+        "slug": "ian_mckellen",
+        "cos": 0.19563186168670654
+      },
+      {
+        "slug": "tom_hiddleston",
+        "cos": 0.18230056762695312
+      },
+      {
+        "slug": "matt_damon",
+        "cos": 0.1799497902393341
+      },
+      {
+        "slug": "james_mcavoy",
+        "cos": 0.17285361886024475
+      },
+      {
+        "slug": "will_ferrell",
+        "cos": 0.17219707369804382
+      }
+    ],
+    "n_above_threshold": 0
+  },
+  "ryan_reynolds": {
+    "top_k": [
+      {
+        "slug": "kate_beckinsale",
+        "cos": 0.21070915460586548
+      },
+      {
+        "slug": "stuart_russell",
+        "cos": 0.1475411057472229
+      },
+      {
+        "slug": "tom_hanks",
+        "cos": 0.14175830781459808
+      },
+      {
+        "slug": "charli_xcx",
+        "cos": 0.13396002352237701
+      },
+      {
+        "slug": "jake_gyllenhaal",
+        "cos": 0.12965869903564453
+      }
+    ],
+    "n_above_threshold": 0
+  },
+  "sabrina_carpenter": {
+    "top_k": [
+      {
+        "slug": "sydney_sweeney",
+        "cos": 0.22949999570846558
+      },
+      {
+        "slug": "daniel_radcliffe",
+        "cos": 0.2053370177745819
+      },
+      {
+        "slug": "sean_connery",
+        "cos": 0.13649262487888336
+      },
+      {
+        "slug": "chappell_roan",
+        "cos": 0.13526509702205658
+      },
+      {
+        "slug": "selena_gomez",
+        "cos": 0.13298602402210236
+      }
+    ],
+    "n_above_threshold": 0
+  },
+  "sam_altman": {
+    "top_k": [
+      {
+        "slug": "ilya_sutskever",
+        "cos": 0.1871805042028427
+      },
+      {
+        "slug": "sylvester_stallone",
+        "cos": 0.1372462809085846
+      },
+      {
+        "slug": "masayoshi_son",
+        "cos": 0.1371794193983078
+      },
+      {
+        "slug": "xherdan_shaqiri",
+        "cos": 0.1153910830616951
+      },
+      {
+        "slug": "tom_hiddleston",
+        "cos": 0.10928518325090408
+      }
+    ],
+    "n_above_threshold": 0
+  },
+  "samuel_l_jackson": {
+    "top_k": [
+      {
+        "slug": "snoop_dogg",
+        "cos": 0.21418644487857819
+      },
+      {
+        "slug": "oprah_winfrey",
+        "cos": 0.18488207459449768
+      },
+      {
+        "slug": "miley_cyrus",
+        "cos": 0.13298289477825165
+      },
+      {
+        "slug": "ariana_grande",
+        "cos": 0.1322297751903534
+      },
+      {
+        "slug": "dwayne_johnson",
+        "cos": 0.12717628479003906
+      }
+    ],
+    "n_above_threshold": 0
+  },
+  "sandra_bullock": {
+    "top_k": [
+      {
+        "slug": "owen_wilson",
+        "cos": 0.14044085144996643
+      },
+      {
+        "slug": "steve_jobs",
+        "cos": 0.13661307096481323
+      },
+      {
+        "slug": "kate_beckinsale",
+        "cos": 0.12735199928283691
+      },
+      {
+        "slug": "kendall_jenner",
+        "cos": 0.11937308311462402
+      },
+      {
+        "slug": "dua_lipa",
+        "cos": 0.11703716218471527
+      }
+    ],
+    "n_above_threshold": 0
+  },
+  "satya_nadella": {
+    "top_k": [
+      {
+        "slug": "jeff_bezos",
+        "cos": 0.22501206398010254
+      },
+      {
+        "slug": "roland_siegwart",
+        "cos": 0.17796486616134644
+      },
+      {
+        "slug": "davide_scaramuzza",
+        "cos": 0.1501728594303131
+      },
+      {
+        "slug": "mel_gibson",
+        "cos": 0.14443831145763397
+      },
+      {
+        "slug": "liang_wenfeng",
+        "cos": 0.14218670129776
+      }
+    ],
+    "n_above_threshold": 0
+  },
+  "scarlett_johansson": {
+    "top_k": [
+      {
+        "slug": "taylor_swift",
+        "cos": 0.24586904048919678
+      },
+      {
+        "slug": "daisy_ridley",
+        "cos": 0.2063276171684265
+      },
+      {
+        "slug": "billie_eilish",
+        "cos": 0.18871146440505981
+      },
+      {
+        "slug": "kim_kardashian",
+        "cos": 0.16712737083435059
+      },
+      {
+        "slug": "dua_lipa",
+        "cos": 0.15502314269542694
+      }
+    ],
+    "n_above_threshold": 0
+  },
+  "sean_connery": {
+    "top_k": [
+      {
+        "slug": "megan_fox",
+        "cos": 0.20001929998397827
+      },
+      {
+        "slug": "sabrina_carpenter",
+        "cos": 0.13649262487888336
+      },
+      {
+        "slug": "hugh_jackman",
+        "cos": 0.13155971467494965
+      },
+      {
+        "slug": "russell_crowe",
+        "cos": 0.12788544595241547
+      },
+      {
+        "slug": "jake_gyllenhaal",
+        "cos": 0.1134495884180069
+      }
+    ],
+    "n_above_threshold": 0
+  },
+  "selena_gomez": {
+    "top_k": [
+      {
+        "slug": "olivia_rodrigo",
+        "cos": 0.263161301612854
+      },
+      {
+        "slug": "ariana_grande",
+        "cos": 0.2087211310863495
+      },
+      {
+        "slug": "daisy_ridley",
+        "cos": 0.1795838475227356
+      },
+      {
+        "slug": "chappell_roan",
+        "cos": 0.1628306359052658
+      },
+      {
+        "slug": "kate_beckinsale",
+        "cos": 0.15189243853092194
+      }
+    ],
+    "n_above_threshold": 0
+  },
+  "sergey_levine": {
+    "top_k": [
+      {
+        "slug": "steven_spielberg",
+        "cos": 0.1827092319726944
+      },
+      {
+        "slug": "dwayne_johnson",
+        "cos": 0.17941626906394958
+      },
+      {
+        "slug": "anne_hathaway",
+        "cos": 0.15681977570056915
+      },
+      {
+        "slug": "jensen_huang",
+        "cos": 0.1485171765089035
+      },
+      {
+        "slug": "james_mcavoy",
+        "cos": 0.1412154734134674
+      }
+    ],
+    "n_above_threshold": 0
+  },
+  "shakira": {
+    "top_k": [
+      {
+        "slug": "jenna_ortega",
+        "cos": 0.255329430103302
+      },
+      {
+        "slug": "sydney_sweeney",
+        "cos": 0.16969479620456696
+      },
+      {
+        "slug": "jennifer_aniston",
+        "cos": 0.16890060901641846
+      },
+      {
+        "slug": "beyonce",
+        "cos": 0.16185514628887177
+      },
+      {
+        "slug": "justin_bieber",
+        "cos": 0.1516321450471878
+      }
+    ],
+    "n_above_threshold": 0
+  },
+  "shia_labeouf": {
+    "top_k": [
+      {
+        "slug": "virat_kohli",
+        "cos": 0.13914363086223602
+      },
+      {
+        "slug": "al_pacino",
+        "cos": 0.11382459104061127
+      },
+      {
+        "slug": "jake_gyllenhaal",
+        "cos": 0.11323469132184982
+      },
+      {
+        "slug": "steve_carell",
+        "cos": 0.10376124083995819
+      },
+      {
+        "slug": "drew_barrymore",
+        "cos": 0.1036955937743187
+      }
+    ],
+    "n_above_threshold": 0
+  },
+  "sigourney_weaver": {
+    "top_k": [
+      {
+        "slug": "emma_watson",
+        "cos": 0.18165399134159088
+      },
+      {
+        "slug": "meryl_streep",
+        "cos": 0.1642402708530426
+      },
+      {
+        "slug": "tom_holland",
+        "cos": 0.1531607210636139
+      },
+      {
+        "slug": "katy_perry",
+        "cos": 0.14501358568668365
+      },
+      {
+        "slug": "olivia_rodrigo",
+        "cos": 0.1340600550174713
+      }
+    ],
+    "n_above_threshold": 0
+  },
+  "snoop_dogg": {
+    "top_k": [
+      {
+        "slug": "will_smith",
+        "cos": 0.2310975193977356
+      },
+      {
+        "slug": "samuel_l_jackson",
+        "cos": 0.21418644487857819
+      },
+      {
+        "slug": "marco_hutter",
+        "cos": 0.15447500348091125
+      },
+      {
+        "slug": "virat_kohli",
+        "cos": 0.13230842351913452
+      },
+      {
+        "slug": "rowan_atkinson",
+        "cos": 0.11197327077388763
+      }
+    ],
+    "n_above_threshold": 0
+  },
+  "stan_wawrinka": {
+    "top_k": [
+      {
+        "slug": "christian_bale",
+        "cos": 0.14406201243400574
+      },
+      {
+        "slug": "virat_kohli",
+        "cos": 0.13875705003738403
+      },
+      {
+        "slug": "marco_hutter",
+        "cos": 0.12622684240341187
+      },
+      {
+        "slug": "bill_murray",
+        "cos": 0.120756134390831
+      },
+      {
+        "slug": "matt_damon",
+        "cos": 0.11905522644519806
+      }
+    ],
+    "n_above_threshold": 0
+  },
+  "steve_carell": {
+    "top_k": [
+      {
+        "slug": "brad_pitt",
+        "cos": 0.19115395843982697
+      },
+      {
+        "slug": "ben_stiller",
+        "cos": 0.18752804398536682
+      },
+      {
+        "slug": "tom_cruise",
+        "cos": 0.17778277397155762
+      },
+      {
+        "slug": "timothee_chalamet",
+        "cos": 0.16580535471439362
+      },
+      {
+        "slug": "jim_carrey",
+        "cos": 0.1650777906179428
+      }
+    ],
+    "n_above_threshold": 0
+  },
+  "steve_jobs": {
+    "top_k": [
+      {
+        "slug": "andy_jassy",
+        "cos": 0.17272821068763733
+      },
+      {
+        "slug": "chris_evans",
+        "cos": 0.14830414950847626
+      },
+      {
+        "slug": "sandra_bullock",
+        "cos": 0.13661307096481323
+      },
+      {
+        "slug": "dua_lipa",
+        "cos": 0.13287211954593658
+      },
+      {
+        "slug": "davide_scaramuzza",
+        "cos": 0.11119640618562698
+      }
+    ],
+    "n_above_threshold": 0
+  },
+  "steven_spielberg": {
+    "top_k": [
+      {
+        "slug": "john_jumper",
+        "cos": 0.21935389935970306
+      },
+      {
+        "slug": "rachel_mcadams",
+        "cos": 0.18565641343593597
+      },
+      {
+        "slug": "sergey_levine",
+        "cos": 0.1827092319726944
+      },
+      {
+        "slug": "dario_amodei",
+        "cos": 0.17751172184944153
+      },
+      {
+        "slug": "robert_de_niro",
+        "cos": 0.16414478421211243
+      }
+    ],
+    "n_above_threshold": 0
+  },
+  "stuart_russell": {
+    "top_k": [
+      {
+        "slug": "bruce_willis",
+        "cos": 0.16688239574432373
+      },
+      {
+        "slug": "drew_barrymore",
+        "cos": 0.1578124463558197
+      },
+      {
+        "slug": "kate_beckinsale",
+        "cos": 0.14874178171157837
+      },
+      {
+        "slug": "ryan_reynolds",
+        "cos": 0.1475411057472229
+      },
+      {
+        "slug": "geoffrey_hinton",
+        "cos": 0.14572829008102417
+      }
+    ],
+    "n_above_threshold": 0
+  },
+  "sundar_pichai": {
+    "top_k": [
+      {
+        "slug": "pieter_abbeel",
+        "cos": 0.1625489592552185
+      },
+      {
+        "slug": "nicole_kidman",
+        "cos": 0.13514190912246704
+      },
+      {
+        "slug": "jake_gyllenhaal",
+        "cos": 0.11660780012607574
+      },
+      {
+        "slug": "george_clooney",
+        "cos": 0.1109863892197609
+      },
+      {
+        "slug": "barack_obama",
+        "cos": 0.10447343438863754
+      }
+    ],
+    "n_above_threshold": 0
+  },
+  "sydney_sweeney": {
+    "top_k": [
+      {
+        "slug": "billie_eilish",
+        "cos": 0.240742027759552
+      },
+      {
+        "slug": "sabrina_carpenter",
+        "cos": 0.22949999570846558
+      },
+      {
+        "slug": "jessica_alba",
+        "cos": 0.22407346963882446
+      },
+      {
+        "slug": "katy_perry",
+        "cos": 0.1927369236946106
+      },
+      {
+        "slug": "shakira",
+        "cos": 0.16969479620456696
+      }
+    ],
+    "n_above_threshold": 0
+  },
+  "sylvester_stallone": {
+    "top_k": [
+      {
+        "slug": "cristiano_ronaldo",
+        "cos": 0.20348036289215088
+      },
+      {
+        "slug": "jennifer_aniston",
+        "cos": 0.18410471081733704
+      },
+      {
+        "slug": "chris_hemsworth",
+        "cos": 0.1500263810157776
+      },
+      {
+        "slug": "robert_downey_jr",
+        "cos": 0.14680320024490356
+      },
+      {
+        "slug": "arnold_schwarzenegger",
+        "cos": 0.14479763805866241
+      }
+    ],
+    "n_above_threshold": 0
+  },
+  "taylor_swift": {
+    "top_k": [
+      {
+        "slug": "scarlett_johansson",
+        "cos": 0.24586904048919678
+      },
+      {
+        "slug": "dua_lipa",
+        "cos": 0.16114090383052826
+      },
+      {
+        "slug": "keira_knightley",
+        "cos": 0.16080030798912048
+      },
+      {
+        "slug": "margot_robbie",
+        "cos": 0.1445186287164688
+      },
+      {
+        "slug": "pierce_brosnan",
+        "cos": 0.14065706729888916
+      }
+    ],
+    "n_above_threshold": 0
+  },
+  "the_weeknd": {
+    "top_k": [
+      {
+        "slug": "james_mcavoy",
+        "cos": 0.13131393492221832
+      },
+      {
+        "slug": "selena_gomez",
+        "cos": 0.1280602067708969
+      },
+      {
+        "slug": "chris_evans",
+        "cos": 0.09948330372571945
+      },
+      {
+        "slug": "al_pacino",
+        "cos": 0.09452877193689346
+      },
+      {
+        "slug": "adam_sandler",
+        "cos": 0.09199774265289307
+      }
+    ],
+    "n_above_threshold": 0
+  },
+  "tiger_woods": {
+    "top_k": [
+      {
+        "slug": "tom_hanks",
+        "cos": 0.12188248336315155
+      },
+      {
+        "slug": "liam_neeson",
+        "cos": 0.11264459043741226
+      },
+      {
+        "slug": "chelsea_finn",
+        "cos": 0.10730888694524765
+      },
+      {
+        "slug": "john_jumper",
+        "cos": 0.09659983962774277
+      },
+      {
+        "slug": "sandra_bullock",
+        "cos": 0.09332716464996338
+      }
+    ],
+    "n_above_threshold": 0
+  },
+  "tim_allen": {
+    "top_k": [
+      {
+        "slug": "daniel_radcliffe",
+        "cos": 0.18088945746421814
+      },
+      {
+        "slug": "robin_williams",
+        "cos": 0.17133508622646332
+      },
+      {
+        "slug": "jake_gyllenhaal",
+        "cos": 0.16340003907680511
+      },
+      {
+        "slug": "virat_kohli",
+        "cos": 0.15862038731575012
+      },
+      {
+        "slug": "margot_robbie",
+        "cos": 0.1576162576675415
+      }
+    ],
+    "n_above_threshold": 0
+  },
+  "tim_cook": {
+    "top_k": [
+      {
+        "slug": "robin_williams",
+        "cos": 0.15811488032341003
+      },
+      {
+        "slug": "mark_wahlberg",
+        "cos": 0.1474325954914093
+      },
+      {
+        "slug": "selena_gomez",
+        "cos": 0.14741313457489014
+      },
+      {
+        "slug": "george_clooney",
+        "cos": 0.13668332993984222
+      },
+      {
+        "slug": "jared_kaplan",
+        "cos": 0.11394400894641876
+      }
+    ],
+    "n_above_threshold": 0
+  },
+  "timothee_chalamet": {
+    "top_k": [
+      {
+        "slug": "daniel_radcliffe",
+        "cos": 0.19439125061035156
+      },
+      {
+        "slug": "jacob_elordi",
+        "cos": 0.18858343362808228
+      },
+      {
+        "slug": "bradley_cooper",
+        "cos": 0.17441482841968536
+      },
+      {
+        "slug": "bill_gates",
+        "cos": 0.17303133010864258
+      },
+      {
+        "slug": "steve_carell",
+        "cos": 0.16580535471439362
+      }
+    ],
+    "n_above_threshold": 0
+  },
+  "tom_cruise": {
+    "top_k": [
+      {
+        "slug": "steve_carell",
+        "cos": 0.17778277397155762
+      },
+      {
+        "slug": "pierce_brosnan",
+        "cos": 0.17166560888290405
+      },
+      {
+        "slug": "brad_pitt",
+        "cos": 0.16316887736320496
+      },
+      {
+        "slug": "cristiano_ronaldo",
+        "cos": 0.14298126101493835
+      },
+      {
+        "slug": "pedro_pascal",
+        "cos": 0.1314890831708908
+      }
+    ],
+    "n_above_threshold": 0
+  },
+  "tom_hanks": {
+    "top_k": [
+      {
+        "slug": "arnold_schwarzenegger",
+        "cos": 0.28563591837882996
+      },
+      {
+        "slug": "jennifer_aniston",
+        "cos": 0.18917368352413177
+      },
+      {
+        "slug": "ian_mckellen",
+        "cos": 0.17054986953735352
+      },
+      {
+        "slug": "bill_murray",
+        "cos": 0.16388151049613953
+      },
+      {
+        "slug": "brendan_fraser",
+        "cos": 0.16122989356517792
+      }
+    ],
+    "n_above_threshold": 0
+  },
+  "tom_hiddleston": {
+    "top_k": [
+      {
+        "slug": "james_franco",
+        "cos": 0.21701663732528687
+      },
+      {
+        "slug": "john_jumper",
+        "cos": 0.19649511575698853
+      },
+      {
+        "slug": "jim_carrey",
+        "cos": 0.1833907663822174
+      },
+      {
+        "slug": "russell_crowe",
+        "cos": 0.18230056762695312
+      },
+      {
+        "slug": "pieter_abbeel",
+        "cos": 0.17834630608558655
+      }
+    ],
+    "n_above_threshold": 0
+  },
+  "tom_holland": {
+    "top_k": [
+      {
+        "slug": "cristiano_ronaldo",
+        "cos": 0.24416571855545044
+      },
+      {
+        "slug": "arnold_schwarzenegger",
+        "cos": 0.17229020595550537
+      },
+      {
+        "slug": "sigourney_weaver",
+        "cos": 0.1531607210636139
+      },
+      {
+        "slug": "lionel_messi",
+        "cos": 0.1514466404914856
+      },
+      {
+        "slug": "olivia_rodrigo",
+        "cos": 0.1471187174320221
+      }
+    ],
+    "n_above_threshold": 0
+  },
+  "tommy_lee_jones": {
+    "top_k": [
+      {
+        "slug": "robert_de_niro",
+        "cos": 0.27227622270584106
+      },
+      {
+        "slug": "masayoshi_son",
+        "cos": 0.18617139756679535
+      },
+      {
+        "slug": "jean-claude_van_damme",
+        "cos": 0.1730266511440277
+      },
+      {
+        "slug": "steven_spielberg",
+        "cos": 0.16407185792922974
+      },
+      {
+        "slug": "megan_fox",
+        "cos": 0.15819644927978516
+      }
+    ],
+    "n_above_threshold": 0
+  },
+  "ursula_andress": {
+    "top_k": [
+      {
+        "slug": "megan_fox",
+        "cos": 0.19398987293243408
+      },
+      {
+        "slug": "rachel_mcadams",
+        "cos": 0.1856285035610199
+      },
+      {
+        "slug": "julia_roberts",
+        "cos": 0.18511733412742615
+      },
+      {
+        "slug": "natalie_portman",
+        "cos": 0.17872467637062073
+      },
+      {
+        "slug": "lebron_james",
+        "cos": 0.1628800630569458
+      }
+    ],
+    "n_above_threshold": 0
+  },
+  "vin_diesel": {
+    "top_k": [
+      {
+        "slug": "dwayne_johnson",
+        "cos": 0.18349361419677734
+      },
+      {
+        "slug": "brendan_fraser",
+        "cos": 0.17559736967086792
+      },
+      {
+        "slug": "robert_downey_jr",
+        "cos": 0.16368895769119263
+      },
+      {
+        "slug": "ian_mckellen",
+        "cos": 0.15548840165138245
+      },
+      {
+        "slug": "yoshua_bengio",
+        "cos": 0.1306118220090866
+      }
+    ],
+    "n_above_threshold": 0
+  },
+  "virat_kohli": {
+    "top_k": [
+      {
+        "slug": "leonardo_dicaprio",
+        "cos": 0.17654268443584442
+      },
+      {
+        "slug": "tim_allen",
+        "cos": 0.15862038731575012
+      },
+      {
+        "slug": "shia_labeouf",
+        "cos": 0.13914363086223602
+      },
+      {
+        "slug": "stan_wawrinka",
+        "cos": 0.13875705003738403
+      },
+      {
+        "slug": "snoop_dogg",
+        "cos": 0.13230842351913452
+      }
+    ],
+    "n_above_threshold": 0
+  },
+  "will_ferrell": {
+    "top_k": [
+      {
+        "slug": "bruce_willis",
+        "cos": 0.17335635423660278
+      },
+      {
+        "slug": "james_mcavoy",
+        "cos": 0.17231424152851105
+      },
+      {
+        "slug": "russell_crowe",
+        "cos": 0.17219707369804382
+      },
+      {
+        "slug": "tim_allen",
+        "cos": 0.14882799983024597
+      },
+      {
+        "slug": "john_travolta",
+        "cos": 0.13881900906562805
+      }
+    ],
+    "n_above_threshold": 0
+  },
+  "will_smith": {
+    "top_k": [
+      {
+        "slug": "snoop_dogg",
+        "cos": 0.2310975193977356
+      },
+      {
+        "slug": "rihanna",
+        "cos": 0.15903010964393616
+      },
+      {
+        "slug": "tom_hanks",
+        "cos": 0.15233302116394043
+      },
+      {
+        "slug": "geoffrey_hinton",
+        "cos": 0.14314201474189758
+      },
+      {
+        "slug": "denzel_washington",
+        "cos": 0.1397150456905365
+      }
+    ],
+    "n_above_threshold": 0
+  },
+  "xherdan_shaqiri": {
+    "top_k": [
+      {
+        "slug": "orlando_bloom",
+        "cos": 0.259682834148407
+      },
+      {
+        "slug": "leonardo_dicaprio",
+        "cos": 0.13564948737621307
+      },
+      {
+        "slug": "marco_hutter",
+        "cos": 0.12093833833932877
+      },
+      {
+        "slug": "natalie_portman",
+        "cos": 0.1179690733551979
+      },
+      {
+        "slug": "christopher_nolan",
+        "cos": 0.11554495990276337
+      }
+    ],
+    "n_above_threshold": 0
+  },
+  "yann_lecun": {
+    "top_k": [
+      {
+        "slug": "julia_roberts",
+        "cos": 0.13868364691734314
+      },
+      {
+        "slug": "robert_downey_jr",
+        "cos": 0.11680703610181808
+      },
+      {
+        "slug": "roland_siegwart",
+        "cos": 0.11038343608379364
+      },
+      {
+        "slug": "jet_li",
+        "cos": 0.10925543308258057
+      },
+      {
+        "slug": "miley_cyrus",
+        "cos": 0.10857505351305008
+      }
+    ],
+    "n_above_threshold": 0
+  },
+  "yoshua_bengio": {
+    "top_k": [
+      {
+        "slug": "vin_diesel",
+        "cos": 0.1306118220090866
+      },
+      {
+        "slug": "bertrand_piccard",
+        "cos": 0.12002589553594589
+      },
+      {
+        "slug": "karol_hausman",
+        "cos": 0.11944089829921722
+      },
+      {
+        "slug": "steve_jobs",
+        "cos": 0.11087081581354141
+      },
+      {
+        "slug": "taylor_swift",
+        "cos": 0.1034078449010849
+      }
+    ],
+    "n_above_threshold": 0
+  },
+  "zendaya": {
+    "top_k": [
+      {
+        "slug": "kylie_jenner",
+        "cos": 0.17994415760040283
+      },
+      {
+        "slug": "cardi_b",
+        "cos": 0.17070862650871277
+      },
+      {
+        "slug": "timothee_chalamet",
+        "cos": 0.14914382994174957
+      },
+      {
+        "slug": "selena_gomez",
+        "cos": 0.14333882927894592
+      },
+      {
+        "slug": "edward_norton",
+        "cos": 0.13496442139148712
+      }
+    ],
+    "n_above_threshold": 0
+  }
+}
