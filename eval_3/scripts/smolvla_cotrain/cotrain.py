@@ -265,7 +265,7 @@ class VLPairsDataset(Dataset):
         }
 
 
-def make_vl_collator(processor, max_text_len: int = 256):
+def make_vl_collator(processor):
     """Builds VL batches for SmolVLM2's LM head.
 
     SmolVLM2 uses an Idefics3-style processor that expands the `<image>`
@@ -302,8 +302,9 @@ def make_vl_collator(processor, max_text_len: int = 256):
             images=images,
             return_tensors="pt",
             padding="longest",
-            truncation=True,
-            max_length=max_text_len,
+            # No truncation: SmolVLM expands each <image> into ~1088 tokens;
+            # a small max_length would truncate them and desync the image-token
+            # count between text and input_ids. VL pairs are short Q&A.
         )
 
         # 2. Process prompt-only with the SAME images so image-token
@@ -314,8 +315,9 @@ def make_vl_collator(processor, max_text_len: int = 256):
             images=images,
             return_tensors="pt",
             padding="longest",
-            truncation=True,
-            max_length=max_text_len,
+            # No truncation: SmolVLM expands each <image> into ~1088 tokens;
+            # a small max_length would truncate them and desync the image-token
+            # count between text and input_ids. VL pairs are short Q&A.
         )
         # Per-sample prompt token length (number of non-pad tokens).
         prompt_lens = prompt_inputs["attention_mask"].sum(dim=1).tolist()
