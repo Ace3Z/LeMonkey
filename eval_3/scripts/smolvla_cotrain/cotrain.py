@@ -274,7 +274,7 @@ class VLPairsDataset(Dataset):
         }
 
 
-def make_vl_collator(processor, max_text_len: int = 256):
+def make_vl_collator(processor, max_text_len: int = 1024):
     """Builds VL batches for SmolVLM2's LM head.
 
     SmolVLM2 uses an Idefics3-style processor that expands the `<image>`
