@@ -11,9 +11,11 @@ forward path (`SmolVLMWithExpertModel.forward`):
 
 - hooks `text_model.layers[n].self_attn.{q,k}_proj` — these fire on the VLM
   prefix stream only (the action expert uses `lm_expert.layers[...]`),
-- captures the live `position_ids` from `SmolVLMWithExpertModel.forward`
-  (it is `cumsum(pad_masks) - 1`, NOT a plain arange — padded language
-  tokens repeat positions),
+- captures the live `position_ids` by wrapping the module-level `apply_rope`
+  (SmolVLA calls `vlm_with_expert.forward` directly, bypassing nn.Module
+  `__call__`, so a forward-pre-hook never fires; `apply_rope` is called for
+  q/k on every layer with the exact `cumsum(pad_masks)-1` positions — NOT a
+  plain arange, which would mis-RoPE on padded tokens),
 - recomputes attention with SmolVLA's own `apply_rope` and the eager
   softmax scale `head_dim ** -0.5`, exactly matching `forward_attn_layer`.
 
@@ -61,13 +63,25 @@ class KLALHookSetSmolVLA:
             attn = text_model.layers[n].self_attn
             self._handles.append(attn.q_proj.register_forward_hook(self._mk_q(n)))
             self._handles.append(attn.k_proj.register_forward_hook(self._mk_k(n)))
-        # SmolVLA has no rotary_emb module — capture position_ids straight off
-        # the VLM forward instead. `cumsum(pad_masks)-1` repeats positions on
-        # padded language tokens, so a plain arange would mis-RoPE the recompute.
-        self._handles.append(
-            vlm_with_expert.register_forward_pre_hook(self._capture_pos,
-                                                      with_kwargs=True)
-        )
+        # position_ids: SmolVLA's modeling code calls `vlm_with_expert.forward(...)`
+        # directly (bypassing nn.Module.__call__), so a forward-pre-hook on the
+        # module never fires. Instead wrap the module-level `apply_rope` — it is
+        # called for q/k on every layer with the exact `positions` the model
+        # RoPEs with (`cumsum(pad_masks)-1`, which repeats on padded tokens, so
+        # a plain arange would mis-RoPE the recompute). The wrapper is undone in
+        # `remove()`.
+        import lerobot.policies.smolvla.smolvlm_with_expert as _swe
+        self._swe = _swe
+        self._orig_apply_rope = _swe.apply_rope
+        _orig = self._orig_apply_rope
+        _holder = self
+
+        def _apply_rope_capturing(x, positions, max_wavelength=10_000):
+            if _holder._position_ids is None:
+                _holder._position_ids = positions.detach()
+            return _orig(x, positions, max_wavelength)
+
+        _swe.apply_rope = _apply_rope_capturing
         # Image-prefix length is needed to map a language-token position to its
         # prefix row. SmolVLA pads the prefix to a fixed length and the
         # image-stream count depends on `empty_cameras`, so guessing it from
@@ -85,14 +99,6 @@ class KLALHookSetSmolVLA:
 
     def _mk_k(self, n):
         return lambda mod, inp, out: self._captures[n].__setitem__("k", out)
-
-    def _capture_pos(self, module, args, kwargs):
-        pos = kwargs.get("position_ids")
-        if pos is None and len(args) >= 2:
-            pos = args[1]
-        if pos is not None:
-            self._position_ids = pos.detach()
-        return None
 
     def _capture_connector(self, mod, inp, out):
         self._n_image_calls += 1
@@ -190,6 +196,10 @@ class KLALHookSetSmolVLA:
         for h in self._handles:
             h.remove()
         self._handles = []
+        # Restore the un-wrapped apply_rope.
+        if getattr(self, "_orig_apply_rope", None) is not None:
+            self._swe.apply_rope = self._orig_apply_rope
+            self._orig_apply_rope = None
 
     def __enter__(self):
         return self
