@@ -55,9 +55,11 @@ the VLM prefix stream only) and recomputes `softmax(QK^T·scale)`:
 - **RoPE** is applied with SmolVLA's own `apply_rope` (not Gemma's) — the
   HIGH-severity no-RoPE-proxy bug from the Pi0.5 KLAL is avoided by
   construction.
-- **position_ids** are captured live from `SmolVLMWithExpertModel.forward`
-  (`cumsum(pad_masks)-1`, which repeats on padded language tokens — a plain
-  arange would mis-RoPE).
+- **position_ids** are captured by wrapping the module-level `apply_rope`
+  (SmolVLA calls `vlm_with_expert.forward` directly, bypassing nn.Module
+  `__call__`, so a forward-pre-hook never fires — this was caught by the
+  smoke test). `cumsum(pad_masks)-1` repeats on padded tokens, so a plain
+  arange would mis-RoPE.
 - **scale** = `head_dim**-0.5`, matching `eager_attention_forward`.
 - **prefix→prefix only**: SmolVLA's prefix is fully bidirectional and prefix
   rows attend only to prefix columns, so the recompute equals the policy's
@@ -66,12 +68,33 @@ the VLM prefix stream only) and recomputes `softmax(QK^T·scale)`:
   *measured at runtime* by counting connector calls — not guessed from
   `empty_cameras` config.
 
-## Open risks / to verify on the GPU smoke test
+## Component smoke test — PASSED (33/33)
 
-1. **UNSMOKED.** cotrain.py was already "written but unsmoked"; these edits
-   add to that. Run the 200-step smoke (`STEPS=200 ENABLE_LORA=1 ENABLE_KLAL=1
-   ...`) and confirm: `klal=` prints non-zero, finite; `flow`/`vqa` still
-   trend down; no OOM.
+`eval_3/aug/tests/test_klal_lora_smoke.py` (run on CPU with the `lemonkey`
+conda env) verifies the components with real torch:
+
+- LoRA: no-op at init (B=0), fp32 merge round-trip exact (~1e-6), bf16 merge
+  drift small (~1.6e-2), inject/swap, vanilla state-dict keys after merge.
+- KLAL: Gaussian target sums to 1, loss ≈ 0 when attention matches the
+  target and > 0 when uniform, name-token subsequence located.
+- **Real `lerobot/smolvla_base`**: LoRA injected (64 modules, 1.64M adapter
+  params), `q_proj.weight.dtype` access works (no crash), a real
+  `VLAFlowMatching.forward` runs (`flow_loss=2.88`), KLAL hooks capture q/k,
+  position_ids + image-prefix length measured, **KLAL loss finite (2.38)**,
+  and **KLAL's gradient reaches the LoRA adapter** (`q_proj.lora_B`,
+  |grad|≈7.9e-2).
+
+The smoke caught one real bug — the original position_ids capture used a
+forward-pre-hook on `vlm_with_expert`, but SmolVLA calls `.forward()`
+directly so it never fired; fixed by wrapping `apply_rope` (above).
+
+## Open risks / to verify on the GPU box
+
+1. **Full 200-step cotrain still UNSMOKED.** The component smoke covers the
+   building blocks; the end-to-end trainer with real datasets has not run.
+   Run the 200-step smoke (`STEPS=200 ENABLE_LORA=1 ENABLE_KLAL=1 ...`) and
+   confirm: `klal=` prints non-zero, finite; `flow`/`vqa` still trend down;
+   no OOM.
 2. **Robot batch keys.** KLAL assumes the raw `LeRobotDataset` batch carries
    `episode_index` + `frame_index`. If it doesn't, the run raises loudly
    (no silent fallback) — fix by deriving `frame_index` from `index`.

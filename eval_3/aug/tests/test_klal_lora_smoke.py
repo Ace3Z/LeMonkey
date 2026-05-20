@@ -250,9 +250,13 @@ try:
         check("KLAL loss is finite on a real forward",
               torch.is_tensor(kloss) and torch.isfinite(kloss).all(),
               f"klal={float(kloss):.4f}")
-        loraA = text_model.layers[10].self_attn.q_proj.lora_A.weight
-        grad = torch.autograd.grad(kloss, loraA, retain_graph=False, allow_unused=True)[0]
-        check("KLAL gradient reaches a LoRA adapter",
+        # LoRA inits B=0, so at step 0 the gradient to lora_A is gated to zero
+        # by B (standard LoRA: A only trains once B != 0 after the first optim
+        # step). lora_B is the adapter param that carries gradient at init, so
+        # it is the correct probe that KLAL's gradient reaches the adapters.
+        loraB = text_model.layers[10].self_attn.q_proj.lora_B.weight
+        grad = torch.autograd.grad(kloss, loraB, retain_graph=False, allow_unused=True)[0]
+        check("KLAL gradient reaches a LoRA adapter (q_proj.lora_B)",
               grad is not None and float(grad.norm()) > 0,
               f"|grad|={0.0 if grad is None else float(grad.norm()):.3e}")
     except Exception as e:
