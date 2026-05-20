@@ -43,11 +43,13 @@ import os
 import sys
 import time
 from dataclasses import dataclass
+from datetime import timedelta
 from pathlib import Path
 
 import torch
+import torch.distributed as dist
 import torch.nn.functional as F
-from torch.utils.data import DataLoader, Dataset
+from torch.utils.data import DataLoader, Dataset, DistributedSampler
 
 # ---------------------------------------------------------------------------
 # Lerobot HF-API rate-limit bypass
@@ -408,7 +410,9 @@ def load_policy_and_processor(args, device: torch.device):
     if args.vlm_model_name is not None:
         cfg.vlm_model_name = args.vlm_model_name
     # The cfg.device read in subordinate constructors should match our device.
-    cfg.device = device.type
+    # Use the full string ("cuda:1" under DDP) so DeviceProcessorStep moves
+    # tensors to *this* rank's GPU, not always cuda:0.
+    cfg.device = str(device)
 
     policy = SmolVLAPolicy.from_pretrained(args.pretrained_path, config=cfg)
     policy = policy.to(device)
@@ -568,66 +572,133 @@ def build_robot_preprocessor(policy_cfg, dataset, pretrained_path: str, device: 
 
 # -----------------------------------------------------------------------------
 # Main training loop
+#
+# Multi-GPU note: we do NOT wrap the policy in torch DistributedDataParallel.
+# DDP syncs gradients via hooks tied to the wrapped module's forward(); but this
+# trainer has TWO forward paths — robot batches call policy.forward(), VL
+# batches call policy.model.vlm_with_expert.vlm(...) directly — and the VL path
+# would bypass DDP entirely. Instead we keep plain modules and average gradients
+# across ranks by hand after backward() (see the all_reduce below). This is
+# correct for both paths and matches the script's hand-rolled training loop.
+# Launch multi-GPU via `torchrun --nproc_per_node=N`; with no torchrun env vars
+# it runs single-GPU exactly as before.
 # -----------------------------------------------------------------------------
 
 def main() -> int:
     args = parse_args()
 
-    out_dir = Path(args.output_dir)
-    out_dir.mkdir(parents=True, exist_ok=True)
+    # --- Distributed setup. torchrun sets these env vars; absent => single GPU.
+    world_size = int(os.environ.get("WORLD_SIZE", "1"))
+    rank = int(os.environ.get("RANK", "0"))
+    local_rank = int(os.environ.get("LOCAL_RANK", "0"))
+    is_distributed = world_size > 1
+    is_main = rank == 0
 
-    # Reproducibility.
+    if is_distributed:
+        torch.cuda.set_device(local_rank)  # must precede init_process_group
+        # Generous timeout: the periodic-save barrier and final barrier must
+        # not trip the NCCL watchdog while rank 0 writes a checkpoint.
+        dist.init_process_group(backend="nccl", timeout=timedelta(hours=2))
+
+    def log(msg: str) -> None:
+        """Print on rank 0 only — keeps multi-GPU logs readable."""
+        if is_main:
+            print(msg, flush=True)
+
+    out_dir = Path(args.output_dir)
+    if is_main:
+        out_dir.mkdir(parents=True, exist_ok=True)
+
+    # Reproducibility — same seed on every rank so model init matches.
     torch.manual_seed(args.seed)
 
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    print(f"[cotrain] device={device}, dtype={args.dtype}", flush=True)
+    device = torch.device(f"cuda:{local_rank}" if torch.cuda.is_available() else "cpu")
+    log(f"[cotrain] device={device}, dtype={args.dtype}, world_size={world_size} "
+        f"({'DDP' if is_distributed else 'single-GPU'})")
     if device.type == "cuda":
-        print(f"[cotrain] gpu={torch.cuda.get_device_name(0)}, "
-              f"vram={torch.cuda.get_device_properties(0).total_memory / 1e9:.1f}GB",
-              flush=True)
+        log(f"[cotrain] gpu={torch.cuda.get_device_name(local_rank)}, "
+            f"vram={torch.cuda.get_device_properties(local_rank).total_memory / 1e9:.1f}GB")
+
+    # batch_size / vl_batch_size are GLOBAL — split evenly across ranks so the
+    # optimization math is identical to the single-GPU runs we validated.
+    if args.batch_size % world_size != 0:
+        raise ValueError(f"batch_size {args.batch_size} not divisible by "
+                         f"world_size {world_size}")
+    if args.vl_batch_size % world_size != 0:
+        raise ValueError(f"vl_batch_size {args.vl_batch_size} not divisible by "
+                         f"world_size {world_size}")
+    per_gpu_bs = args.batch_size // world_size
+    per_gpu_vl_bs = args.vl_batch_size // world_size
 
     # 1. Policy + processor.
-    print(f"[cotrain] loading SmolVLA policy from {args.pretrained_path} ...", flush=True)
+    log(f"[cotrain] loading SmolVLA policy from {args.pretrained_path} ...")
     policy, vl_processor, policy_cfg = load_policy_and_processor(args, device)
     policy.train()
+
+    # Make every rank bit-identical before the first step (insurance — same
+    # seed + same checkpoint should already guarantee this).
+    if is_distributed:
+        for p in policy.parameters():
+            dist.broadcast(p.data, src=0)
+        for b in policy.buffers():
+            dist.broadcast(b.data, src=0)
+
     trainable_n = sum(p.numel() for p in policy.parameters() if p.requires_grad)
     total_n = sum(p.numel() for p in policy.parameters())
-    print(f"[cotrain] trainable params: {trainable_n / 1e6:.1f}M / {total_n / 1e6:.1f}M "
-          f"({100 * trainable_n / total_n:.1f}%)", flush=True)
+    log(f"[cotrain] trainable params: {trainable_n / 1e6:.1f}M / {total_n / 1e6:.1f}M "
+        f"({100 * trainable_n / total_n:.1f}%)")
 
     # 2. Robot dataset + preprocessor + dataloader.
-    print(f"[cotrain] loading robot dataset {args.robot_dataset} ...", flush=True)
+    log(f"[cotrain] loading robot dataset {args.robot_dataset} ...")
     robot_ds = load_robot_dataset(args, policy_cfg)
-    print("[cotrain] building robot preprocessor (tokenizer + normalizer + device) ...", flush=True)
+    log("[cotrain] building robot preprocessor (tokenizer + normalizer + device) ...")
     preprocessor, postprocessor = build_robot_preprocessor(
         policy_cfg=policy_cfg,
         dataset=robot_ds,
         pretrained_path=args.pretrained_path,
         device=device,
     )
+    robot_sampler = (
+        DistributedSampler(robot_ds, num_replicas=world_size, rank=rank,
+                           shuffle=True, seed=args.seed, drop_last=True)
+        if is_distributed else None
+    )
     robot_loader = DataLoader(
         robot_ds,
-        batch_size=args.batch_size,
-        shuffle=True,
+        batch_size=per_gpu_bs,
+        shuffle=(robot_sampler is None),
+        sampler=robot_sampler,
         num_workers=args.num_workers,
         pin_memory=device.type == "cuda",
         drop_last=True,
     )
+    robot_epoch = 0
+    if robot_sampler is not None:
+        robot_sampler.set_epoch(robot_epoch)
     robot_iter = iter(robot_loader)
 
     # 3. VL dataset + dataloader.
-    print(f"[cotrain] loading VL pairs from {args.vl_manifest} ...", flush=True)
+    log(f"[cotrain] loading VL pairs from {args.vl_manifest} ...")
     vl_image_root = Path(args.vl_image_root) if args.vl_image_root else None
     vl_ds = VLPairsDataset(args.vl_manifest, image_root=vl_image_root)
+    vl_sampler = (
+        DistributedSampler(vl_ds, num_replicas=world_size, rank=rank,
+                           shuffle=True, seed=args.seed, drop_last=True)
+        if is_distributed else None
+    )
     vl_loader = DataLoader(
         vl_ds,
-        batch_size=args.vl_batch_size,
-        shuffle=True,
+        batch_size=per_gpu_vl_bs,
+        shuffle=(vl_sampler is None),
+        sampler=vl_sampler,
         num_workers=args.num_workers,
         collate_fn=make_vl_collator(vl_processor),
         pin_memory=device.type == "cuda",
         drop_last=True,
     )
+    vl_epoch = 0
+    if vl_sampler is not None:
+        vl_sampler.set_epoch(vl_epoch)
     vl_iter = iter(vl_loader)
 
     # 4. Optimizer — one AdamW over all trainable params.
@@ -639,9 +710,10 @@ def main() -> int:
     )
 
     # 5. Training loop.
-    print(f"[cotrain] starting training: steps={args.steps}, "
-          f"vl_ratio={args.vl_ratio} (one VL batch per {args.vl_ratio} robot batches), "
-          f"lr={args.lr}", flush=True)
+    log(f"[cotrain] starting training: steps={args.steps}, "
+        f"vl_ratio={args.vl_ratio} (one VL batch per {args.vl_ratio} robot batches), "
+        f"lr={args.lr}, global batch={args.batch_size}/{args.vl_batch_size} "
+        f"({per_gpu_bs}/{per_gpu_vl_bs} per GPU)")
 
     period = args.vl_ratio + 1   # vl_ratio=10 → VL hits at step%11==0
     last_log_time = time.perf_counter()
@@ -649,12 +721,18 @@ def main() -> int:
     last_vqa_loss = float("nan")
 
     for step in range(args.steps):
+        # is_vl_step is deterministic => every rank runs the same step type, so
+        # the set of params carrying a grad matches across ranks and the
+        # per-tensor all_reduce below stays collective-safe.
         is_vl_step = (step % period == 0)
 
         if is_vl_step:
             try:
                 batch = next(vl_iter)
             except StopIteration:
+                vl_epoch += 1
+                if vl_sampler is not None:
+                    vl_sampler.set_epoch(vl_epoch)
                 vl_iter = iter(vl_loader)
                 batch = next(vl_iter)
             with torch.amp.autocast(device_type=device.type,
@@ -662,11 +740,13 @@ def main() -> int:
                                                           else torch.float32):
                 loss = smolvla_vqa_loss(policy, batch, device)
             loss_name = "vqa_loss"
-            last_vqa_loss = loss.item()
         else:
             try:
                 batch = next(robot_iter)
             except StopIteration:
+                robot_epoch += 1
+                if robot_sampler is not None:
+                    robot_sampler.set_epoch(robot_epoch)
                 robot_iter = iter(robot_loader)
                 batch = next(robot_iter)
             # Apply the SmolVLA preprocessor: tokenizes the language task,
@@ -678,15 +758,48 @@ def main() -> int:
                                                           else torch.float32):
                 loss = smolvla_action_loss(policy, batch)
             loss_name = "flow_loss"
-            last_flow_loss = loss.item()
 
-        if not torch.isfinite(loss):
-            print(f"[WARN] step {step}: non-finite loss ({loss_name}={loss.item()}), "
-                  f"skipping optimizer step", flush=True)
+        # Global-mean loss for logging + a rank-consistent finite check.
+        loss_report = loss.detach().clone()
+        if is_distributed:
+            dist.all_reduce(loss_report, op=dist.ReduceOp.SUM)
+            loss_report /= world_size
+        loss_val = loss_report.item()
+        if is_vl_step:
+            last_vqa_loss = loss_val
+        else:
+            last_flow_loss = loss_val
+
+        if not torch.isfinite(loss_report):
+            # loss_report is identical on every rank => all ranks skip together.
+            log(f"[WARN] step {step}: non-finite loss ({loss_name}={loss_val}), "
+                f"skipping optimizer step")
             optim.zero_grad(set_to_none=True)
             continue
 
         loss.backward()
+
+        # Manual DDP gradient averaging. We iterate ALL trainable params in a
+        # fixed order and materialise a zero grad wherever backward produced
+        # none — the VQA path leaves the action expert with no grad, the robot
+        # path leaves the LM head with none. This keeps the all_reduce call
+        # sequence byte-identical on every rank: NCCL matches collectives
+        # positionally, so a rank-dependent param set could deadlock or mismatch
+        # silently. Stock DistributedDataParallel does the same (it reduces and
+        # steps every parameter, unused ones included).
+        #
+        # SUM/world_size is standard DDP averaging: each rank backprops a mean
+        # loss over its own equal-sized sub-batch (per_gpu_bs is fixed,
+        # drop_last=True), so the averaged gradient is the global-batch mean.
+        if is_distributed:
+            for p in policy.parameters():
+                if not p.requires_grad:
+                    continue
+                if p.grad is None:
+                    p.grad = torch.zeros_like(p)
+                dist.all_reduce(p.grad, op=dist.ReduceOp.SUM)
+                p.grad /= world_size
+
         if args.grad_clip > 0:
             grad_norm = torch.nn.utils.clip_grad_norm_(
                 (p for p in policy.parameters() if p.requires_grad),
@@ -701,46 +814,59 @@ def main() -> int:
             dt = time.perf_counter() - last_log_time
             last_log_time = time.perf_counter()
             steps_per_sec = args.log_every / dt if dt > 0 else 0
-            print(f"step {step:6d}  {loss_name}={loss.item():.4f}  "
-                  f"(last flow={last_flow_loss:.4f} vqa={last_vqa_loss:.4f})  "
-                  f"grad={grad_norm:.2f}  steps/s={steps_per_sec:.2f}",
-                  flush=True)
+            log(f"step {step:6d}  {loss_name}={loss_val:.4f}  "
+                f"(last flow={last_flow_loss:.4f} vqa={last_vqa_loss:.4f})  "
+                f"grad={grad_norm:.2f}  steps/s={steps_per_sec:.2f}")
 
         if step > 0 and step % args.save_freq == 0:
-            ckpt_dir = out_dir / f"step_{step:06d}"
-            ckpt_dir.mkdir(parents=True, exist_ok=True)
-            policy.save_pretrained(ckpt_dir)
-            # Save preprocessor/postprocessor alongside so eval-day inference
-            # can reproduce normalization + tokenization. Without these, the
-            # checkpoint cannot be deployed.
-            preprocessor.save_pretrained(ckpt_dir)
-            postprocessor.save_pretrained(ckpt_dir)
-            print(f"[cotrain] checkpoint saved → {ckpt_dir}", flush=True)
+            if is_main:
+                ckpt_dir = out_dir / f"step_{step:06d}"
+                ckpt_dir.mkdir(parents=True, exist_ok=True)
+                policy.save_pretrained(ckpt_dir)
+                # Save preprocessor/postprocessor alongside so eval-day
+                # inference can reproduce normalization + tokenization.
+                # Without these, the checkpoint cannot be deployed.
+                preprocessor.save_pretrained(ckpt_dir)
+                postprocessor.save_pretrained(ckpt_dir)
+                log(f"[cotrain] checkpoint saved → {ckpt_dir}")
+            # All ranks meet here so non-main ranks do not run ahead into the
+            # next step's collectives while rank 0 is still writing the ckpt.
+            if is_distributed:
+                dist.barrier()
 
-    # 6. Final save.
+    # 6. Final save (rank 0 only — all ranks hold identical weights).
     final_dir = out_dir / "final"
-    final_dir.mkdir(parents=True, exist_ok=True)
-    policy.save_pretrained(final_dir)
-    preprocessor.save_pretrained(final_dir)
-    postprocessor.save_pretrained(final_dir)
-    print(f"[cotrain] final checkpoint → {final_dir}", flush=True)
+    rc = 0
+    if is_main:
+        final_dir.mkdir(parents=True, exist_ok=True)
+        policy.save_pretrained(final_dir)
+        preprocessor.save_pretrained(final_dir)
+        postprocessor.save_pretrained(final_dir)
+        log(f"[cotrain] final checkpoint → {final_dir}")
 
-    # 7. HF push (policy + processors).
-    if args.push_to_hub_repo:
+    # Sync, then tear the process group DOWN before the (possibly slow) HF
+    # upload. If the barrier stayed live during the push, non-main ranks would
+    # sit in a collective and trip the NCCL watchdog timeout while rank 0
+    # uploads. After this point rank 0 runs alone with no live group.
+    if is_distributed:
+        dist.barrier()
+        dist.destroy_process_group()
+
+    # 7. HF push (policy + processors) — rank 0 only, no live process group.
+    if is_main and args.push_to_hub_repo:
         try:
             policy.push_to_hub(args.push_to_hub_repo)
             preprocessor.push_to_hub(args.push_to_hub_repo)
             postprocessor.push_to_hub(args.push_to_hub_repo)
-            print(f"[cotrain] pushed to https://huggingface.co/{args.push_to_hub_repo}",
-                  flush=True)
+            log(f"[cotrain] pushed to https://huggingface.co/{args.push_to_hub_repo}")
         except Exception as e:
             print(f"[WARN] HF push failed: expected=push policy+preprocessor+postprocessor "
                   f"to {args.push_to_hub_repo}, got={type(e).__name__}: {e}, "
                   f"fallback=local-only checkpoint at {final_dir}",
                   flush=True)
-            return 1
+            rc = 1
 
-    return 0
+    return rc
 
 
 if __name__ == "__main__":

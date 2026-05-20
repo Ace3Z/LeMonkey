@@ -104,6 +104,15 @@ else
     nvidia-smi --query-gpu=name,memory.total --format=csv,noheader || true
 fi
 
+# Count GPUs via torch so the value honours CUDA_VISIBLE_DEVICES (nvidia-smi
+# does not) — otherwise torchrun would spawn ranks for GPUs torch can't see.
+_NGPU=$(python -c "import torch; print(torch.cuda.device_count())" 2>/dev/null || echo 0)
+
+# How many GPUs to train on. Auto = all visible; override with NUM_GPUS.
+# >1 launches cotrain.py under torchrun (DDP); 1 runs a plain single process.
+NUM_GPUS="${NUM_GPUS:-$_NGPU}"
+[ "${NUM_GPUS:-1}" -lt 1 ] && NUM_GPUS=1
+
 python -c "import lerobot.policies.smolvla.modeling_smolvla" \
     || { echo "[ERROR] cannot import lerobot.policies.smolvla.modeling_smolvla — check env" >&2; exit 1; }
 
@@ -118,14 +127,24 @@ echo "    vl         : $VL_MANIFEST"
 echo "    pretrained : $PRETRAINED"
 [ -n "$VLM_OVERRIDE" ] && echo "    vlm override: $VLM_OVERRIDE"
 echo "    steps      : $STEPS"
-echo "    bs / vl_bs : $BATCH_SIZE / $VL_BATCH_SIZE"
+echo "    bs / vl_bs : $BATCH_SIZE / $VL_BATCH_SIZE (global, split across $NUM_GPUS GPU(s))"
 echo "    vl_ratio   : $VL_RATIO (=> VL batch every $((VL_RATIO + 1))-th step)"
 echo "    lr         : $LR"
+echo "    gpus       : $NUM_GPUS $([ "$NUM_GPUS" -gt 1 ] && echo '(DDP via torchrun)' || echo '(single process)')"
 echo "    output     : $OUT_DIR"
 echo "    push       : ${PUSH_REPO:-(skip)}"
 echo
 
-CMD=( python -u "$SCRIPT"
+# torchrun for multi-GPU (DDP), plain python for single-GPU. PYTHONUNBUFFERED
+# keeps torchrun child stdout line-buffered for live log tailing.
+export PYTHONUNBUFFERED=1
+if [ "$NUM_GPUS" -gt 1 ]; then
+    LAUNCHER=( torchrun --standalone --nproc_per_node="$NUM_GPUS" )
+else
+    LAUNCHER=( python -u )
+fi
+
+CMD=( "${LAUNCHER[@]}" "$SCRIPT"
       --robot_dataset="$ROBOT_DATASET"
       --vl_manifest="$VL_MANIFEST"
       --pretrained_path="$PRETRAINED"
