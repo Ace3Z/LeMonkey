@@ -108,51 +108,97 @@ def build_argparser() -> argparse.ArgumentParser:
 # -----------------------------------------------------------------------------
 
 class VLPairsDataset(torch.utils.data.Dataset):
-    """Loads Darius's bbox-grounded face VQA pairs from a parquet manifest.
+    """Loads bbox-grounded face VQA pairs from `HBOrtiz/eval3_objectvla_vl_pairs`.
 
-    Expected manifest schema (per TRACK_OBJECTVLA.md §2 Darius's deliverable):
-        image_path   (str)   path to face crop (relative to dataset root)
-        prompt       (str)   e.g. "Who is the person at [0.21,0.32,0.58,0.74]?"
-        target       (str)   e.g. "Yann LeCun"
-        bbox         (list)  [x1, y1, x2, y2] normalized [0,1] xyxy
-        celeb        (str)   slug like "yann_lecun"
-        caption_type (str)   "location_explicit" | "qa_grounded" | "qa_open" | "caption"
+    Verified manifest schema (Roham's actual push, 2026-05-20):
+        image_path        (str)   relative path inside the HF dataset
+                                   e.g. "images/chunk-000/quick_lecun_LSO_ep02_..__f0107.jpg"
+        prompt            (str)   "What is in this image?" / "Who is in the printed photo at [...]?"
+                                   (NB: no <image> token prepended — collator adds it)
+        target            (str)   "The printed photo of Barack Obama is at [0.06,...]" / "Barack Obama"
+        bbox_xyxy_norm    (list)  [x1, y1, x2, y2] normalized [0,1] xyxy
+        celeb_name        (str)   "Barack Obama"
+        celeb_slug        (str)   "barack_obama"
+        caption_type      (str)   "location_explicit" | "qa_grounded"
+        episode           (str)   source teleop episode name
+        frame_idx         (int)   source frame
+        pid               (int)   portrait/face index (0=left, 1=middle, 2=right typically)
 
-    [BREV_INTEGRATE]: confirm exact column names with Darius once his
-    push lands. Adjust __getitem__ accordingly.
+    Total rows: 176,670 across 29,445 unique images, 192 unique celebs.
+
+    Image source: extracted from `images.tar.zst` inside the HF dataset, OR
+    streamed via huggingface_hub's image-resolve API. We accept either an
+    extracted directory (preferred — much faster) or auto-extract on first
+    construction.
     """
 
-    def __init__(self, manifest_path_or_id: str, processor, image_root: Path | None = None,
-                 max_text_len: int = 384):
+    REQUIRED_COLS = {"image_path", "prompt", "target", "bbox_xyxy_norm",
+                     "celeb_slug", "caption_type"}
+
+    def __init__(self, manifest_path_or_id: str, processor,
+                 image_root: Path | None = None,
+                 max_text_len: int = 384,
+                 image_token: str = "<image>"):
         try:
             import pandas as pd
         except ImportError:
             raise RuntimeError("pandas required for VL dataset")
 
-        # Accept either local parquet path OR HF repo id.
+        # Accept either a local parquet OR an HF repo id. For HF, we expect
+        # the dataset to contain `manifest.parquet` at the root.
         if Path(manifest_path_or_id).is_file():
             self.df = pd.read_parquet(manifest_path_or_id)
+            dataset_root = Path(manifest_path_or_id).parent
         else:
-            # [BREV_INTEGRATE]: snapshot_download from HF when this is a repo_id.
-            from huggingface_hub import snapshot_download
-            local = snapshot_download(repo_id=manifest_path_or_id, repo_type="dataset")
-            # Locate the parquet in the snapshot.
-            parquets = list(Path(local).rglob("*.parquet"))
-            if not parquets:
-                raise FileNotFoundError(f"No parquet in {local}")
-            self.df = pd.read_parquet(parquets[0])
+            from huggingface_hub import snapshot_download, hf_hub_download
+            import os
+            # Pull just the manifest first (fast), defer image extraction.
+            mf_path = hf_hub_download(
+                repo_id=manifest_path_or_id, repo_type="dataset",
+                filename="manifest.parquet",
+                token=os.environ.get("HF_TOKEN"),
+            )
+            self.df = pd.read_parquet(mf_path)
+            # The image root is the snapshot's dataset directory — pull on first use.
+            # [BREV_INTEGRATE]: pre-extract images.tar.zst before training starts
+            # to avoid per-row decode latency. For smoke testing, snapshot_download
+            # the whole repo (~1.15 GB) once.
+            dataset_root = Path(mf_path).parent
+            if image_root is None:
+                # Try to find pre-extracted images/.
+                if (dataset_root / "images").is_dir():
+                    image_root = dataset_root / "images"
+                else:
+                    print("[WARN] VL dataset: expected pre-extracted images/ dir, "
+                          f"got=missing under {dataset_root}, "
+                          "fallback=snapshot_download full repo (1.15 GB)",
+                          flush=True)
+                    full = snapshot_download(
+                        repo_id=manifest_path_or_id, repo_type="dataset",
+                        token=os.environ.get("HF_TOKEN"),
+                    )
+                    image_root = Path(full)
+
+        # Schema verification.
+        missing = self.REQUIRED_COLS - set(self.df.columns)
+        if missing:
+            raise ValueError(f"VL manifest missing required columns: {missing}; "
+                             f"got {list(self.df.columns)}")
 
         self.processor = processor
         self.image_root = image_root
         self.max_text_len = max_text_len
+        self.image_token = image_token
 
-        # Sanity: required columns present?
-        required = {"image_path", "prompt", "target"}
-        missing = required - set(self.df.columns)
-        if missing:
-            raise ValueError(f"VL manifest missing columns: {missing}; "
-                             f"got {list(self.df.columns)}")
-        print(f"[vl_dataset] loaded {len(self.df)} VL pairs", flush=True)
+        print(f"[vl_dataset] loaded {len(self.df)} VL pairs from "
+              f"{manifest_path_or_id}", flush=True)
+        print(f"[vl_dataset]   unique images: {self.df['image_path'].nunique()}",
+              flush=True)
+        print(f"[vl_dataset]   unique celebs: {self.df['celeb_slug'].nunique()}",
+              flush=True)
+        print(f"[vl_dataset]   caption mix:   "
+              f"{dict(self.df['caption_type'].value_counts())}", flush=True)
+        print(f"[vl_dataset]   image_root:    {self.image_root}", flush=True)
 
     def __len__(self) -> int:
         return len(self.df)
@@ -160,19 +206,43 @@ class VLPairsDataset(torch.utils.data.Dataset):
     def __getitem__(self, idx: int) -> dict:
         from PIL import Image
         row = self.df.iloc[idx]
-        img_path = Path(row["image_path"])
-        if self.image_root is not None and not img_path.is_absolute():
-            img_path = self.image_root / img_path
-        try:
-            img = Image.open(img_path).convert("RGB")
-        except Exception as e:
-            print(f"[WARN] VL row {idx}: expected image at {img_path}, "
-                  f"got {e}, fallback=skip (returning blank)", flush=True)
+
+        # image_path is relative; resolve via image_root.
+        rel = Path(str(row["image_path"]))
+        # Some snapshots put images under <root>/images/...; others put
+        # them at <root>/... directly. Try both.
+        candidates = [
+            self.image_root / rel,
+            self.image_root.parent / rel,  # in case image_root is .../images and rel starts with images/
+        ]
+        # Also strip a leading "images/" if image_root already points there.
+        if str(rel).startswith("images/") and self.image_root.name == "images":
+            candidates.insert(0, self.image_root / rel.relative_to("images"))
+
+        img_path = next((c for c in candidates if c.is_file()), None)
+        if img_path is None:
+            print(f"[WARN] VL row {idx}: expected image at one of "
+                  f"{[str(c) for c in candidates]}, got=missing, "
+                  f"fallback=blank 224x224 gray", flush=True)
             img = Image.new("RGB", (224, 224), color=(128, 128, 128))
+        else:
+            try:
+                img = Image.open(img_path).convert("RGB")
+            except Exception as e:
+                print(f"[WARN] VL row {idx}: expected readable {img_path}, "
+                      f"got {e}, fallback=blank", flush=True)
+                img = Image.new("RGB", (224, 224), color=(128, 128, 128))
+
+        prompt = str(row["prompt"])
+        # Prepend the PaliGemma <image> token if not already present.
+        if self.image_token not in prompt:
+            prompt = f"{self.image_token}{prompt}"
+
         return {
             "image": img,
-            "prompt": str(row["prompt"]),
+            "prompt": prompt,
             "target": str(row["target"]),
+            "celeb_slug": str(row["celeb_slug"]),
         }
 
 
