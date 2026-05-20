@@ -44,8 +44,13 @@ PUSH_REPO="${PUSH_REPO:-}"                  # leave empty to skip HF push
 CAPTION_FILTER="${CAPTION_FILTER:-all}"
 USE_KLAL="${USE_KLAL:-0}"                   # 1 to enable the KL attention loss
 KLAL_LAM="${KLAL_LAM:-1.0}"
-KLAL_LAYERS="${KLAL_LAYERS:-6,9,12,15}"     # must be in [0,15]
+KLAL_LAYERS="${KLAL_LAYERS:-all}"           # 'all'=0-15 (matches the paper); or csv
 KLAL_SIGMA="${KLAL_SIGMA:-1.0}"
+
+# VLM fine-tune scope ablation arm: full | wide | qk
+LORA_SCOPE="${LORA_SCOPE:-full}"
+LORA_R="${LORA_R:-32}"
+LORA_ALPHA="${LORA_ALPHA:-64}"
 
 # ---- Pre-flight ---------------------------------------------------------------
 
@@ -96,7 +101,11 @@ CMD=( python -u "$SCRIPT"
       --seed="$SEED"
       --dtype="$DTYPE"
       --caption_filter="$CAPTION_FILTER"
+      --lora_scope="$LORA_SCOPE"
+      --lora_r="$LORA_R"
+      --lora_alpha="$LORA_ALPHA"
       --output_dir="$OUT_DIR" )
+echo "    lora_scope : $LORA_SCOPE${LORA_SCOPE:+ (r=$LORA_R α=$LORA_ALPHA)}"
 
 [ -n "$VL_IMAGE_ROOT" ] && CMD+=( --vl_image_root="$VL_IMAGE_ROOT" )
 [ -n "$VLM_OVERRIDE"  ] && CMD+=( --vlm_model_name="$VLM_OVERRIDE" )

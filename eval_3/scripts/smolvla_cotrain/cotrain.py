@@ -109,11 +109,21 @@ def parse_args() -> argparse.Namespace:
                         "--caption_filter=qa_grounded.")
     p.add_argument("--klal_lam", type=float, default=1.0,
                    help="Weight λ on L_attn (total = vqa + λ·klal on VL steps).")
-    p.add_argument("--klal_layers", default="6,9,12,15",
-                   help="Comma-list of text-layer indices to supervise. MUST be "
-                        "in [0,15] (SmolVLA truncates to 16 layers).")
+    p.add_argument("--klal_layers", default="all",
+                   help="Comma-list of text-layer indices to supervise, or 'all' "
+                        "for layers 0-15. The KLAL paper (Eq.4) averages over ALL "
+                        "layers; default 'all' matches it. MUST be in [0,15].")
     p.add_argument("--klal_sigma", type=float, default=1.0,
                    help="Gaussian target std in 8x8-grid patch units.")
+    # VLM fine-tune scope — the three ablation arms (run on the cluster):
+    #   full → full VLM fine-tune (the KLAL paper's exact setup; no LoRA)
+    #   wide → LoRA on q/k/v/o + gate/up/down, text layers 0-15
+    #   qk   → LoRA on q/k only, text layers 0-15 (attention-routing lever)
+    p.add_argument("--lora_scope", default="full", choices=["full", "wide", "qk"],
+                   help="VLM fine-tune scope. 'full'=no LoRA (paper setup); "
+                        "'wide'/'qk'=PEFT LoRA on text layers 0-15.")
+    p.add_argument("--lora_r", type=int, default=32, help="LoRA rank (wide/qk).")
+    p.add_argument("--lora_alpha", type=int, default=64, help="LoRA alpha (wide/qk).")
     # Output
     p.add_argument("--output_dir", required=True)
     p.add_argument("--save_freq", type=int, default=5000,
@@ -403,28 +413,88 @@ def smolvla_action_loss(policy, batch: dict) -> torch.Tensor:
 # Policy + dataset construction (reuse lerobot factories)
 # -----------------------------------------------------------------------------
 
+# Llama/SmolLM2 projection sets for the LoRA arms.
+_LORA_PROJ_SETS = {
+    # q/k only — the direct lever on the attention pattern KLAL reshapes.
+    "qk": ["q_proj", "k_proj"],
+    # q/k/v/o + MLP — closest LoRA approximation to the paper's full fine-tune.
+    "wide": ["q_proj", "k_proj", "v_proj", "o_proj",
+             "gate_proj", "up_proj", "down_proj"],
+}
+
+
+def _apply_vlm_lora(policy, scope: str, r: int, alpha: int):
+    """Inject PEFT LoRA into the VLM's text layers (0-15) and freeze the rest.
+
+    Path-preserving (`inject_adapter_in_model`, peft>=0.6) so KLAL's q_proj/
+    k_proj forward hooks and the SmolVLA wrapper's `vlm.model.text_model`
+    attribute access keep working. The action expert (lm_expert) is a separate
+    module outside `vlm`, so it is NOT LoRA'd — it stays fully trainable.
+    """
+    from peft import LoraConfig, inject_adapter_in_model
+
+    vlm = policy.model.vlm_with_expert.vlm
+    expert = policy.model.vlm_with_expert.lm_expert
+    projs = _LORA_PROJ_SETS[scope]
+    proj_alt = "|".join(projs)
+    # Regex anchored to the text-model decoder layers so we never hit the
+    # vision tower's attention or the lm_expert. SmolVLA truncated text_model
+    # to 16 layers, so \d+ matches exactly 0-15.
+    target_regex = rf".*text_model\.layers\.\d+\.(?:self_attn|mlp)\.(?:{proj_alt})$"
+
+    lora_cfg = LoraConfig(
+        r=r, lora_alpha=alpha, lora_dropout=0.05, bias="none",
+        target_modules=target_regex,
+    )
+    inject_adapter_in_model(lora_cfg, vlm)
+
+    # Explicit freeze/unfreeze (don't rely on the wrapper's branching):
+    #   VLM base frozen, VLM LoRA params trainable, action expert trainable.
+    for prm in vlm.parameters():
+        prm.requires_grad = False
+    n_lora = 0
+    for name, prm in vlm.named_parameters():
+        if "lora_" in name:
+            prm.requires_grad = True
+            n_lora += prm.numel()
+    for prm in expert.parameters():
+        prm.requires_grad = True
+
+    n_targeted = sum(1 for n, _ in vlm.named_modules() if hasattr(vlm.get_submodule(n), "lora_A"))
+    if n_targeted == 0:
+        raise RuntimeError(
+            f"LoRA scope={scope}: 0 modules matched regex {target_regex!r}. "
+            f"Check the SmolVLM2 text-layer module names (CLAUDE.md §5)."
+        )
+    print(f"[cotrain] LoRA scope={scope}: {n_targeted} modules adapted "
+          f"(r={r}, α={alpha}), {n_lora/1e6:.2f}M LoRA params trainable", flush=True)
+
+
 def load_policy_and_processor(args, device: torch.device):
-    """Constructs SmolVLAPolicy with cotrain-friendly flags."""
+    """Constructs SmolVLAPolicy with cotrain-friendly flags + the chosen
+    VLM fine-tune scope (full / wide-LoRA / qk-LoRA)."""
     from lerobot.policies.smolvla.modeling_smolvla import SmolVLAPolicy
     from lerobot.policies.smolvla.configuration_smolvla import SmolVLAConfig
 
-    # Load config from the pretrained checkpoint; override the cotrain-critical flags.
     cfg = SmolVLAConfig.from_pretrained(args.pretrained_path)
-    cfg.train_expert_only = False    # CRITICAL: VLM body must be trainable for VQA CE.
-    cfg.freeze_vision_encoder = True # Keep SigLIP frozen — RT-2 doesn't tune it either.
+    # full → VLM body trainable (paper setup). wide/qk → freeze the VLM body
+    # via the wrapper, then LoRA adds trainable adapters on top.
+    cfg.train_expert_only = (args.lora_scope != "full")
+    cfg.freeze_vision_encoder = True  # Keep SigLIP frozen — RT-2 doesn't tune it.
     cfg.empty_cameras = max(0, cfg.empty_cameras) if hasattr(cfg, "empty_cameras") else 0
     if args.vlm_model_name is not None:
         cfg.vlm_model_name = args.vlm_model_name
-    # The cfg.device read in subordinate constructors should match our device.
     cfg.device = device.type
 
     policy = SmolVLAPolicy.from_pretrained(args.pretrained_path, config=cfg)
     policy = policy.to(device)
 
-    # Re-apply requires_grad in case the policy load reset them.
+    # Apply the wrapper's requires_grad policy (freezes VLM when train_expert_only).
     policy.model.vlm_with_expert.set_requires_grad()
 
-    # SmolVLM2 processor (Idefics3Processor under the hood) for the VL collator.
+    if args.lora_scope != "full":
+        _apply_vlm_lora(policy, args.lora_scope, args.lora_r, args.lora_alpha)
+
     vl_processor = policy.model.vlm_with_expert.processor
     return policy, vl_processor, cfg
 
@@ -560,7 +630,11 @@ def main() -> int:
     if args.use_klal:
         text_model = policy.model.vlm_with_expert.vlm.model.text_model
         tcfg = policy.model.vlm_with_expert.vlm.config.text_config
-        capture_layers = tuple(int(x) for x in args.klal_layers.split(","))
+        n_layers = len(text_model.layers)
+        if args.klal_layers.strip().lower() == "all":
+            capture_layers = tuple(range(n_layers))   # 0..15 (paper averages all)
+        else:
+            capture_layers = tuple(int(x) for x in args.klal_layers.split(","))
         klal_cfg = KLALConfig(capture_layers=capture_layers,
                               target_sigma_patches=args.klal_sigma,
                               lam=1.0)  # λ applied in the loop, keep cfg.lam=1

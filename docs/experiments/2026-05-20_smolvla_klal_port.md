@@ -55,6 +55,32 @@ columns 1/3/6 with Gaussian peaks at the bbox centroid, and empty bbox → unifo
 
 Launch commands in `eval_3/scripts/smolvla_cotrain/README.md`.
 
+## Update — VLM fine-tune scope ablation (`--lora_scope`)
+
+Added a `--lora_scope {full,wide,qk}` flag for cluster ablations. Grounded in
+the KLAL paper (arXiv:2511.12738), which **full-fine-tunes** (LLaVA-1.5-7B,
+Qwen2.5-VL-7B) — it uses no LoRA, supervises **all** layers (Eq.4), last-answer-
+token attention, **λ=1**. So the paper gives no LoRA-scope guidance; the LoRA
+arms are our cost-reduction bets.
+
+Three arms, run order **A → B → (C if spare compute)**:
+- **A. full + KLAL** — the paper's exact setup; highest chance of working, sets
+  the ceiling, λ=1. Run first: answers "does KLAL fix routing at all?"
+- **B. wide LoRA (q/k/v/o+MLP) + KLAL** — "can a cheap adapter match full?";
+  most likely LoRA arm to match A, so the informative second run. λ≈0.1.
+- **C. q/k-only LoRA + KLAL** — "is reshaping attention alone enough?"; logically
+  after B (if wide can't match full, q/k won't). λ≈0.1.
+
+All arms warm-start from `HBOrtiz/smolvlm2_lora_celebs` (celeb prior already in
+the weights → KLAL only has to fix the attention routing). full-vs-LoRA does
+**not** affect the smallest-model bonus (inference param count is identical).
+
+Two deviations from the paper, both deliberate + documented in code:
+- KLAL default `--klal_layers=all` (16 layers) matches the paper; was (6,9,12,15).
+- We average over all name-token rows, not just the last answer token (better for
+  a multi-token name); and use a centroid Gaussian, not the bbox center-line
+  (better for compact face boxes).
+
 ## Status / open items
 
 - `smolvla_klal.py` geometry: **CPU-unit-checked**.

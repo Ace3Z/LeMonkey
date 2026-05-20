@@ -106,27 +106,53 @@ Total on a VL step: `loss = vqa + klal_lam · klal`. KLAL recomputes attention
 from hooked q_proj/k_proj outputs, so it runs under SDPA (no eager-attention /
 `output_attentions` needed).
 
-### Two experiments to run in parallel
+### KLAL ablation arms (run on the cluster)
 
-**A — cheap ObjectVLA bbox-as-text** (no KLAL; bbox encoded in the target text):
+KLAL fine-tunes against the bare-name captions (`qa_grounded`) so every label
+position is a name token. The `--lora_scope` flag selects the VLM fine-tune
+arm. Warm-start all arms from the merged celeb VLM so naming isn't re-learned
+from zero (`PRETRAINED=HBOrtiz/smolvlm2_lora_celebs`).
+
+**A — full fine-tune + KLAL** (the KLAL paper's exact setup; run FIRST — it's
+the validated recipe and sets the ceiling. λ=1 matches the paper because the
+full param set absorbs the signal):
 ```bash
-CAPTION_FILTER=location_explicit \
-PUSH_REPO=HBOrtiz/smolvla_eval3_cotrain_bboxtext \
-OUT_DIR=outputs/smolvla_cotrain_bboxtext \
+PRETRAINED=HBOrtiz/smolvlm2_lora_celebs \
+CAPTION_FILTER=qa_grounded USE_KLAL=1 KLAL_LAM=1.0 LORA_SCOPE=full \
+PUSH_REPO=HBOrtiz/smolvla_eval3_klal_full OUT_DIR=outputs/klal_full \
 bash launch.sh
 ```
 
-**B — KLAL attention supervision** (bare-name captions + the KL loss):
+**B — wide LoRA + KLAL** (q/k/v/o+MLP; run SECOND — "can a cheap adapter match
+full?". λ smaller because few params absorb the KL signal):
 ```bash
-CAPTION_FILTER=qa_grounded USE_KLAL=1 KLAL_LAM=0.1 \
-PUSH_REPO=HBOrtiz/smolvla_eval3_cotrain_klal \
-OUT_DIR=outputs/smolvla_cotrain_klal \
+PRETRAINED=HBOrtiz/smolvlm2_lora_celebs \
+CAPTION_FILTER=qa_grounded USE_KLAL=1 KLAL_LAM=0.1 LORA_SCOPE=wide LORA_R=32 \
+PUSH_REPO=HBOrtiz/smolvla_eval3_klal_wide OUT_DIR=outputs/klal_wide \
 bash launch.sh
 ```
 
-Start `KLAL_LAM` small (0.05–0.2): LoRA's low rank means few params absorb the
-attention signal, and KLAL can dominate the VQA CE if λ is too high. Watch the
-`klal=` term in the step logs — it should fall over the first few hundred steps.
+**C — Q/K-only LoRA + KLAL** (attention-routing lever; run THIRD/parallel):
+```bash
+PRETRAINED=HBOrtiz/smolvlm2_lora_celebs \
+CAPTION_FILTER=qa_grounded USE_KLAL=1 KLAL_LAM=0.1 LORA_SCOPE=qk LORA_R=32 \
+PUSH_REPO=HBOrtiz/smolvla_eval3_klal_qk OUT_DIR=outputs/klal_qk \
+bash launch.sh
+```
+
+**Cheap baseline (no KLAL) — ObjectVLA bbox-as-text** for comparison:
+```bash
+CAPTION_FILTER=location_explicit LORA_SCOPE=full \
+PUSH_REPO=HBOrtiz/smolvla_eval3_bboxtext OUT_DIR=outputs/bboxtext \
+bash launch.sh
+```
+
+Notes:
+- `KLAL_LAYERS=all` (default) supervises all 16 text layers, matching the paper
+  (Eq.4 averages over all layers). Narrow with a csv (e.g. `6,9,12,15`) to save
+  compute if needed.
+- λ: full arm uses 1.0 (paper); LoRA arms start 0.1 and sweep up. Watch the
+  `klal=` term — it should fall over the first few hundred steps.
 
 ### KLAL smoke gates (in addition to the base gates above)
 - `grep klal smoke.log` shows a finite, decreasing `klal=` value (not NaN, not stuck).
