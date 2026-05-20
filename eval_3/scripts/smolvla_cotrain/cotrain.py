@@ -298,7 +298,8 @@ def make_vl_collator(processor, max_text_len: int = 256):
     def collate(batch: list[dict]) -> dict:
         prompts_only = [_ensure_image_placeholder(ex["prompt"]) for ex in batch]
         prompts_full = [f"{p} {ex['target']}" for p, ex in zip(prompts_only, batch)]
-        images = [ex["image"] for ex in batch]
+        # SmolVLM2 processor expects a nested list: one inner list of images per text.
+        images = [[ex["image"]] for ex in batch]
 
         # 1. Process full (prompt + target) text + images. This is what we
         #    feed to the VLM forward.
