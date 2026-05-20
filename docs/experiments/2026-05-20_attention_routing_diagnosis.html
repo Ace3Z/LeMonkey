@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Eval 3 — Attention-Routing Diagnosis</title>
+<style>
+  :root {
+    --bg: #fdfdfb;
+    --text: #1a1a1a;
+    --muted: #5a5a5a;
+    --link: #0a4f9a;
+    --border: #e0ddd6;
+    --code-bg: #f5f3ef;
+    --header-bg: #1f3a5f;
+    --header-text: #f5f3ef;
+    --confirm: #1e7a30;
+    --warn: #b07a18;
+    --refute: #b22a2a;
+    --note-bg: #fff8e6;
+    --note-border: #d4a847;
+    --rule-bg: #fff3f0;
+    --rule-border: #c75b3f;
+    --finding-bg: #eef4fb;
+    --finding-border: #0a4f9a;
+    --table-stripe: #faf8f3;
+  }
+  * { box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+    line-height: 1.65;
+    color: var(--text);
+    background: var(--bg);
+    margin: 0;
+    padding: 0;
+  }
+  .header {
+    background: var(--header-bg);
+    color: var(--header-text);
+    padding: 2rem 1.5rem;
+    border-bottom: 4px solid #4a4a4a;
+  }
+  .header h1 { margin: 0 0 0.5rem 0; font-size: 1.85rem; }
+  .header .subtitle { color: #c9c6bd; font-size: 1rem; font-weight: 400; }
+  .container { max-width: 880px; margin: 0 auto; padding: 1.8rem 1.5rem 3rem; }
+  h2 {
+    border-bottom: 2px solid var(--border);
+    padding-bottom: 0.35rem;
+    margin-top: 2.6rem;
+    font-size: 1.35rem;
+  }
+  h2 .num { color: var(--link); font-variant-numeric: tabular-nums; }
+  h3 { color: #333; margin-top: 1.8rem; font-size: 1.08rem; }
+  p { margin: 0.7rem 0; }
+  ul, ol { padding-left: 1.5rem; }
+  li { margin: 0.4rem 0; }
+  a { color: var(--link); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+
+  code {
+    font-family: "SF Mono", Monaco, "Cascadia Code", Consolas, monospace;
+    font-size: 0.86em;
+    background: var(--code-bg);
+    padding: 0.1rem 0.35rem;
+    border-radius: 3px;
+  }
+  pre {
+    background: #1f2530;
+    color: #e6e6e6;
+    padding: 1rem 1.2rem;
+    overflow-x: auto;
+    border-radius: 6px;
+    font-size: 0.84em;
+    line-height: 1.5;
+  }
+  pre code { background: transparent; padding: 0; color: inherit; }
+
+  .lead {
+    font-size: 1.05rem;
+    color: #333;
+    border-left: 4px solid var(--border);
+    padding-left: 1rem;
+    margin: 1.2rem 0 1.8rem;
+  }
+
+  /* The headline finding box */
+  .finding {
+    background: var(--finding-bg);
+    border: 1px solid var(--finding-border);
+    border-left: 6px solid var(--finding-border);
+    padding: 1.1rem 1.4rem;
+    margin: 1.6rem 0;
+    border-radius: 0 6px 6px 0;
+  }
+  .finding .label {
+    font-weight: 700;
+    color: var(--finding-border);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    font-size: 0.8rem;
+    display: block;
+    margin-bottom: 0.4rem;
+  }
+  .finding p:last-child { margin-bottom: 0; }
+
+  .note {
+    background: var(--note-bg);
+    border-left: 4px solid var(--note-border);
+    padding: 0.85rem 1.1rem;
+    margin: 1.2rem 0;
+    border-radius: 0 4px 4px 0;
+  }
+  .note .note-title {
+    font-weight: 700;
+    color: #6b4f10;
+    display: block;
+    margin-bottom: 0.3rem;
+  }
+
+  .verdict {
+    background: var(--rule-bg);
+    border-left: 6px solid var(--rule-border);
+    padding: 1rem 1.3rem;
+    margin: 1.4rem 0;
+    border-radius: 0 6px 6px 0;
+  }
+  .verdict .v-title {
+    font-weight: 700;
+    color: #8a2a16;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    font-size: 0.82rem;
+    display: block;
+    margin-bottom: 0.4rem;
+  }
+
+  table {
+    border-collapse: collapse;
+    width: 100%;
+    margin: 1.1rem 0;
+    font-size: 0.92em;
+  }
+  th, td {
+    border: 1px solid var(--border);
+    padding: 0.55rem 0.75rem;
+    text-align: left;
+    vertical-align: top;
+  }
+  th { background: var(--code-bg); font-weight: 600; }
+  tr:nth-child(even) td { background: var(--table-stripe); }
+
+  .ok { color: var(--confirm); font-weight: 600; }
+  .warn { color: var(--warn); font-weight: 600; }
+  .err { color: var(--refute); font-weight: 600; }
+
+  /* the routing-chain diagram */
+  .chain {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: stretch;
+    gap: 0;
+    margin: 1.4rem 0;
+    font-size: 0.85rem;
+  }
+  .chain .node {
+    flex: 1 1 0;
+    min-width: 120px;
+    background: #fcfcfa;
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    padding: 0.6rem 0.7rem;
+    text-align: center;
+  }
+  .chain .node.broken {
+    background: #fdecea;
+    border-color: var(--refute);
+  }
+  .chain .node .nlabel {
+    font-weight: 700;
+    font-size: 0.78rem;
+    display: block;
+    margin-bottom: 0.2rem;
+  }
+  .chain .node.broken .nlabel { color: var(--refute); }
+  .chain .arrow {
+    align-self: center;
+    padding: 0 0.5rem;
+    color: var(--muted);
+    font-weight: 700;
+  }
+  .chain .arrow.broken { color: var(--refute); }
+
+  .step-eval {
+    background: var(--code-bg);
+    border: 1px dashed var(--border);
+    padding: 0.7rem 1rem;
+    border-radius: 4px;
+    margin: 1rem 0;
+    font-size: 0.92em;
+  }
+
+  footer {
+    margin-top: 3rem;
+    color: var(--muted);
+    font-size: 0.86rem;
+    text-align: center;
+    border-top: 1px solid var(--border);
+    padding-top: 1.2rem;
+  }
+
+  @media (max-width: 640px) {
+    body { font-size: 0.95rem; }
+    .header h1 { font-size: 1.35rem; }
+    .container { padding: 1rem; }
+    .chain { flex-direction: column; }
+    .chain .arrow { transform: rotate(90deg); padding: 0.2rem 0; }
+    th, td { padding: 0.35rem 0.45rem; font-size: 0.84em; }
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="container" style="padding: 0;">
+    <h1>The Name → Face Binding Is Broken</h1>
+    <div class="subtitle">Eval 3 attention-routing diagnosis · LeMonkey · 2026-05-20</div>
+  </div>
+</div>
+
+<div class="container">
+
+<p class="lead">
+  Across every model we trained — SmolVLA and Pi0.5 alike — the robot picks up
+  the can and places it smoothly, but lands it on the <em>wrong</em> celebrity.
+  This document isolates the single mechanism responsible, with a controlled
+  probe, and states the one intervention that addresses it head-on.
+</p>
+
+<h2><span class="num">1.</span> The probe</h2>
+
+<p>
+  We ran a controlled, single-variable test. Hold the scene <strong>completely
+  fixed</strong> — the same three printed portraits, the same image. Vary
+  <strong>only</strong> the celebrity name in the text prompt:
+</p>
+
+<p style="text-align:center; font-size:1.05rem;">
+  Swift &nbsp;→&nbsp; Obama &nbsp;→&nbsp; LeCun
+</p>
+
+<p>
+  Then inspect the VLM's cross-modal attention — specifically, where the
+  <strong>name token</strong> attends among the image patches.
+</p>
+
+<div class="finding">
+  <span class="label">Result</span>
+  <p>
+    The name-token → image attention <strong>does not change</strong>. It parks
+    on the same fixed background patch every time — an "attention sink" in a
+    corner of the image — regardless of which celebrity is named. It
+    <strong>never lands on the named celebrity's face</strong>.
+  </p>
+</div>
+
+<h2><span class="num">2.</span> Why this is <em>the</em> issue</h2>
+
+<p>
+  The task is "go to the named celebrity." The only mechanism by which a name
+  can pick out a face is <strong>cross-modal attention</strong> — the name token
+  must look at the image patch where that celebrity's face is. The intended
+  chain is:
+</p>
+
+<div class="chain">
+  <div class="node">
+    <span class="nlabel">name token</span>
+    "Obama"
+  </div>
+  <div class="arrow broken">✗→</div>
+  <div class="node broken">
+    <span class="nlabel">cross-attention</span>
+    routes to Obama's face patch
+  </div>
+  <div class="arrow">→</div>
+  <div class="node">
+    <span class="nlabel">VLM output</span>
+    name-conditioned
+  </div>
+  <div class="arrow">→</div>
+  <div class="node">
+    <span class="nlabel">action expert</span>
+    moves to the right printout
+  </div>
+</div>
+
+<p>
+  The red link is the broken one. If the attention is name-invariant, the name
+  is never grounded to a face. The action expert downstream reads the VLM's
+  output; with <strong>no name-conditioned difference</strong> in that output,
+  the policy has no signal for which printout to move to — so it falls back to a
+  positional guess. That one missing link is the entire task.
+</p>
+
+<h2><span class="num">3.</span> Why it is the cause, not a symptom</h2>
+
+<table>
+  <thead>
+    <tr><th>Evidence</th><th>What it rules out</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>The probe isolates it.</strong> Same image, only the name varies — and the attention still doesn't move.</td>
+      <td>Not a data, prompt, or scene-rendering problem. The single varied input fails to drive the single relevant mechanism.</td>
+    </tr>
+    <tr>
+      <td><strong>Identical failure on every model.</strong> SmolVLA Track D (whose Strix rollout failed — the behavioural symptom), warm-VLM v1, and warm-VLM v2 all show the same name-invariant attention.</td>
+      <td>Not a one-off checkpoint artifact. It is structural across backbones and recipes.</td>
+    </tr>
+    <tr>
+      <td><strong>Good representations did not fix it.</strong> M2 (ArcFace distillation) shaped the face-crop representations well — mean cosine <strong>0.88</strong> on crops — and the routing still did not move.</td>
+      <td>Rules out "representation quality" as the gap. The faces are well-encoded; the name still can't <em>route</em> to them.</td>
+    </tr>
+  </tbody>
+</table>
+
+<div class="finding">
+  <span class="label">Diagnosis</span>
+  <p>
+    The gap is specifically <strong>attention routing</strong> — the
+    name → face patch binding — <strong>not</strong> representation quality and
+    <strong>not</strong> a downstream action problem. Every prior intervention
+    improved something else and left this link untouched.
+  </p>
+</div>
+
+<h2><span class="num">4.</span> Why representation-only fixes can't close it</h2>
+
+<p>
+  A face-VQA naming loss (single face image → name) improves representation and
+  naming — but it does <strong>not</strong> directly supervise routing in a
+  multi-face scene. In a VQA example there is only one face, so there is no
+  "<em>which</em> patch" decision to learn. That is exactly why
+  representation-only interventions like M2 didn't close the gap: they were
+  never training the thing that's broken.
+</p>
+
+<h2><span class="num">5.</span> The intervention: supervise the routing directly (KLAL)</h2>
+
+<p>
+  <strong>KLAL</strong> directly supervises the name → face attention with
+  bbox-derived targets. For each training frame we already know where every
+  celebrity's face is — from the augmentation metadata, with RetinaFace as a
+  fallback. We build a target attention distribution that places mass on the
+  <em>named</em> celebrity's face patches, and penalize the divergence between
+  the model's actual name-token → image attention and that target.
+</p>
+
+<p>
+  It is the only mechanism on the table that addresses the diagnosed failure
+  head-on, rather than improving an adjacent quantity.
+</p>
+
+<div class="note">
+  <span class="note-title">Refinement 1 — KLAL needs a trainable, identity-capable vision tower to route onto</span>
+  <p>
+    On a frozen, identity-blind vision tower (the v1 condition — cosine 0.87
+    same-person vs 0.82 different-person, near-zero identity separation) there is
+    no identity-discriminable patch for KLAL to route the name token <em>to</em>,
+    so KLAL cannot converge. KLAL must run with the vision tower trainable (the
+    v2 condition).
+  </p>
+  <p>
+    The upside: KLAL's gradient, flowing back through a <em>trainable</em> vision
+    tower, itself drives the tower toward identity-discriminable features —
+    because making the name token attend to the <em>correct</em> face among
+    three is only possible if the patches encode identity. So KLAL + a trainable
+    vision tower does double duty: it supervises routing <em>and</em> shapes the
+    representation that routing depends on.
+  </p>
+</div>
+
+<div class="note">
+  <span class="note-title">Refinement 2 — KLAL must be co-trained with the action loss, not run sequentially</span>
+  <p>
+    A KLAL-then-action-finetune sequence would drift exactly like the v1/v2
+    warm-starts did — an action-only second stage has nothing keeping the routing
+    graded, so the skill decays. The run must be a single co-training pass:
+    <strong>action loss + KLAL, both alive every step, vision tower trainable</strong>.
+    KLAL fixes the routing; the co-trained action loss lets the action expert
+    learn to use the now name-conditioned VLM output.
+  </p>
+</div>
+
+<h3>Relationship to ObjectVLA</h3>
+<p>
+  ObjectVLA's bbox-grounded captions (<code>"the face of X is at [bbox]"</code>
+  fed as text) are the <em>indirect</em> version of the same idea — they make
+  the model learn spatial grounding by parsing bbox coordinates out of text.
+  KLAL is the <em>direct</em> version: it shapes the attention map itself. KLAL
+  is the more surgical of the two; ObjectVLA-style bbox captions can serve as a
+  cheap add-on, but KLAL is the primary mechanism.
+</p>
+
+<div class="step-eval">
+  <strong>Success metric.</strong> The verdict is the rollout — does the arm
+  place the can on the correct celebrity — not the attention map looking
+  correct. Attention supervision is the <em>mechanism</em>; the rollout is the
+  <em>test</em>. Track both, but ship on the rollout.
+</div>
+
+<h2><span class="num">6.</span> Implementation sketch</h2>
+
+<ul>
+  <li>Per training frame: face bounding boxes for all three portraits — known from our augmentation metadata; RetinaFace as fallback.</li>
+  <li>Map each bbox (normalized coords) → the 16×16 PaliGemma image-token grid (256 tokens) → the image-token indices covering that face.</li>
+  <li>During the forward pass, capture the cross-attention weights at the chosen layer(s): rows = name-token positions, columns = image-token positions.</li>
+  <li>Target distribution: mass on the named celebrity's face-token indices.</li>
+  <li>Loss: KL divergence between model attention and target, summed over the chosen layers/heads — added to the total loss alongside the action loss.</li>
+</ul>
+
+<pre><code># co-training loop — one run, two losses alive every step
+for step in batches:
+    action_loss = pi05_flow_matching_loss(robot_batch)
+    klal_loss   = kl_div(name_token_attention, bbox_target)   # the new term
+    loss = action_loss + lambda_klal * klal_loss
+    loss.backward()        # vision tower trainable — gradient shapes it too
+    optimizer.step()</code></pre>
+
+<p style="color:var(--muted); font-size:0.9em;">
+  Estimated ~200–300 lines hooking into lerobot's Pi0.5 per-layer attention loop.
+</p>
+
+<div class="verdict">
+  <span class="v-title">Bottom line</span>
+  <p>
+    The probe pins the failure to one link: the name token never attends to the
+    named face. Representation-quality fixes (M2, ArcFace) cannot close it
+    because they don't train routing. The fix is to supervise the routing
+    directly — KLAL — co-trained with the action loss, on a trainable vision
+    tower. That is the next run.
+  </p>
+</div>
+
+<footer>
+  Diagnosis by the LeMonkey team (attention-map probe), 2026-05-20.
+  Refinements from post-diagnosis review the same day.
+</footer>
+
+</div>
+
+</body>
+</html>

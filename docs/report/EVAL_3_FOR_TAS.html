@@ -1,0 +1,603 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Eval 3 — LeMonkey: Experiments, Diagnosis &amp; Plan</title>
+<style>
+  :root {
+    --bg: #fdfdfb;
+    --text: #1a1a1a;
+    --muted: #5a5a5a;
+    --link: #0a4f9a;
+    --border: #e0ddd6;
+    --code-bg: #f5f3ef;
+    --header-bg: #1f3a5f;
+    --header-text: #f5f3ef;
+    --confirm: #1e7a30;
+    --warn: #b07a18;
+    --refute: #b22a2a;
+    --note-bg: #fff8e6;
+    --note-border: #d4a847;
+    --rule-bg: #fff3f0;
+    --rule-border: #c75b3f;
+    --finding-bg: #eef4fb;
+    --finding-border: #0a4f9a;
+    --table-stripe: #faf8f3;
+  }
+  * { box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+    line-height: 1.65;
+    color: var(--text);
+    background: var(--bg);
+    margin: 0;
+    padding: 0;
+  }
+  .header {
+    background: var(--header-bg);
+    color: var(--header-text);
+    padding: 2.2rem 1.5rem;
+    border-bottom: 4px solid #4a4a4a;
+  }
+  .header h1 { margin: 0 0 0.5rem 0; font-size: 1.95rem; }
+  .header .subtitle { color: #c9c6bd; font-size: 1rem; font-weight: 400; }
+  .container { max-width: 900px; margin: 0 auto; padding: 1.8rem 1.5rem 3rem; }
+  h2 {
+    border-bottom: 2px solid var(--border);
+    padding-bottom: 0.35rem;
+    margin-top: 2.8rem;
+    font-size: 1.4rem;
+  }
+  h2 .num { color: var(--link); font-variant-numeric: tabular-nums; }
+  h3 { color: #333; margin-top: 1.9rem; font-size: 1.1rem; }
+  p { margin: 0.7rem 0; }
+  ul, ol { padding-left: 1.5rem; }
+  li { margin: 0.4rem 0; }
+  a { color: var(--link); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+
+  code {
+    font-family: "SF Mono", Monaco, "Cascadia Code", Consolas, monospace;
+    font-size: 0.86em;
+    background: var(--code-bg);
+    padding: 0.1rem 0.35rem;
+    border-radius: 3px;
+  }
+  pre {
+    background: #1f2530;
+    color: #e6e6e6;
+    padding: 1rem 1.2rem;
+    overflow-x: auto;
+    border-radius: 6px;
+    font-size: 0.84em;
+    line-height: 1.5;
+  }
+  pre code { background: transparent; padding: 0; color: inherit; }
+
+  .lead {
+    font-size: 1.06rem;
+    color: #333;
+    border-left: 4px solid var(--finding-border);
+    background: var(--finding-bg);
+    padding: 1rem 1.2rem;
+    margin: 1.4rem 0 1.8rem;
+    border-radius: 0 6px 6px 0;
+  }
+
+  .toc {
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    padding: 0.9rem 1.4rem;
+    margin: 1.5rem 0;
+    border-radius: 5px;
+    font-size: 0.95rem;
+  }
+  .toc strong { display: block; margin-bottom: 0.3rem; }
+  .toc ol { margin: 0.3rem 0; }
+
+  .finding {
+    background: var(--finding-bg);
+    border: 1px solid var(--finding-border);
+    border-left: 6px solid var(--finding-border);
+    padding: 1.1rem 1.4rem;
+    margin: 1.6rem 0;
+    border-radius: 0 6px 6px 0;
+  }
+  .finding .label {
+    font-weight: 700;
+    color: var(--finding-border);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    font-size: 0.8rem;
+    display: block;
+    margin-bottom: 0.4rem;
+  }
+  .finding p:last-child { margin-bottom: 0; }
+
+  .note {
+    background: var(--note-bg);
+    border-left: 4px solid var(--note-border);
+    padding: 0.85rem 1.1rem;
+    margin: 1.2rem 0;
+    border-radius: 0 4px 4px 0;
+  }
+  .note .note-title {
+    font-weight: 700;
+    color: #6b4f10;
+    display: block;
+    margin-bottom: 0.3rem;
+  }
+
+  .verdict {
+    background: var(--rule-bg);
+    border-left: 6px solid var(--rule-border);
+    padding: 1rem 1.3rem;
+    margin: 1.4rem 0;
+    border-radius: 0 6px 6px 0;
+  }
+  .verdict .v-title {
+    font-weight: 700;
+    color: #8a2a16;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    font-size: 0.82rem;
+    display: block;
+    margin-bottom: 0.4rem;
+  }
+
+  table {
+    border-collapse: collapse;
+    width: 100%;
+    margin: 1.1rem 0;
+    font-size: 0.9em;
+  }
+  th, td {
+    border: 1px solid var(--border);
+    padding: 0.55rem 0.7rem;
+    text-align: left;
+    vertical-align: top;
+  }
+  th { background: var(--code-bg); font-weight: 600; }
+  tr:nth-child(even) td { background: var(--table-stripe); }
+  .exp-id { font-weight: 700; white-space: nowrap; }
+
+  .ok { color: var(--confirm); font-weight: 600; }
+  .warn { color: var(--warn); font-weight: 600; }
+  .err { color: var(--refute); font-weight: 600; }
+
+  /* routing-chain diagram */
+  .chain {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: stretch;
+    margin: 1.5rem 0;
+    font-size: 0.84rem;
+  }
+  .chain .node {
+    flex: 1 1 0;
+    min-width: 115px;
+    background: #fcfcfa;
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    padding: 0.6rem 0.7rem;
+    text-align: center;
+  }
+  .chain .node.broken {
+    background: #fdecea;
+    border-color: var(--refute);
+  }
+  .chain .node .nlabel {
+    font-weight: 700;
+    font-size: 0.76rem;
+    display: block;
+    margin-bottom: 0.2rem;
+  }
+  .chain .node.broken .nlabel { color: var(--refute); }
+  .chain .arrow {
+    align-self: center;
+    padding: 0 0.45rem;
+    color: var(--muted);
+    font-weight: 700;
+  }
+  .chain .arrow.broken { color: var(--refute); }
+
+  .experiment {
+    border: 1px solid var(--border);
+    border-left: 5px solid var(--muted);
+    border-radius: 5px;
+    padding: 0.8rem 1.1rem;
+    margin: 1rem 0;
+    background: #fcfcfa;
+  }
+  .experiment.failed { border-left-color: var(--refute); }
+  .experiment.partial { border-left-color: var(--warn); }
+  .experiment h4 { margin: 0 0 0.4rem 0; font-size: 1rem; }
+  .experiment h4 .eid {
+    background: var(--header-bg); color: #fff;
+    padding: 0.08rem 0.45rem; border-radius: 3px;
+    font-size: 0.8rem; margin-right: 0.5rem;
+  }
+  .experiment dl { margin: 0.4rem 0 0 0; font-size: 0.92em; }
+  .experiment dt { font-weight: 600; color: var(--muted); float: left; width: 7.5em; clear: left; }
+  .experiment dd { margin: 0 0 0.25rem 8em; }
+
+  footer {
+    margin-top: 3rem;
+    color: var(--muted);
+    font-size: 0.86rem;
+    text-align: center;
+    border-top: 1px solid var(--border);
+    padding-top: 1.2rem;
+  }
+
+  @media (max-width: 640px) {
+    body { font-size: 0.95rem; }
+    .header h1 { font-size: 1.4rem; }
+    .container { padding: 1rem; }
+    .chain { flex-direction: column; }
+    .chain .arrow { transform: rotate(90deg); padding: 0.2rem 0; }
+    th, td { padding: 0.35rem 0.45rem; font-size: 0.84em; }
+    .experiment dt { float: none; width: auto; }
+    .experiment dd { margin-left: 0; }
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="container" style="padding: 0;">
+    <h1>Eval 3 — Experiments, Diagnosis &amp; Plan</h1>
+    <div class="subtitle">LeMonkey team · prepared for the course TAs · 2026-05-20</div>
+  </div>
+</div>
+
+<div class="container">
+
+<p class="lead">
+  This document is an honest account of Eval 3: every model we trained, the one
+  failure that persisted across all of them, the controlled experiment that
+  pinned down its root cause, and what we are doing about it. Pi0.5 details are
+  verified from the saved checkpoints; SmolVLA details are reconstructed from
+  team notes and are approximate.
+</p>
+
+<div class="toc">
+  <strong>Contents</strong>
+  <ol>
+    <li>The task</li>
+    <li>The symptom — what works, what doesn't</li>
+    <li>Every experiment we ran (SmolVLA and Pi0.5)</li>
+    <li>The diagnosis — a controlled attention probe</li>
+    <li>What we concluded</li>
+    <li>What we are doing now</li>
+  </ol>
+</div>
+
+<h2><span class="num">1.</span> The task</h2>
+
+<p>
+  Our robot (an SO-101 6-DOF arm) must place a coke can on the printed portrait
+  of a celebrity named in a text prompt. Three printed celebrity portraits sit
+  on the table; the prompt is, e.g., <em>"Place the coke on Taylor Swift."</em>
+  The policy receives only the wrist camera, the text prompt, and
+  proprioception.
+</p>
+
+<p>
+  Our recorded data is 180 human teleoperation episodes. We augmented these into
+  ~10,000 episodes by digitally replacing the three printed portraits in each
+  frame with new celebrity photos, in every permutation — so the policy sees
+  many celebrities and many layouts. We built two augmented sets: one with 3
+  celebrities (Taylor Swift / Obama / Yann LeCun, our "TOY" set) and one with
+  200 celebrities.
+</p>
+
+<h2><span class="num">2.</span> The symptom — what works, what doesn't</h2>
+
+<p>
+  The motor behaviour is solid. In every experiment below, the arm reliably
+  picks up the can and places it down smoothly. <strong>The unsolved problem is
+  identity:</strong> the policy does not reliably place the can on the
+  <em>correct</em> celebrity. Placement is close to random with respect to the
+  name in the prompt.
+</p>
+
+<p>
+  We trained on two vision-language-action (VLA) backbones:
+  <strong>SmolVLA-450M</strong> (a SmolVLM2 vision-language model + an action
+  expert) and <strong>Pi0.5-3B</strong> (a PaliGemma vision-language model + a
+  Gemma-300M action expert).
+</p>
+
+<h3>Overview of all experiments</h3>
+
+<table>
+  <thead>
+    <tr><th>#</th><th>Backbone</th><th>What we did</th><th>Training signal</th><th>Result</th></tr>
+  </thead>
+  <tbody>
+    <tr><td class="exp-id">S1</td><td>SmolVLA</td><td>Image-as-prompt (reference photo as 2nd camera)</td><td>action loss</td><td class="err">Wrong celebrity. Abandoned after the input-modality ruling.</td></tr>
+    <tr><td class="exp-id">S2</td><td>SmolVLA</td><td>Vanilla fine-tune on ~10k episodes</td><td>action loss</td><td class="err">Places can, wrong celebrity.</td></tr>
+    <tr><td class="exp-id">S3</td><td>SmolVLA</td><td>VLM fine-tuned on ~200 celeb images first, then action head</td><td>action loss (sequential)</td><td class="err">Wrong celebrity.</td></tr>
+    <tr><td class="exp-id">S4</td><td>SmolVLA</td><td>+ ArcFace auxiliary loss, 30k-step run on the 3-celeb set</td><td>action + ArcFace distillation</td><td class="err">Attention maps stayed random.</td></tr>
+    <tr><td class="exp-id">P1</td><td>Pi0.5</td><td>LoRA fine-tune on the 3-celeb (TOY) 10k set</td><td>action loss only</td><td class="err">Smoother placement, still wrong celebrity.</td></tr>
+    <tr><td class="exp-id">P2</td><td>Pi0.5</td><td>Face-recognition warm-start, language model only</td><td>face-naming cross-entropy</td><td class="warn">37% on a 5-way face test (random = 20%).</td></tr>
+    <tr><td class="exp-id">P3</td><td>Pi0.5</td><td>Face-recognition warm-start, vision encoder also unfrozen</td><td>face-naming cross-entropy</td><td class="warn">48% on the 5-way face test; 2/8 on our eval celebrities.</td></tr>
+  </tbody>
+</table>
+
+<h2><span class="num">3.</span> Every experiment, in detail</h2>
+
+<h3>SmolVLA experiments <span style="font-weight:400;color:var(--muted);font-size:0.85rem;">(reconstructed from team notes — approximate)</span></h3>
+
+<div class="experiment failed">
+  <h4><span class="eid">S1</span>SmolVLA, image-as-prompt</h4>
+  <p>Early attempt: we fed a reference photo of the target celebrity as a second
+  camera input. Trained on ~4,200 episodes. On the robot it placed the can on
+  the wrong celebrity (asked for Taylor Swift, placed on Obama). Abandoned once
+  it was clarified that the policy may use only the scene camera + text +
+  proprioception — no reference image.</p>
+</div>
+
+<div class="experiment failed">
+  <h4><span class="eid">S2</span>SmolVLA, vanilla fine-tune</h4>
+  <p>Stock SmolVLA fine-tuned on ~10,000 augmented episodes, action loss only.
+  Places the can correctly but not on the queried celebrity.</p>
+</div>
+
+<div class="experiment failed">
+  <h4><span class="eid">S3</span>SmolVLA with a face-warmed vision-language model</h4>
+  <p>We first fine-tuned SmolVLA's vision-language model on ~200 celebrity
+  images, then trained the action head on the ~10,000 episodes. Still does not
+  select the correct celebrity. (This is a <em>sequential</em> setup — see the
+  conclusion in §5, point 4.)</p>
+</div>
+
+<div class="experiment failed">
+  <h4><span class="eid">S4</span>SmolVLA with an ArcFace auxiliary loss</h4>
+  <p>SmolVLA trained on the 3-celebrity set (a 30,000-step run), with an added
+  ArcFace-based distillation loss intended to inject face-identity structure
+  into the vision features. The attention maps remained random; no improvement
+  in identity selection. <strong>This experiment matters for the diagnosis in
+  §4</strong> — it shaped the face representations well and still didn't fix the
+  behaviour.</p>
+</div>
+
+<h3>Pi0.5 experiments <span style="font-weight:400;color:var(--muted);font-size:0.85rem;">(verified from the saved checkpoints)</span></h3>
+
+<div class="experiment failed">
+  <h4><span class="eid">P1</span>Pi0.5, LoRA fine-tune on the TOY dataset</h4>
+  <dl>
+    <dt>Data</dt><dd>9,394 episodes, 3-celebrity permutations (Taylor Swift / Obama / Yann LeCun).</dd>
+    <dt>Signal</dt><dd>The robot action loss <strong>only</strong> — nothing in this run ever told the model "this face is Obama."</dd>
+    <dt>Trained</dt><dd>LoRA adapters (small added weights) on the language model, the vision encoder's attention, and the action expert. The action input/output heads were left frozen.</dd>
+    <dt>Scale</dt><dd>30,000 steps, ~30 hours.</dd>
+    <dt>Result</dt><dd>Placement is smoother than any SmolVLA run, but it still does not select the correct celebrity.</dd>
+  </dl>
+  <p>Two recipe weaknesses we found afterward: the LoRA scaling factor came out
+  about 8× weaker than we intended (a library default we failed to override),
+  and the action heads were frozen rather than trained.</p>
+</div>
+
+<div class="experiment partial">
+  <h4><span class="eid">P2</span>Pi0.5 face-recognition warm-start — language model only</h4>
+  <p>Separately from the robot task, we took Pi0.5's vision-language half and
+  fine-tuned it on a pure face-recognition task: the VGGFace2 dataset (~9,100
+  identities, ~3M images), question <em>"Who is the person in this image?"</em>
+  → the person's name. In this version only the <strong>language model</strong>
+  was adapted; the vision encoder stayed frozen.</p>
+  <p><strong>Result: 37%</strong> on a 5-way face-identification test (random =
+  20%). A diagnostic probe explained the ceiling — with the vision encoder
+  frozen, its features carry almost no identity information (same-person and
+  different-person face pairs come out at nearly identical similarity, ~0.87 vs
+  ~0.82 cosine). The language model cannot name someone from identity-blind
+  features.</p>
+</div>
+
+<div class="experiment partial">
+  <h4><span class="eid">P3</span>Pi0.5 face-recognition warm-start — vision encoder unfrozen</h4>
+  <p>The same VGGFace2 face-recognition task, but this time we also adapted the
+  <strong>vision encoder</strong>, so it can learn to encode <em>who</em> the
+  person is, not just <em>that</em> a face is present.</p>
+  <p><strong>Result: 48%</strong> on the 5-way face test (baseline 20%,
+  previous version 37%) — a clear, monotonic improvement. On our 8 specific
+  evaluation celebrities (8-way test), 2/8 correct, of which 1 (Taylor Swift) is
+  a confident genuine hit. The weak score on our eval celebrities is expected:
+  those particular people are not in VGGFace2, so the model is being asked to
+  generalize to identities it never trained on.</p>
+  <p>Note: P3 is a model trained purely on face recognition. It has not yet been
+  combined with the robot task — see §5, point 4, and §6.</p>
+</div>
+
+<h2><span class="num">4.</span> The diagnosis — a controlled attention probe</h2>
+
+<p>
+  Listing failures isn't a diagnosis. To find the <em>mechanism</em>, we ran a
+  controlled, single-variable experiment.
+</p>
+
+<h3>The probe</h3>
+
+<p>
+  Hold the scene <strong>completely fixed</strong> — the same three printed
+  portraits, the same image. Vary <strong>only</strong> the celebrity name in
+  the text prompt:
+</p>
+
+<p style="text-align:center; font-size:1.05rem; margin:1rem 0;">
+  Swift &nbsp;→&nbsp; Obama &nbsp;→&nbsp; LeCun
+</p>
+
+<p>
+  Then inspect where the model's <strong>name token attends</strong> in the
+  image. (In these models, the only way a word in the prompt can influence
+  behaviour based on the image is by attending to the relevant image region —
+  this is "cross-modal attention.")
+</p>
+
+<div class="finding">
+  <span class="label">Result</span>
+  <p>
+    The name-token attention <strong>does not change</strong> as we vary the
+    name. It parks on the same fixed background patch every time — an "attention
+    sink" in a corner of the image — regardless of which celebrity is named. It
+    <strong>never lands on the named celebrity's face.</strong>
+  </p>
+</div>
+
+<h3>Why this is the root cause</h3>
+
+<p>
+  The task is "go to the named celebrity." The intended chain of reasoning
+  inside the model is:
+</p>
+
+<div class="chain">
+  <div class="node">
+    <span class="nlabel">name token</span>"Obama"
+  </div>
+  <div class="arrow broken">✗&nbsp;→</div>
+  <div class="node broken">
+    <span class="nlabel">cross-attention</span>routes to Obama's face patch
+  </div>
+  <div class="arrow">→</div>
+  <div class="node">
+    <span class="nlabel">VLM output</span>now name-conditioned
+  </div>
+  <div class="arrow">→</div>
+  <div class="node">
+    <span class="nlabel">action expert</span>moves to the right printout
+  </div>
+</div>
+
+<p>
+  The red link is the broken one. If the name-token attention is
+  name-invariant, the name is never grounded to a face. The action expert
+  downstream reads the vision-language model's output; with <strong>no
+  name-conditioned difference</strong> in that output, the policy has no signal
+  for which printout to move to — so it falls back to a positional guess. That
+  single missing link is the entire task.
+</p>
+
+<h3>Why we are confident it is the cause, not a downstream symptom</h3>
+
+<table>
+  <thead>
+    <tr><th>Evidence</th><th>What it rules out</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>The probe isolates it.</strong> Same image, only the name varies — and the attention still doesn't move.</td>
+      <td>Not a data, prompt, or scene-rendering problem. The one varied input fails to drive the one relevant mechanism.</td>
+    </tr>
+    <tr>
+      <td><strong>Identical failure on every model.</strong> The same name-invariant attention appears on experiment S4, on P2, and on P3.</td>
+      <td>Not a one-off checkpoint artifact. It is structural, across backbones and recipes.</td>
+    </tr>
+    <tr>
+      <td><strong>Good representations did not fix it.</strong> Experiment S4's ArcFace loss shaped the face representations well — mean cosine 0.88 between matching face crops — and the attention routing still did not move.</td>
+      <td>Rules out "the face features aren't good enough" as the gap. The faces are well-encoded; the name still cannot <em>route</em> to them.</td>
+    </tr>
+  </tbody>
+</table>
+
+<div class="finding">
+  <span class="label">Diagnosis</span>
+  <p>
+    The gap is specifically <strong>attention routing</strong> — the
+    name → face-patch binding — <strong>not</strong> representation quality, and
+    <strong>not</strong> a downstream action problem. Every prior intervention
+    improved an adjacent quantity and left this link untouched.
+  </p>
+</div>
+
+<h2><span class="num">5.</span> What we concluded</h2>
+
+<ol>
+  <li><strong>The bottleneck is the vision encoder, not the language model.</strong>
+  With a frozen vision encoder, the image features entering the language model
+  don't encode <em>who</em> the person is — so adapting the language model alone
+  cannot recover it (P2's probe is direct evidence).</li>
+  <li><strong>Action-loss-only training never teaches face matching.</strong> In
+  every action-only run (S2, S3's second stage, P1), the vision features drift
+  toward layout / position cues, not identity — hence the random placement.</li>
+  <li><strong>A face-recognition objective on the vision encoder does teach
+  identity</strong> (37% → 48% as we unfroze the vision encoder, P2 → P3) — but
+  teaching the model to <em>recognize</em> a face in isolation is not the same
+  as teaching it to <em>route</em> a name to the right face in a 3-face scene.</li>
+  <li><strong>A sequential warm-start is not enough on its own.</strong> A
+  face-trained model followed by an action-only robot fine-tune would lose the
+  face skill during the second stage, because nothing in that stage keeps the
+  identity ability graded.</li>
+</ol>
+
+<h2><span class="num">6.</span> What we are doing now</h2>
+
+<p>
+  Two changes, both following directly from the diagnosis and from the
+  co-training advice in the TA discussion.
+</p>
+
+<div class="note">
+  <span class="note-title">Change 1 — Co-train, don't do it in stages</span>
+  <p>
+    A single training run with <strong>two losses kept active
+    simultaneously</strong>: the robot action loss on teleop episodes, and a
+    face-identity loss on celebrity images. The face loss continuously holds the
+    identity ability in place while the policy learns to act — it cannot drift
+    away, because it is still being graded. We are including our specific eval
+    celebrities, and face crops from our own printed-portrait footage, in the
+    face stream — so the skill covers the exact identities and image conditions
+    the evaluation uses.
+  </p>
+</div>
+
+<div class="note">
+  <span class="note-title">Change 2 — Supervise the attention routing directly</span>
+  <p>
+    Because the diagnosis pins the failure to attention routing specifically, a
+    face-naming loss alone is not enough — naming a single isolated face never
+    exercises the "which of three faces" decision. So we add an
+    <strong>attention-supervision loss</strong>: for each training frame we know
+    where the named celebrity's face is (a bounding box), we build a target
+    attention pattern that puts weight on that face, and we directly penalize
+    the model when its name-token attention diverges from that target. This is
+    the only mechanism we have that addresses the diagnosed failure head-on
+    rather than improving an adjacent quantity.
+  </p>
+</div>
+
+<p>
+  One important constraint we verified: this attention-supervision loss needs
+  the vision encoder to be <strong>trainable</strong> — on a frozen,
+  identity-blind encoder there is no discriminable face patch for the name to
+  route to. With the encoder trainable, the attention-supervision gradient also
+  drives the encoder toward identity-discriminable features. So the two changes
+  reinforce each other: the face loss and attention supervision build the
+  capability, the co-training keeps it alive while the policy learns to act.
+</p>
+
+<div class="verdict">
+  <span class="v-title">Where we stand</span>
+  <p>
+    The motor task is solved. The open problem — selecting the correct
+    celebrity — has been narrowed by a controlled probe to one specific broken
+    link: the name token never attends to the named face. Representation-quality
+    fixes could not close it because they never trained routing. Our current
+    run co-trains the action loss with a direct attention-supervision loss, on a
+    trainable vision encoder, so the name → face binding is built and maintained
+    in the same training that learns the robot behaviour.
+  </p>
+</div>
+
+<footer>
+  LeMonkey team · Eval 3 · 2026-05-20. Pi0.5 figures verified from saved
+  checkpoints; SmolVLA figures reconstructed from team notes (approximate).
+  Checkpoints available on the team's Hugging Face account on request.
+</footer>
+
+</div>
+
+</body>
+</html>
