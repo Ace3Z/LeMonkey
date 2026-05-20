@@ -80,7 +80,11 @@ def attach_m2_pi05_hook(policy, capture_layer: int = DEFAULT_PI05_CAPTURE_LAYER)
         h = args[0] if args else kwargs.get("hidden_states")
         if h is None:
             return None
-        holder.captured = h.detach().clone()
+        # Keep the LIVE autograd tensor — M2's alignment loss must backprop
+        # through this capture into the VLM. `.detach()` here silently makes
+        # M2 a no-op (loss is still computed + logged, but trains nothing).
+        # Matches the working SmolVLA hook (m2_smolvla_hook.py).
+        holder.captured = h
         return None
 
     holder.handle = target.register_forward_pre_hook(pre_hook, with_kwargs=True)
