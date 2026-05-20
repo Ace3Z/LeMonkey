@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>LeMonkey Eval 3 — Pi0.5 Strategy (Post-SmolVLA Pivot)</title>
+<title>Eval 3 — Final Plan: Co-Training, 3-Track Ablation</title>
 <script>
   MathJax = {
     tex: { inlineMath: [['$', '$'], ['\\(', '\\)']], displayMath: [['$$', '$$'], ['\\[', '\\]']] },
@@ -13,242 +13,72 @@
 <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
 <style>
   :root {
-    --bg: #fdfdfb;
-    --text: #1a1a1a;
-    --muted: #5a5a5a;
-    --link: #0a4f9a;
-    --link-hover: #062f5e;
-    --border: #e0ddd6;
-    --code-bg: #f5f3ef;
-    --header-bg: #1f3a5f;
-    --header-text: #f5f3ef;
-    --confirm: #1e7a30;
-    --warn: #b07a18;
-    --refute: #b22a2a;
-    --note-bg: #fff8e6;
-    --note-border: #d4a847;
-    --rule-bg: #fff3f0;
-    --rule-border: #c75b3f;
-    --quote-bg: #f7f4ec;
-    --quote-border: #b0a888;
+    --bg: #fdfdfb; --text: #1a1a1a; --muted: #5a5a5a; --link: #0a4f9a;
+    --border: #e0ddd6; --code-bg: #f5f3ef; --header-bg: #1f3a5f; --header-text: #f5f3ef;
+    --confirm: #1e7a30; --warn: #b07a18; --refute: #b22a2a;
+    --note-bg: #fff8e6; --note-border: #d4a847;
+    --rule-bg: #fff3f0; --rule-border: #c75b3f;
+    --finding-bg: #eef4fb; --finding-border: #0a4f9a;
     --table-stripe: #faf8f3;
   }
   * { box-sizing: border-box; }
-  body {
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
-    line-height: 1.6;
-    color: var(--text);
-    background: var(--bg);
-    margin: 0;
-    padding: 0;
-  }
-  .header {
-    background: var(--header-bg);
-    color: var(--header-text);
-    padding: 2rem 1.5rem;
-    border-bottom: 4px solid #4a4a4a;
-  }
-  .header h1 { margin: 0 0 0.5rem 0; font-size: 1.9rem; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+    line-height: 1.65; color: var(--text); background: var(--bg); margin: 0; padding: 0; }
+  .header { background: var(--header-bg); color: var(--header-text); padding: 2.2rem 1.5rem;
+    border-bottom: 4px solid #4a4a4a; }
+  .header h1 { margin: 0 0 0.5rem 0; font-size: 1.95rem; }
   .header .subtitle { color: #c9c6bd; font-size: 1rem; font-weight: 400; }
-  .container { max-width: 940px; margin: 0 auto; padding: 1.5rem; }
-  h2 { border-bottom: 2px solid var(--border); padding-bottom: 0.4rem; margin-top: 2.5rem; }
-  h3 { color: #333; margin-top: 1.8rem; }
-  h4 { color: #444; margin-top: 1.2rem; }
-  a { color: var(--link); text-decoration: none; }
-  a:hover { color: var(--link-hover); text-decoration: underline; }
-  p { margin: 0.6rem 0; }
+  .container { max-width: 920px; margin: 0 auto; padding: 1.8rem 1.5rem 3rem; }
+  h2 { border-bottom: 2px solid var(--border); padding-bottom: 0.35rem; margin-top: 2.8rem; font-size: 1.4rem; }
+  h2 .num { color: var(--link); font-variant-numeric: tabular-nums; }
+  h3 { color: #333; margin-top: 1.9rem; font-size: 1.12rem; }
+  h4 { color: #444; margin-top: 1.2rem; margin-bottom: 0.3rem; }
+  p { margin: 0.7rem 0; }
   ul, ol { padding-left: 1.5rem; }
-  li { margin: 0.3rem 0; }
-
-  .toc {
-    background: var(--code-bg);
-    border: 1px solid var(--border);
-    padding: 1rem 1.5rem;
-    margin: 1.5rem 0;
-    border-radius: 4px;
-  }
-  .toc h3 { margin-top: 0; }
-  .toc ol { margin: 0.5rem 0; }
-
-  code {
-    font-family: "SF Mono", Monaco, "Cascadia Code", Consolas, monospace;
-    font-size: 0.88em;
-    background: var(--code-bg);
-    padding: 0.1rem 0.35rem;
-    border-radius: 3px;
-  }
-  pre {
-    background: var(--code-bg);
-    border-left: 4px solid var(--border);
-    padding: 0.9rem 1rem;
-    overflow-x: auto;
-    border-radius: 4px;
-    font-size: 0.84em;
-  }
-  pre code { background: transparent; padding: 0; font-size: 1em; }
-
-  table {
-    border-collapse: collapse;
-    width: 100%;
-    margin: 1rem 0;
-    font-size: 0.92em;
-  }
-  th, td {
-    border: 1px solid var(--border);
-    padding: 0.55rem 0.7rem;
-    text-align: left;
-    vertical-align: top;
-  }
+  li { margin: 0.4rem 0; }
+  a { color: var(--link); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  code { font-family: "SF Mono", Monaco, "Cascadia Code", Consolas, monospace; font-size: 0.86em;
+    background: var(--code-bg); padding: 0.1rem 0.35rem; border-radius: 3px; }
+  pre { background: #1f2530; color: #e6e6e6; padding: 1rem 1.2rem; overflow-x: auto;
+    border-radius: 6px; font-size: 0.84em; line-height: 1.5; }
+  pre code { background: transparent; padding: 0; color: inherit; }
+  .lead { font-size: 1.06rem; color: #333; border-left: 4px solid var(--finding-border);
+    background: var(--finding-bg); padding: 1rem 1.2rem; margin: 1.4rem 0 1.8rem; border-radius: 0 6px 6px 0; }
+  .toc { background: var(--code-bg); border: 1px solid var(--border); padding: 0.9rem 1.4rem;
+    margin: 1.5rem 0; border-radius: 5px; font-size: 0.95rem; }
+  .toc strong { display: block; margin-bottom: 0.3rem; }
+  table { border-collapse: collapse; width: 100%; margin: 1.1rem 0; font-size: 0.9em; }
+  th, td { border: 1px solid var(--border); padding: 0.55rem 0.7rem; text-align: left; vertical-align: top; }
   th { background: var(--code-bg); font-weight: 600; }
   tr:nth-child(even) td { background: var(--table-stripe); }
-
   .ok { color: var(--confirm); font-weight: 600; }
   .warn { color: var(--warn); font-weight: 600; }
   .err { color: var(--refute); font-weight: 600; }
-  .tag {
-    display: inline-block;
-    padding: 0.12rem 0.55rem;
-    border-radius: 3px;
-    font-size: 0.78em;
-    font-weight: 600;
-    margin-right: 0.3rem;
-  }
-  .tag-roham  { background: #e0f0e6; color: #1a5a28; border: 1px solid #1e7a30; }
-  .tag-hans   { background: #ffe6dd; color: #8a3318; border: 1px solid #c75b3f; }
-  .tag-darius { background: #e0e6f5; color: #1a2f6b; border: 1px solid #0a4f9a; }
-  .tag-sejohn { background: #f5e6e0; color: #6b3a18; border: 1px solid #a85f30; }
-  .tag-mahbod { background: #f0e6f5; color: #5a1e6b; border: 1px solid #8a30a8; }
-  .tag-alive { background: #e3f0e6; color: #1e7a30; border: 1px solid #1e7a30; }
-  .tag-dead { background: #f0e0e0; color: #8a1818; border: 1px solid #b22a2a; }
-  .tag-park { background: #ededed; color: #555; border: 1px solid #999; }
-
-  .ta-ruling {
-    background: var(--rule-bg);
-    border-left: 6px solid var(--rule-border);
-    padding: 1rem 1.3rem;
-    margin: 1.5rem 0;
-    border-radius: 0 6px 6px 0;
-  }
-  .ta-ruling .ruling-title {
-    font-weight: 700;
-    color: #8a2a16;
-    display: block;
-    margin-bottom: 0.4rem;
-    font-size: 1rem;
-    letter-spacing: 0.02em;
-    text-transform: uppercase;
-  }
-  .ta-ruling blockquote {
-    background: white;
-    border-left: 3px solid var(--rule-border);
-    padding: 0.6rem 0.9rem;
-    margin: 0.5rem 0;
-    font-style: normal;
-    font-size: 0.93em;
-  }
-  .qauth {
-    display: block;
-    margin-top: 0.3rem;
-    color: var(--muted);
-    font-size: 0.85em;
-  }
-
-  .note {
-    background: var(--note-bg);
-    border-left: 4px solid var(--note-border);
-    padding: 0.8rem 1rem;
-    margin: 1rem 0;
-    border-radius: 0 4px 4px 0;
-  }
-  .note .note-title {
-    font-weight: 700;
-    color: #6b4f10;
-    display: block;
-    margin-bottom: 0.3rem;
-  }
-
-  .track {
-    border: 1px solid var(--border);
-    border-left: 6px solid var(--link);
-    padding: 1rem 1.3rem;
-    margin: 1.5rem 0;
-    border-radius: 4px;
-    background: #fcfcfa;
-  }
+  .note { background: var(--note-bg); border-left: 4px solid var(--note-border);
+    padding: 0.85rem 1.1rem; margin: 1.2rem 0; border-radius: 0 4px 4px 0; }
+  .note .note-title { font-weight: 700; color: #6b4f10; display: block; margin-bottom: 0.3rem; }
+  .blocker { background: var(--rule-bg); border-left: 6px solid var(--rule-border);
+    padding: 1rem 1.3rem; margin: 1.4rem 0; border-radius: 0 6px 6px 0; }
+  .blocker .b-title { font-weight: 700; color: #8a2a16; text-transform: uppercase;
+    letter-spacing: 0.03em; font-size: 0.82rem; display: block; margin-bottom: 0.4rem; }
+  .finding { background: var(--finding-bg); border: 1px solid var(--finding-border);
+    border-left: 6px solid var(--finding-border); padding: 1.1rem 1.4rem; margin: 1.6rem 0;
+    border-radius: 0 6px 6px 0; }
+  .finding .label { font-weight: 700; color: var(--finding-border); text-transform: uppercase;
+    letter-spacing: 0.04em; font-size: 0.8rem; display: block; margin-bottom: 0.4rem; }
+  .track { border: 1px solid var(--border); border-left: 6px solid var(--link);
+    padding: 1rem 1.3rem; margin: 1.4rem 0; border-radius: 4px; background: #fcfcfa; }
   .track h3 { margin-top: 0; }
-  .track .meta {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.8rem;
-    font-size: 0.86em;
-    color: var(--muted);
-    margin: 0.4rem 0 0.7rem 0;
-  }
-  .track .meta span { white-space: nowrap; }
-  .track.primary { border-left-color: var(--confirm); background: #f5fbf6; }
-  .track.priority { border-left-color: #b07a18; background: #fffbf2; }
-  .track.priority h3::before { content: "★ "; color: #b07a18; }
-  .track.optional { border-left-color: var(--muted); background: #fafafa; }
-  .track.optional h3::before { content: "◇ "; color: var(--muted); }
-
-  .subtasks { padding-left: 1.4rem; }
-  .subtasks li { margin: 0.5rem 0; }
-  .subtasks li code { font-size: 0.92em; }
-  .subtasks .deliverable {
-    background: #f0f5fa;
-    border-left: 3px solid var(--link);
-    padding: 0.4rem 0.7rem;
-    margin: 0.4rem 0;
-    font-size: 0.92em;
-    border-radius: 0 3px 3px 0;
-  }
-  .subtasks .deliverable strong { color: var(--link); }
-
-  .day {
-    border: 1px solid var(--border);
-    padding: 1rem 1.3rem;
-    margin: 1.2rem 0;
-    border-radius: 4px;
-  }
-  .day h3 { margin-top: 0; color: var(--header-bg); }
-  .day .time { font-family: "SF Mono", Monaco, monospace; font-size: 0.85em; color: var(--muted); }
-
-  .person {
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    padding: 0.9rem 1.2rem;
-    margin: 0.8rem 0;
-    background: #fcfcfa;
-  }
-  .person h4 { margin-top: 0; margin-bottom: 0.3rem; }
-  .person h4 .role { font-weight: 400; color: var(--muted); font-size: 0.85em; margin-left: 0.4rem; }
-
-  .strike { text-decoration: line-through; color: #888; }
-
-  .eq {
-    text-align: center;
-    margin: 1.2rem 0;
-    overflow-x: auto;
-  }
-
-  .citation {
-    font-size: 0.82em;
-    color: var(--muted);
-    font-style: italic;
-  }
-
-  @media print {
-    .header { background: white; color: black; border-bottom: 2px solid black; }
-    a { color: black; text-decoration: underline; }
-    pre, code { background: #f5f3ef !important; }
-    .container { max-width: none; }
-  }
-
+  .track .owner { display: inline-block; background: var(--header-bg); color: #fff;
+    padding: 0.1rem 0.5rem; border-radius: 3px; font-size: 0.78rem; font-weight: 600; }
+  .eq { text-align: center; margin: 1rem 0; overflow-x: auto; }
+  .citation { font-size: 0.82em; color: var(--muted); }
+  footer { margin-top: 3rem; color: var(--muted); font-size: 0.86rem; text-align: center;
+    border-top: 1px solid var(--border); padding-top: 1.2rem; }
   @media (max-width: 640px) {
-    body { font-size: 0.95rem; }
-    .header h1 { font-size: 1.4rem; }
-    .container { padding: 1rem; }
-    th, td { padding: 0.35rem 0.4rem; font-size: 0.85em; }
+    body { font-size: 0.95rem; } .header h1 { font-size: 1.4rem; }
+    .container { padding: 1rem; } th, td { padding: 0.35rem 0.45rem; font-size: 0.84em; }
   }
 </style>
 </head>
@@ -256,503 +86,566 @@
 
 <div class="header">
   <div class="container" style="padding: 0;">
-    <h1>LeMonkey Eval 3 — Pi0.5 Strategy</h1>
-    <div class="subtitle">Post-SmolVLA pivot · 2-day remaining sprint · 2026-05-20 cross-validated by 4 research agents</div>
+    <h1>Eval 3 — Final Plan</h1>
+    <div class="subtitle">One co-training run · 3-track ablation · SmolVLA · 2026-05-20</div>
   </div>
 </div>
 
 <div class="container">
 
-<div class="ta-ruling">
-  <span class="ruling-title">⚖ Strategic pivot — 2026-05-20</span>
-  <p>The team has empirically confirmed via attention-map analysis that <strong>SmolVLA's VLM head puts essentially zero attention weight on the correct celebrity face</strong> when prompted with names. Every SmolVLA recipe we tried (vanilla, Hans's warm-VLM, Mahbod's M2 ArcFace toolkit) failed to bind faces to names. <strong>SmolVLA is structurally inadequate for fine-grained named-entity recognition at our scale.</strong></p>
-  <p>The whole team has converged on <strong>Pi0.5-3B as the only viable backbone</strong> — primarily because of its PaliGemma vision-language head, which is trained on a substantially larger and more entity-aware corpus than SmolVLM2's pretraining mix.</p>
-  <p>This document is the new 2-day plan: 3 parallel Pi0.5 tracks, each testing a different mechanism for adding face-discrimination capability to PaliGemma.</p>
-</div>
-
-<div class="note">
-  <span class="note-title">⚠ Critical correction from 2026-05-20 research</span>
-  <p><strong>Pi0.5 uses PaliGemma 1, not PaliGemma 2.</strong> Verified from <code>lerobot/pi05_base/config.json</code>: <code>paligemma_variant=gemma_2b</code> (Gemma 1 2B). PaliGemma 2's entity-tuned WebLI splits (Entity-WebLI, OVEN benchmark) <strong>do not apply to our backbone</strong>. PG1 has a structural ceiling for fine-grained recognition — confirmed by our 2026-05-09 0/14 zero-shot probe. This means the VLM must be <em>actively taught</em> face-id capability during fine-tuning; we cannot rely on the pretrained prior alone.</p>
-</div>
-
-<h2>State of play (2026-05-20 12:00 UTC)</h2>
-
-<ul>
-  <li><strong>brev_instance1</strong> (H100 80GB) — vanilla LoRA Pi0.5 Track B is mid-flight on the 3-celeb dataset. Step ~17 500/30 000 (~58%), loss 0.023, ETA ~12 h. Don't kill — gives us the floor baseline.</li>
-  <li><strong>brev_instance2</strong> (RTX PRO 6000 96GB) — provisioned + env bootstrapped for PaliGemma VQA warm-start. <strong>Pivot recommended:</strong> use it for the ObjectVLA co-train recipe instead (see §3.B).</li>
-  <li><strong>edna</strong> (128-core CPU server) — 200-celeb v3 augmentation completed last night per Roham's check-in. Dataset pushed to HF as <code>HBOrtiz/so101_eval3_aug_v3_200celebs</code> (10 000 episodes × 200 celebs).</li>
-  <li><strong>SmolVLA fleet</strong>: <span class="tag tag-dead">DEAD</span>. All SmolVLA-based experiments (Tracks A, C, D from the 2026-05-18 plan) are abandoned.</li>
-  <li><strong>Hans's warm-VLM</strong>: pushed but irrelevant to the new strategy (SmolVLM2-based).</li>
-</ul>
+<p class="lead">
+  A clean restart. Every previous attempt — vanilla fine-tunes, sequential
+  VLM warm-starts, ArcFace representation distillation — failed for the same
+  reason, and a controlled probe pinned down why. This plan does one thing:
+  a single <strong>co-training</strong> run that fixes the diagnosed failure
+  directly, evaluated as a <strong>3-track ablation</strong> so we learn which
+  ingredient actually carries the result. This document supersedes all prior
+  Eval 3 strategy docs.
+</p>
 
 <div class="toc">
-  <h3>Contents</h3>
+  <strong>Contents</strong>
   <ol>
-    <li><a href="#why-pivot">Why we pivoted (the SmolVLA failure mode, verified by attention-map analysis + literature)</a></li>
-    <li><a href="#options">The 4 options on the table + how they map to research-validated recipes</a></li>
-    <li><a href="#tracks">The 3 tracks we'll actually run</a></li>
-    <li><a href="#datasets">Datasets — what's on HF</a></li>
-    <li><a href="#timeline">2-day timeline</a></li>
-    <li><a href="#decision">Day-2 evening decision tree</a></li>
-    <li><a href="#evidence">Research evidence base (4 parallel agents, 2026-05-20)</a></li>
-    <li><a href="#cites">Sources cited</a></li>
+    <li>The diagnosis (why everything failed)</li>
+    <li>The plan: one co-training run</li>
+    <li>The 3-track ablation (Darius / Mahbod / Hans)</li>
+    <li>Backbone: SmolVLA (FlowerVLA fallback)</li>
+    <li>Datasets &amp; the celebrity set</li>
+    <li>Implementation</li>
+    <li>Pre-flight — the gating check before any track launches</li>
+    <li>Risks &amp; open questions</li>
+    <li>Success metric &amp; decision points</li>
+    <li>TA guidance (Liam)</li>
+    <li>Sources</li>
   </ol>
 </div>
 
-<h2 id="why-pivot">§1 · Why we pivoted: the SmolVLA failure mode</h2>
+<h2><span class="num">1.</span> The diagnosis — why everything failed</h2>
 
-<p>The failure is reproducible and now well-characterised. When SmolVLA is given the prompt <em>"Place the coke on Taylor Swift"</em> and the wrist cam shows three printed portraits, the VLM head's cross-attention map between text tokens and image patches puts <strong>no extra weight on the correct face</strong>. The action expert defaults to a positional shortcut from the training distribution — placing the can wherever the named celeb most often appeared during teleop.</p>
+<p>
+  Full detail is in <a href="EVAL_3_FOR_TAS.html">EVAL_3_FOR_TAS.html</a> and
+  <a href="../experiments/2026-05-20_attention_routing_diagnosis.html">the
+  attention-routing diagnosis</a>; the experiment record is in
+  <a href="EVAL_3_RESULTS.md">EVAL_3_RESULTS.md</a>. In one paragraph:
+</p>
 
-<p>The literature has two compatible explanations:</p>
+<div class="finding">
+  <span class="label">Root cause</span>
+  <p>
+    A controlled probe — fix the scene, vary only the celebrity name in the
+    prompt — showed the vision-language model's <strong>name-token attention
+    does not move</strong>. It parks on a fixed background patch regardless of
+    the name. The name is never bound to a face, so the action expert has no
+    name-conditioned signal and falls back to a positional guess. The failure
+    is <strong>attention routing</strong>, not representation quality:
+    representation-only fixes (ArcFace distillation, mean face-crop cosine
+    ≈0.88) left the routing untouched.
+  </p>
+</div>
+
+<p>
+  Two consequences shape this plan. <strong>(a)</strong> The fix must
+  supervise the routing itself, or run a loss that continuously exercises it —
+  not just improve an adjacent quantity. <strong>(b)</strong> Sequential
+  warm-starts fail because a face skill learned in stage 1 drifts away during
+  an action-only stage 2; the identity signal has to stay <em>graded</em> the
+  whole time. Hence: co-training.
+</p>
+
+<h2><span class="num">2.</span> The plan — one co-training run</h2>
+
+<p>
+  A single training run with multiple losses active simultaneously, all
+  sharing one SmolVLA backbone through the same LoRA adapters. This follows
+  the co-training principle of π₀.₅
+  (<a href="https://arxiv.org/abs/2504.16054">arXiv 2504.16054</a>) and
+  Knowledge Insulation (<a href="https://arxiv.org/abs/2505.23705">arXiv
+  2505.23705</a>), and the recipe of ObjectVLA
+  (<a href="https://arxiv.org/abs/2502.19250">arXiv 2502.19250</a>), which is
+  the closest published method to our exact failure mode (see §3).
+</p>
+
+<h3>The loss components</h3>
 
 <ul>
-  <li><strong>(G1) Pretrain distribution.</strong> SmolVLM2 was pretrained on FineWeb-Edu subsets + PixelProse — neither has documented entity-tuned splits. Long-tail named entities are systematically underrepresented (Parashar 2024, <a href="https://arxiv.org/abs/2401.12425">arxiv 2401.12425</a>).</li>
-  <li><strong>(G2) Architectural bottleneck.</strong> SmolVLM2 compresses each image to 64 tokens via 2×2 pixel-shuffle. For a workspace with three small printed portraits, that's ~4-6 tokens per face — well below the threshold where SigLIP's face-discriminative geometry survives.</li>
+  <li><strong>$L_\text{action}$</strong> — the normal SmolVLA flow-matching
+  action loss on teleop episodes. Unchanged. Touches the whole policy (VLM +
+  action expert).</li>
+  <li><strong>$L_\text{vl}$</strong> — a co-training loss on a stream of
+  celebrity vision-language pairs: next-token prediction on bbox-grounded
+  captions. ObjectVLA's recipe — the bounding box of the named face is encoded
+  <em>as text</em> in the caption. Backprops into the VLM only. Mixed with the
+  teleop stream at a <strong>10:1 robot:VL ratio</strong> (ObjectVLA's verified
+  ratio).</li>
+  <li><strong>$L_\text{attn}$ (KLAL)</strong> — an attention-supervision loss.
+  From the same bounding box we build a target attention map over the image
+  patches and apply a <strong>KL-divergence</strong> loss pushing the
+  name-token's attention toward the named face. This is the only loss that
+  addresses the diagnosed routing failure <em>head-on</em>. Based on KLAL
+  ("KL Attention Loss", <a href="https://arxiv.org/abs/2511.12738">arXiv
+  2511.12738</a>, WACV 2026).</li>
+  <li><strong>$L_\text{name}$</strong> — a dedicated VQA naming loss: shown a
+  face crop, predict the celebrity name. A separate celebrity-photo / face-crop
+  stream, distinct from the bbox-caption stream above. VLM-only. Purpose: a
+  direct, continuously-graded identity signal so the naming skill cannot
+  drift.</li>
 </ul>
 
-<p>The OpenVLA-OFT+ paper (<a href="https://arxiv.org/abs/2502.19645">arxiv 2502.19645</a>) provides an independent confirmation: removing their FiLM modulation on the vision tower drops multi-object discrimination to chance level. Our SmolVLA's standard cross-attention is the same architectural class as OFT-without-FiLM.</p>
+<p>The full objective (Track T3 below):</p>
+<div class="eq">
+  $$L \;=\; L_\text{action} \;+\; \alpha\,L_\text{vl} \;+\; \lambda\,L_\text{attn} \;+\; \beta\,L_\text{name}$$
+</div>
+<p>
+  summed and backpropagated once. The three lighter tracks switch terms off —
+  see §3.
+</p>
 
-<h3>Why Pi0.5 (PaliGemma 1) gives us a fighting chance</h3>
+<div class="note">
+  <span class="note-title">Loss weighting — do not sum raw</span>
+  <p>
+    $L_\text{action}$ (flow-matching MSE), $L_\text{vl}$/$L_\text{name}$
+    (cross-entropy, ~1–10 nats) and $L_\text{attn}$ (KL over patches) live on
+    very different scales. Normalize each to unit running scale before
+    weighting. Starting points: $\alpha\!\approx\!0.1\text{–}0.3$,
+    $\beta\!\approx\!0.1\text{–}0.3$, $\lambda$ <strong>warmed from 0</strong>
+    over the first ~10–20% of steps to $\approx\!0.05\text{–}0.2$. A hard KL
+    target is the term most likely to destabilize training — introduce it
+    gently and tune $\lambda$ in isolation (Track T2) before stacking T3. Log
+    every loss <em>and</em> its gradient norm at the LoRA parameters
+    separately.
+  </p>
+</div>
 
-<ul>
-  <li>PaliGemma 1's vision tower is SigLIP-So400m (the same as SmolVLA), but it produces 256+ tokens per image (not 64) — much more capacity for face-region discrimination.</li>
-  <li>PaliGemma's LM is Gemma 1 2B (4.4× more parameters than SmolVLM2's 500M LM). Larger LMs are known to retain rarer named entities (REAL, <a href="https://arxiv.org/abs/2401.12425">arxiv 2401.12425</a>; Pi0.5 §3 ablations).</li>
-  <li>The Pi0.5-KI paper (<a href="https://arxiv.org/abs/2505.23705">arxiv 2505.23705</a> §4) reports that even with no architectural changes, Pi0.5's PaliGemma backbone — when properly trained — supports fine-grained semantic conditioning that frozen-VLM Pi0.5 lacks.</li>
-</ul>
+<h2><span class="num">3.</span> The 3-track ablation</h2>
 
-<p><strong>But:</strong> PaliGemma 1 was <em>not</em> trained on Entity-WebLI splits. That tuning only exists in PaliGemma 2 (<a href="https://arxiv.org/abs/2412.03555">arxiv 2412.03555</a>). Pi0.5 is locked to PG1@224. So we cannot rely on the pretrained prior alone for celeb-level discrimination — we have to <strong>actively teach the VLM the 200 celeb identities during fine-tuning</strong>. This is the load-bearing decision behind every track below.</p>
-
-<h2 id="options">§2 · The 4 ideas on the table — research verdict</h2>
-
-<p>The team identified 4 candidate approaches. After cross-validation by 4 parallel research agents (see <a href="#evidence">§7</a>), here's how each holds up against the published literature.</p>
+<p>
+  The tracks form a <strong>cumulative ladder</strong> — each adds exactly one
+  mechanism to the one before. They run in parallel, one owner each.
+</p>
 
 <table>
   <thead>
-    <tr>
-      <th>Idea</th>
-      <th>Description</th>
-      <th>Paper backing</th>
-      <th>Verdict</th>
-    </tr>
+    <tr><th>Track</th><th>Owner</th><th>Objective</th><th>Adds vs previous</th><th>Question it answers</th></tr>
   </thead>
   <tbody>
     <tr>
-      <td><strong>1. Vanilla LoRA on 200-celeb dataset</strong></td>
-      <td>Pi0.5 LoRA fine-tune on <code>HBOrtiz/so101_eval3_aug_v3_200celebs</code> with no extra mechanism.</td>
-      <td><span class="warn">Weak.</span> Pi0.5-KI (<a href="https://arxiv.org/abs/2505.23705">2505.23705</a>) explicitly says "fully freezing VLM yields ~0%"; they update the full backbone with co-training. LoRA was not tested in any published Pi0.5 ablation. LangGap (2603.00592) warns fine-grained discrimination needs <em>thousands</em> of task-specific examples — we have 50/celeb.</td>
-      <td>Run as <strong>baseline only</strong>. Don't expect it to win.</td>
+      <td><strong>T1</strong></td><td>Darius</td>
+      <td>$L_\text{action} + \alpha L_\text{vl}$</td>
+      <td>— (baseline)</td>
+      <td>Does plain ObjectVLA-style co-training fix it on its own?</td>
     </tr>
     <tr>
-      <td><strong>2. PaliGemma VQA pretrain → VLA finetune</strong></td>
-      <td>Two-stage: warm PaliGemma on VGGFace2 VQA, then VLA-finetune on the robot dataset.</td>
-      <td><span class="warn">Mixed.</span> Pi0.5 itself uses two-stage (FAST-only pretrain → flow-matching post-train), so the pattern is precedented. <strong>But</strong> post-Pi0.5-KI (<a href="https://arxiv.org/abs/2505.23705">2505.23705</a>) the field moved to <em>co-training</em>. VLM2VLA (<a href="https://arxiv.org/abs/2509.22195">2509.22195</a>) argues sequential fine-tuning <em>causes</em> catastrophic forgetting.</td>
-      <td>Suboptimal vs co-training. Possible as ablation but not primary.</td>
+      <td><strong>T2</strong></td><td>Mahbod</td>
+      <td>$L_\text{action} + \alpha L_\text{vl} + \lambda L_\text{attn}$</td>
+      <td>+ KLAL attention supervision</td>
+      <td>Does directly supervising the routing add over T1?</td>
     </tr>
     <tr>
-      <td><strong>3. ArcFace ↔ SigLIP latent alignment</strong></td>
-      <td>Train an MLP projector + cosine alignment loss between PaliGemma's SigLIP patches and a frozen ArcFace teacher's 512-dim embedding.</td>
-      <td><span class="ok">Mechanism paper-validated</span> (BlindVLA <a href="https://arxiv.org/abs/2510.25616">2510.25616</a>: λ=0.2, frozen MLP, mid-layer injection), but <strong>ArcFace teacher choice is novel</strong> — no published paper aligns ArcFace specifically with a VLM/VLA. Genuine research-grade contribution.</td>
-      <td>Worth running. Real defensible novel result.</td>
-    </tr>
-    <tr>
-      <td><strong>4. Pi0.5 fine-tune on 10k 200-celeb dataset</strong></td>
-      <td>Same as Option 1. Listed separately by the team but functionally identical.</td>
-      <td>Same as Option 1.</td>
-      <td>Merge with Option 1.</td>
+      <td><strong>T3</strong></td><td>Hans</td>
+      <td>$L_\text{action} + \alpha L_\text{vl} + \lambda L_\text{attn} + \beta L_\text{name}$</td>
+      <td>+ dedicated VQA naming loss</td>
+      <td>Does a dedicated naming loss add over T2?</td>
     </tr>
   </tbody>
 </table>
 
-<div class="note">
-  <span class="note-title">★ Recipe NOT on the team's original list, but strongest paper backing</span>
-  <p><strong>ObjectVLA-style co-training</strong> (<a href="https://arxiv.org/abs/2502.19250">arxiv 2502.19250</a>) directly tackles "robot sees novel object but can't bind name → action" — verbatim our failure mode. The recipe:</p>
-  <ul>
-    <li>Mix robot demonstrations with vision-language pairs at <strong>10:1 ratio</strong> in a single training run (not sequential).</li>
-    <li>Each VL pair includes <strong>explicit bounding-box grounding</strong>: <code>"the face of Yann LeCun is at [x1, y1, x2, y2]"</code>.</li>
-    <li><strong>Without the bboxes, their OOD success drops 64% → 19%</strong>. Grounding is the load-bearing piece.</li>
-  </ul>
-  <p>We can generate ~15k bbox-grounded VL pairs from our 193 scraped celeb photos by running RetinaFace on each (already installed on edna). This becomes our <strong>Track 2</strong> below.</p>
-</div>
-
-<h2 id="tracks">§3 · The 3 tracks we'll actually run</h2>
-
-<p>Each track is a different mechanism for adding face-discrimination capability to PaliGemma during fine-tuning. They are NOT redundant — they test independent hypotheses.</p>
+<p>
+  <strong>T0 — the floor — is already known.</strong> Vanilla fine-tunes with
+  no co-training (SmolVLA "S2", Pi0.5 "P1" in
+  <a href="EVAL_3_RESULTS.md">EVAL_3_RESULTS.md</a>) were already run and both
+  placed the can near-randomly with respect to the prompt name — i.e. at about
+  chance (≈⅓ on three portraits). We do not re-run that; ≈⅓ correct-portrait
+  rate is the bar the three tracks must clear.
+</p>
 
 <div class="note">
-  <span class="note-title">Owner assignments — locked 2026-05-20</span>
-  <ul>
-    <li><span class="tag tag-roham">Roham</span> — Track 1 (vanilla LoRA baseline). In flight on brev_instance1.</li>
-    <li><span class="tag tag-sejohn">Sejohn</span> + <span class="tag tag-darius">Darius</span> — Track 2 (ObjectVLA co-train). Sejohn owns the lerobot-train mixed-batch patch + training; Darius owns the VL-pairs data generation + Strix testing. Runbook: <a href="../../eval_3/tracks/TRACK_OBJECTVLA.md">TRACK_OBJECTVLA.md</a>.</li>
-    <li><span class="tag tag-mahbod">Mahbod</span> — Track 3 (ArcFace alignment). Carries his M2 ArcFace toolkit expertise into the Pi0.5 port. Runbook: <a href="../../eval_3/tracks/TRACK_ARCFACE.md">TRACK_ARCFACE.md</a>.</li>
-    <li><span class="tag tag-hans">Hans</span> — <strong>Open research.</strong> Not assigned a training track. Tasked with investigating alternative approaches we may have missed and reporting findings back to the team. Brief: <a href="../../eval_3/HANS_RESEARCH_BRIEF.md">HANS_RESEARCH_BRIEF.md</a>.</li>
-  </ul>
+  <span class="note-title">Honest reading of the ablation — it is additive, not isolating</span>
+  <p>
+    Because T1's VL stream already carries the bounding box <em>as text</em>,
+    the comparison <strong>T2 − T1</strong> measures KLAL's value <em>on top of
+    a baseline that already has text-form grounding</em> — not KLAL in
+    isolation. Likewise <strong>T3 − T2</strong> adds both a loss term and a
+    new face-crop data stream. Read the ladder as "what is the marginal value
+    of each added mechanism," and do not over-claim "KLAL alone does X."
+    If a clean isolation of KLAL is wanted later, run a variant where T1's VL
+    captions are bbox-free.
+  </p>
 </div>
-
-<table>
-  <thead>
-    <tr>
-      <th>Track</th>
-      <th>Owner</th>
-      <th>Mechanism</th>
-      <th>Dataset</th>
-      <th>Where</th>
-      <th>ETA</th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr>
-      <td><strong>1. Vanilla LoRA</strong> (baseline)</td>
-      <td><span class="tag tag-roham">Roham</span></td>
-      <td>Pi0.5 LoRA, default flow-matching loss</td>
-      <td><code>so101_eval3_track3_v3_pi05</code> (3-celeb) → in flight<br/>then <code>so101_eval3_aug_v3_200celebs</code></td>
-      <td>brev_instance1 → brev_instance2 (after Track 2)</td>
-      <td>~12 h remaining + ~24 h</td>
-    </tr>
-    <tr>
-      <td><strong>2. ObjectVLA co-train</strong> ★</td>
-      <td><span class="tag tag-sejohn">Sejohn</span><span class="tag tag-darius">Darius</span></td>
-      <td>Mix 10:1 robot:VL with bbox-grounded face captions in one run</td>
-      <td><code>so101_eval3_aug_v3_200celebs</code> + 15k VL pairs from scraped bank</td>
-      <td>brev_instance2 (RTX PRO 6000 96GB)</td>
-      <td>~24 h</td>
-    </tr>
-    <tr>
-      <td><strong>3. ArcFace alignment</strong></td>
-      <td><span class="tag tag-mahbod">Mahbod</span></td>
-      <td>MLP projector + cosine aux loss (λ=0.2), frozen ArcFace teacher</td>
-      <td><code>so101_eval3_aug_v3_200celebs</code></td>
-      <td>edna (only for projector pretrain) + a 3rd Brev VM if available</td>
-      <td>~24 h</td>
-    </tr>
-  </tbody>
-</table>
-
-<!-- ─── Track 1 ─────────────────────────────────────────────────── -->
 
 <div class="track">
-  <h3>Track 1 — Vanilla LoRA (baseline)</h3>
-  <div class="meta">
-    <span>owner: <span class="tag tag-roham">Roham</span></span>
-    <span>backbone: <code>lerobot/pi05_base</code></span>
-    <span>output: <code>HBOrtiz/pi05_eval3_track_B</code> (3-celeb, in flight) + future 200-celeb push</span>
-  </div>
-
-  <p><strong>Why we're keeping the in-flight run.</strong> Even though LoRA isn't validated by any published Pi0.5 ablation, the run is 58% complete and gives us a clean baseline for comparison. Killing it now wastes 17k steps. After Day-3 Strix data we'll know if it works on 3 celebs; if it does, we then know whether the 200-celeb expansion (Tracks 1b / 2 / 3) adds value.</p>
-
-  <h4>Configuration (already running)</h4>
-  <pre><code>--policy.type=pi05
---policy.pretrained_path=lerobot/pi05_base
---policy.freeze_vision_encoder=True
---policy.train_expert_only=False  # gradients reach PaliGemma via LoRA
---peft.method_type=LORA
---peft.r=32 --peft.target_modules=[q_proj,k_proj,v_proj,o_proj,gate_proj,up_proj,down_proj]
---batch_size=48 --steps=30000 --optimizer_lr=1e-5</code></pre>
-
-  <p><strong>Risks (per Agent 1 research):</strong></p>
-  <ul>
-    <li>Pi0.5-KI did not test LoRA — our recipe is paper-extrapolation, not paper-validated.</li>
-    <li>50 demos/celeb on 200-celeb expansion may be borderline for fine-grained discrimination (LangGap evidence).</li>
-    <li>If this fails, we still have Tracks 2 and 3.</li>
-  </ul>
-
-  <h4>Subtasks</h4>
-  <ol class="subtasks">
-    <li><strong>Day 1 — In flight.</strong> 3-celeb run on brev_instance1. ETA ~2026-05-20 23:00 UTC. <span class="ok">Don't kill.</span></li>
-    <li><strong>Day 2 — Strix test.</strong> Once it finishes, Darius runs 3 rollouts (TOY/IID/OOD). This is our floor.</li>
-    <li>
-      <strong>Day 2 — 200-celeb re-launch.</strong> If the 3-celeb run shows partial success, re-launch the same recipe on the 200-celeb dataset to test "did scale help?". Same compute budget.
-      <div class="deliverable"><strong>Deliverable:</strong> <code>HBOrtiz/pi05_eval3_200celebs_lora</code></div>
-    </li>
-  </ol>
-</div>
-
-<!-- ─── Track 2 ─────────────────────────────────────────────────── -->
-
-<div class="track primary">
-  <h3>Track 2 — ObjectVLA co-train ★ (highest-evidence)</h3>
-  <div class="meta">
-    <span>owner: <span class="tag tag-sejohn">Sejohn</span> (training) + <span class="tag tag-darius">Darius</span> (VL-data + Strix)</span>
-    <span>backbone: <code>lerobot/pi05_base</code></span>
-    <span>output: <code>HBOrtiz/pi05_eval3_objectvla</code></span>
-    <span>where: brev_instance2 (RTX PRO 6000 96GB)</span>
-    <span>runbook: <a href="../../eval_3/tracks/TRACK_OBJECTVLA.md">TRACK_OBJECTVLA.md</a></span>
-  </div>
-
-  <p><strong>Why this is the strongest single recipe.</strong> ObjectVLA (<a href="https://arxiv.org/abs/2502.19250">arxiv 2502.19250</a>) is the only published method that directly tackles our failure mode (named-entity → action binding) and reports quantitative gains. <strong>10:1 robot:VL co-training with bbox-grounded captions: without the bboxes, OOD success drops 64% → 19%.</strong> This is the load-bearing intervention, validated end-to-end.</p>
-
-  <p>Independent confirmation comes from Pi0.5's own ablation (<a href="https://arxiv.org/abs/2504.16054">arxiv 2504.16054</a> Fig. 11): removing web co-training drops OOD object success from ~75% to ~45-50% (a ~25-30pp gap).</p>
-
-  <h4>Data preparation (~2-4h on edna)</h4>
-  <ol class="subtasks">
-    <li>
-      <strong>Generate bbox-grounded VL pairs from the 193-celeb scraped bank.</strong> Per photo:
-      <ul>
-        <li>Run InsightFace RetinaFace detector (already installed at <code>~/miniconda3/envs/aug</code> on edna).</li>
-        <li>Extract face bbox <code>[x1, y1, x2, y2]</code> normalized to image dims.</li>
-        <li>Emit 2-3 caption variants per photo:
-          <ul>
-            <li><code>"The face of Yann LeCun is at [0.21, 0.32, 0.58, 0.74]."</code> (location-explicit, ObjectVLA-style)</li>
-            <li><code>"Who is the person at [0.21, 0.32, 0.58, 0.74]?" → "Yann LeCun"</code> (Q&A form)</li>
-            <li><code>"Yann LeCun is in this image."</code> (caption form, no bbox — small fraction for variety)</li>
-          </ul>
-        </li>
-      </ul>
-      <div class="deliverable"><strong>Deliverable:</strong> ~15k VL pairs as parquet manifest. ~1.5k photos × 10 captions/photo.</div>
-    </li>
-    <li>
-      <strong>Optionally enrich with our 200-celeb dataset's wrist-cam frames</strong> (not yet implemented). For each augmented teleop episode, sample 5 frames + emit similar VL captions. This adds the actual print/lighting distribution. ~50k more pairs.
-      <div class="deliverable"><strong>Deliverable:</strong> extended manifest at <code>HBOrtiz/eval3_objectvla_vl_pairs</code></div>
-    </li>
-  </ol>
-
-  <h4>Training (~24h on brev_instance2)</h4>
-  <p>This requires a small patch to lerobot-train to support mixed batches: 10 robot batches per 1 VL batch in the same optimizer step. The VL batches go through Pi0.5's <code>PaliGemmaWithExpertModel.forward()</code> in VQA mode (no action expert), the robot batches use the standard VLA forward. Loss is summed.</p>
-
-  <pre><code># Pseudocode for the mixed-batch trainer
-for step in range(num_steps):
-    if step % 11 == 0:  # 10:1 ratio per ObjectVLA
-        batch = vl_dataloader.next()
-        loss = compute_vqa_loss(batch)  # PaliGemma + lm_head CE
-    else:
-        batch = robot_dataloader.next()
-        loss = compute_pi05_flow_loss(batch)  # standard Pi0.5 path
-    loss.backward(); optimizer.step()</code></pre>
-
-  <p><strong>Implementation note:</strong> We have <code>train_paligemma_vqa.py</code> already scaffolded from the warm-start plan; it provides the VQA-mode forward. The patch to mix it into lerobot-train is ~150 lines.</p>
-
-  <h4>Why this beats the two-stage VQA-warmstart we originally planned</h4>
-  <ul>
-    <li><strong>No catastrophic forgetting risk.</strong> The action expert sees PaliGemma's actual training trajectory, not a backbone shifted by a separate VQA stage.</li>
-    <li><strong>Direct paper validation.</strong> 64% → 19% OOD-drop number is a real ablation, not an extrapolation.</li>
-    <li><strong>Better data signal.</strong> The bbox-grounded captions teach SigLIP <em>where in the image the face is</em>, not just <em>that it's a face</em> — this is exactly the supervision the attention map analysis says is missing.</li>
-  </ul>
-</div>
-
-<!-- ─── Track 3 ─────────────────────────────────────────────────── -->
-
-<div class="track priority">
-  <h3>Track 3 — ArcFace ↔ SigLIP alignment (novel research contribution)</h3>
-  <div class="meta">
-    <span>owner: <span class="tag tag-mahbod">Mahbod</span></span>
-    <span>backbone: <code>lerobot/pi05_base</code> + frozen ArcFace <code>buffalo_l/w600k_r50</code></span>
-    <span>output: <code>HBOrtiz/pi05_eval3_arcface_aligned</code></span>
-    <span>runbook: <a href="../../eval_3/tracks/TRACK_ARCFACE.md">TRACK_ARCFACE.md</a></span>
-  </div>
-  <p style="font-size:0.9em;color:var(--muted);">Mahbod already built the M2 ArcFace cosine-distillation toolkit for SmolVLA — he carries the ArcFace expertise into this Pi0.5 port.</p>
-
-  <p><strong>Why this is worth running even though it's novel.</strong> BlindVLA (<a href="https://arxiv.org/abs/2510.25616">arxiv 2510.25616</a>) validated the <em>mechanism</em> — frozen MLP projector + per-token cosine alignment loss at λ=0.2 between LM hidden states and a frozen teacher's features. Their teacher was a general ViT (C-RADIOv3); <strong>no published paper has tried this with ArcFace specifically as the teacher</strong>. If it works, it's a real research-grade contribution; if it doesn't, the failure is informative.</p>
-
-  <p>The orthogonal hypothesis from Track 2: Track 2 says <em>SigLIP doesn't know where the face is</em>. Track 3 says <em>SigLIP doesn't have face-discriminative geometry</em>. Both could be true and both could be needed; running them independently lets us decompose.</p>
-
-  <h4>Architecture</h4>
-
-  <p class="eq">
-    $$L_{total} = L_{flow\_matching} + \lambda \cdot L_{align}$$
-    $$L_{align} = -\frac{1}{k}\sum_{j=1}^{k} \cos\left(F.normalize(\text{MLP}(z^{arcface}_j)),\ F.normalize(h^{pg}_j)\right), \quad \lambda = 0.2$$
+  <h3>T1 — vanilla co-training <span class="owner">Darius</span></h3>
+  <p>
+    Vanilla SmolVLA, 10:1 robot:VL co-training, no enhancements. The pure
+    ObjectVLA recipe. Datasets:
+    <code>HBOrtiz/so101_eval3_track3_v3_baseline</code> (teleop) +
+    <code>HBOrtiz/eval3_objectvla_vl_pairs</code> (bbox-grounded VL pairs).
+    This is the load-bearing baseline: ObjectVLA reports that this recipe takes
+    OOD object-targeting from <strong>19% → 64%</strong> success when the
+    bounding-box grounding is present. If T1 already works, the more
+    experimental tracks become optional.
   </p>
-
-  <p>where <code>z^arcface</code> is the 512-dim ArcFace embedding of the face crop at frame j, MLP is a frozen 2-layer MLP (<code>512 → 2048 → 2048</code> with GELU + LayerNorm) trained for 1k warmup steps on the 192-celeb bank, and <code>h^pg</code> is the LM hidden state at the face-token position in PaliGemma's middle layer (~layer 9 of Gemma 2B).</p>
-
-  <h4>Subtasks</h4>
-  <ol class="subtasks">
-    <li>
-      <strong>Build the projector pretrain dataset.</strong> Pairs of (face crop, identity label) from the 192-celeb bank. ~1.5k pairs.
-      <div class="deliverable"><strong>Deliverable:</strong> <code>HBOrtiz/eval3_arcface_projector_pretrain</code> (small)</div>
-    </li>
-    <li>
-      <strong>Pretrain the MLP projector (~1h on any GPU).</strong> ArcFace → MLP → match to PaliGemma's mean-pooled face-token features from a vanilla forward pass. Save as a frozen module.
-      <div class="deliverable"><strong>Deliverable:</strong> <code>HBOrtiz/eval3_arcface_projector</code></div>
-    </li>
-    <li>
-      <strong>Patch <code>modeling_pi05.py</code></strong> to: (a) at training time, extract face bbox via InsightFace, (b) compute ArcFace embedding, (c) project through frozen MLP, (d) compute auxiliary cosine loss against LM hidden state at face-token position in layer 9.
-    </li>
-    <li>
-      <strong>Train Pi0.5 + frozen projector + cosine aux loss on <code>so101_eval3_aug_v3_200celebs</code>.</strong> Same LoRA recipe as Track 1 plus the auxiliary head. ~24h.
-      <div class="deliverable"><strong>Deliverable:</strong> <code>HBOrtiz/pi05_eval3_arcface_aligned</code></div>
-    </li>
-  </ol>
-
-  <h4>Risks</h4>
-  <ul>
-    <li><strong>Inference-time face detection adds latency.</strong> ArcFace + RetinaFace runs ~30-50 ms on Strix. We have 20 s/rollout budget; trivial.</li>
-    <li><strong>The face bbox is needed at inference too.</strong> We can either (a) run RetinaFace at inference (still within budget), or (b) train without bbox and align at every patch (lossier but simpler).</li>
-    <li><strong>If smile/expression varies between celeb's photos and the printed-photo eval condition, ArcFace embeddings may not match.</strong> We'd have to augment with print-style transforms during projector pretrain. ~few hours of dev effort.</li>
-  </ul>
 </div>
 
-<h2 id="datasets">§4 · Datasets on HuggingFace</h2>
+<div class="track">
+  <h3>T2 — + KLAL attention supervision <span class="owner">Mahbod</span></h3>
+  <p>
+    T1's recipe plus the $L_\text{attn}$ KL-divergence attention-supervision
+    loss. This is the rung that targets the diagnosed failure directly. It is
+    also the <strong>most experimental</strong>: KLAL is a 2026 method
+    validated on VQA/visual-grounding benchmarks — <em>not</em>, to our
+    knowledge, inside a VLA/robot policy. Applying it here is a genuine
+    extension. See §8 for the failure modes to watch.
+  </p>
+</div>
+
+<div class="track">
+  <h3>T3 — + dedicated VQA naming loss <span class="owner">Hans</span></h3>
+  <p>
+    T2's recipe plus $L_\text{name}$ — a separate celebrity-photo / face-crop
+    VQA stream ("who is this?" → name). The full objective. Tests whether a
+    direct, continuously-graded naming signal adds discrimination on top of the
+    attention supervision.
+  </p>
+</div>
+
+<h2><span class="num">4.</span> Backbone — SmolVLA</h2>
+
+<p>
+  All three tracks use <strong>SmolVLA</strong>
+  (<a href="https://arxiv.org/abs/2506.01844">arXiv 2506.01844</a>, Hugging
+  Face) — a 450M VLA: a SmolVLM-2 vision-language backbone + a ~100M
+  flow-matching action expert. Rationale: it is small (the smallest-model
+  bonus), the prior SmolVLA failures were <em>action-loss-only or sequential</em>
+  — co-training is an untried recipe on it — and the conceptual precedent
+  RT-2 (<a href="https://arxiv.org/abs/2307.15818">arXiv 2307.15818</a>) showed
+  that VLAs can do emergent placement-onto-symbol and person-targeting tasks
+  (the widely-circulated "move the Coke can to Taylor Swift" was a DeepMind
+  demo of RT-2, not a benchmarked paper task — but it is the conceptual target
+  of this work).
+</p>
+
+<div class="note">
+  <span class="note-title">SmolVLA layer truncation — a structural fact that constrains the recipe</span>
+  <p>
+    SmolVLA keeps only the <strong>first 16 layers</strong> of SmolVLM-2's
+    language model and discards the upper half (verified in the SmolVLA paper:
+    <em>"we use only the first 16 layers of the LLM within the VLM"</em>). LoRA
+    can therefore only adapt those 16 layers. <strong>This is a real risk</strong>
+    — if name→face routing in the full VLM lives in the discarded upper half,
+    no amount of LoRA on the lower 16 recovers it. This must be checked before
+    launch — see §7.
+  </p>
+</div>
+
+<h3>LoRA target modules</h3>
+<p>
+  The plan's instinct is to LoRA the <strong>Q/K</strong> projections — since
+  attention scores are $\text{softmax}(QK^\top)$, adapting Q/K changes
+  <em>where</em> the model looks. That is half-right. But whether a
+  correctly-attended face actually propagates to influence the action expert
+  is decided by the <strong>V/O</strong> projections and the MLP. Q/K-only LoRA
+  can produce "attention looks right, behaviour unchanged."
+</p>
+<p>
+  <strong>Recommendation:</strong> default to <code>q_proj, k_proj, v_proj,
+  o_proj</code> — this matches the team's own previously-validated Pi0.5 LoRA
+  recipe, and Q/K-only is an unjustified deviation from it. Treat the LoRA
+  target set as an ablation knob: if compute allows, compare Q/K vs Q/K/V/O vs
+  +MLP. Rank 16–32, applied to the 16 retained layers.
+</p>
+
+<p>
+  <strong>Fallback backbone:</strong> FLOWER / FlowerVLA
+  (<a href="https://arxiv.org/abs/2509.04996">arXiv 2509.04996</a>, 950M,
+  flow-based) is the documented alternative if SmolVLA's 450M capacity or
+  its layer truncation proves inadequate (§7, §8).
+</p>
+<p>
+  <strong>Deployment feasibility.</strong> SmolVLA-450M inference should
+  comfortably fit the 16 GB Strix deploy GPU and the &lt;20 s / rollout latency
+  rule — but the prior Pi0.5 plan never actually ran its deployment probe
+  (the largest unmeasured risk in <a href="EVAL_3_RESULTS.md">EVAL_3_RESULTS.md</a>
+  §7). Run a VRAM + latency probe once any track produces a checkpoint;
+  do not assume.
+</p>
+
+<h2><span class="num">5.</span> Datasets &amp; the celebrity set</h2>
 
 <table>
-  <thead>
-    <tr><th>Repo</th><th>What</th><th>Use for</th></tr>
-  </thead>
+  <thead><tr><th>Dataset</th><th>Role</th></tr></thead>
+  <tbody>
+    <tr><td><code>HBOrtiz/so101_eval3_track3_v3_baseline</code></td>
+      <td>Teleop episodes (3-celebrity "TOY" set: Taylor Swift / Barack Obama / Yann LeCun). The $L_\text{action}$ stream.</td></tr>
+    <tr><td><code>HBOrtiz/eval3_objectvla_vl_pairs</code></td>
+      <td>Bbox-grounded VL pairs. The $L_\text{vl}$ stream (T1–T3) and the bbox source for $L_\text{attn}$ (T2–T3).</td></tr>
+    <tr><td>celebrity-photo / face-crop stream <span class="citation">(to assemble)</span></td>
+      <td>The $L_\text{name}$ VQA stream (T3 only): face crops + names, including crops from our own printed-portrait footage.</td></tr>
+  </tbody>
+</table>
+
+<div class="note">
+  <span class="note-title">Keep the celebrity set small — TA guidance</span>
+  <p>
+    Per Liam: there is no need to recognize thousands of identities — restrict
+    to the most-famous handful. The 3-celebrity TOY set (Swift / Obama /
+    LeCun — all extremely well-known) is the right scope; it makes the learning
+    target easier and convergence more stable. Do not chase the 200- or
+    9k-celebrity sets for this plan.
+  </p>
+</div>
+
+<div class="blocker">
+  <span class="b-title">Train / test scope — state this explicitly</span>
+  <p>
+    The $L_\text{name}$ and $L_\text{vl}$ streams include the actual evaluation
+    celebrities' identities. For this task that is acceptable — the eval is
+    those specific known people, not generalization to unseen identities — but
+    it must be stated, and the success claim scoped to <em>"placing the can on
+    known celebrities"</em>. Crucially: hold out the <strong>exact eval-day
+    portrait images and camera footage</strong> from every training stream,
+    even though the identities appear. Identities may be seen; the specific
+    eval images must not. For development, curate a held-out validation set of
+    celebrity portraits photographed under eval-like conditions but used in no
+    training stream — the §9 correct-portrait metric is measured on it.
+  </p>
+</div>
+
+<h2><span class="num">6.</span> Implementation</h2>
+
+<p>
+  This is an <strong>add-on to <code>lerobot-train</code>, not a rewrite</strong>.
+  The pieces:
+</p>
+<ul>
+  <li>A second dataloader for the celebrity / bbox stream, interleaved with the
+  teleop loader at the 10:1 ratio.</li>
+  <li>A forward path for the VL batches that <strong>stops at the VLM</strong>
+  (no action expert) — these batches only produce $L_\text{vl}$, $L_\text{attn}$,
+  $L_\text{name}$.</li>
+  <li>Switch the VLM attention implementation to <strong>eager</strong> so the
+  attention weights are readable for the KL term ($L_\text{attn}$). Fused/SDPA
+  attention does not expose the per-head weights.</li>
+  <li>Sum the losses (after scale-normalization, §2) and backprop once.</li>
+  <li>$L_\text{attn}$ target map: build a <strong>soft</strong> distribution
+  over patches from the bbox (a smoothed map, not a hard 0/1 box) — a hard
+  target is a harsher KL objective. The KLAL paper derives the target from the
+  box centre-line, smoothed and normalized; a soft Gaussian over the box is an
+  acceptable equivalent.</li>
+  <li>Start by supervising only the attention head(s) that actually do
+  grounding, not all heads averaged — see §7/§8.</li>
+  <li><strong>Train the action expert at full capacity.</strong> The prior
+  Pi0.5 run (P1) under-powered it — LoRA-bottlenecked at low rank with the
+  action I/O heads frozen (<a href="EVAL_3_RESULTS.md">EVAL_3_RESULTS.md</a>
+  §P1). Do not repeat that: the SmolVLA action expert should be fully trained
+  by $L_\text{action}$.</li>
+</ul>
+
+<h2><span class="num">7.</span> Pre-flight — the gating check before any track launches</h2>
+
+<p><strong>Owner: Mahbod</strong> (holds the attention-probe tooling from the
+earlier Pi0.5 probes). T1, T2 and T3 all block on the Step-0 result.</p>
+
+<div class="blocker">
+  <span class="b-title">Step 0 — verify routing capacity in the bottom 16 layers</span>
+  <p>
+    Before committing compute to any track, run the attention probe on SmolVLA
+    and confirm that name→face routing <em>can</em> exist within the retained
+    16 layers — i.e. identify which of those layers / heads carry (or could
+    carry) cross-modal grounding. If the relevant routing in the full
+    SmolVLM-2 lived only in the discarded upper half, the entire $L_\text{attn}$
+    approach on SmolVLA is built on sand and the team should switch to FLOWER
+    (§4) or accept SmolVLA without $L_\text{attn}$. This check is cheap and it
+    gates the whole plan. <strong>Do it first.</strong>
+  </p>
+</div>
+
+<div class="blocker">
+  <span class="b-title">Step 0b — sweep the teleop data for the slot-R miscoding bug</span>
+  <p>
+    <a href="EVAL_3_RESULTS.md">EVAL_3_RESULTS.md</a> §5.1 found 4 of 151 source
+    episodes with miscoded slot-R supervision (the augmentation pipeline failed
+    to swap a Swift portrait for LeCun), affecting ~260 of 9,216 variants —
+    never swept across the full set. Bad labels poison both $L_\text{action}$
+    and any bbox-derived target. Before launch, sweep all 9,216 variants of
+    <code>so101_eval3_track3_v3_baseline</code> for the
+    <code>orig_R=S, new_R=L</code> pattern and remove or re-render the suspect
+    variants.
+  </p>
+</div>
+
+<p>
+  Output of Step 0: the specific layer/head indices to supervise with
+  $L_\text{attn}$. KLAL's published recipe averages over all layers and heads;
+  the literature (<a href="https://arxiv.org/abs/2503.06287">arXiv 2503.06287</a>)
+  shows only a few heads do visual grounding, so supervising all of them
+  injects noise. Localize, then supervise.
+</p>
+
+<h2><span class="num">8.</span> Risks &amp; open questions</h2>
+
+<p>From an independent soundness review of this recipe (2026-05-20):</p>
+
+<table>
+  <thead><tr><th>Risk</th><th>Severity</th><th>Mitigation</th></tr></thead>
   <tbody>
     <tr>
-      <td><code>HBOrtiz/so101_eval3_aug_v3_200celebs</code> <span class="tag tag-alive">NEW</span></td>
-      <td><strong>10k episodes × 200 celebs</strong>, pushed 2026-05-19 from edna 64-worker run. The primary VLA fine-tune dataset for all 3 tracks (after the in-flight 3-celeb run finishes).</td>
-      <td>Tracks 1 (200-celeb re-launch), 2, 3.</td>
+      <td><strong>"Attention looks right, behaviour unchanged."</strong> The action expert reads VLM features via its own cross-attention, not the VLM's internal attention map. Forcing the internal map to match a bbox does not guarantee the features handed to the action expert encode the right identity.</td>
+      <td class="err">HIGH</td>
+      <td>The success metric is the <em>behaviour</em> (correct-portrait reach rate), never the KL curve or attention-IoU alone. See §9.</td>
     </tr>
     <tr>
-      <td><code>HBOrtiz/so101_eval3_track3_v3_pi05</code></td>
-      <td>3-celeb (Swift/Obama/LeCun) 9 394 episodes, Pi0.5-quantile stats. What brev_instance1 is currently training on.</td>
-      <td>Track 1 in-flight only. Defunct after.</td>
+      <td><strong>Layer truncation.</strong> If name→face routing lived in SmolVLM-2's discarded upper half, LoRA on the lower 16 cannot recover it.</td>
+      <td class="err">HIGH (potential blocker)</td>
+      <td>The §7 Step-0 check. If it fails → FLOWER backbone.</td>
     </tr>
     <tr>
-      <td><code>HBOrtiz/so101_eval3_track3_v3_baseline</code> <span class="tag tag-park">legacy</span></td>
-      <td>Same data as <code>_pi05</code> but with MEAN_STD stats (SmolVLA convention). No longer used.</td>
-      <td>None (SmolVLA dead).</td>
+      <td><strong>KLAL is experimental for VLA.</strong> Validated on VQA/grounding, never on a robot policy. Wrong layer/head choice supervises noise.</td>
+      <td class="warn">HIGH</td>
+      <td>Localize heads in Step 0; supervise only those; warm $\lambda$ from 0.</td>
     </tr>
     <tr>
-      <td><code>HBOrtiz/eval3_m2_arcface_toolkit</code> <span class="tag tag-park">legacy</span></td>
-      <td>Mahbod's M2 ArcFace SmolVLA distillation data.</td>
-      <td>Could be repurposed for Track 3's projector pretrain.</td>
+      <td><strong>Q/K-only LoRA under-powered.</strong> May move attention without propagating the result.</td>
+      <td class="warn">HIGH</td>
+      <td>Default Q/K/V/O (§4); ablate target set if compute allows.</td>
     </tr>
     <tr>
-      <td><strong>Pending: VL-pairs manifest</strong></td>
-      <td>To-be-built: 15-65k bbox-grounded face VL captions from our scraped bank + maybe the 200-celeb wrist-cam frames.</td>
-      <td>Track 2 (ObjectVLA co-train).</td>
+      <td><strong>No distractor supervision.</strong> $L_\text{attn}$ pushes attention <em>toward</em> the named face but not explicitly <em>away</em> from the two distractor faces; the failure is "attends to all three equally."</td>
+      <td class="warn">MED</td>
+      <td>Use a target map that is near-zero on the distractor faces (contrastive by construction); consider an explicit negative term.</td>
+    </tr>
+    <tr>
+      <td><strong>Catastrophic forgetting / action regression.</strong> Co-training could degrade $L_\text{action}$ quality. Full SmolVLM SFT previously caused forgetting on this project.</td>
+      <td class="warn">MED</td>
+      <td>Track action-task quality across the run; LoRA (not full SFT) limits this.</td>
+    </tr>
+    <tr>
+      <td><strong>450M capacity.</strong> Likely fine if the problem is purely routing; but celebrity identity is long-tail and $L_\text{name}$ may be doing real representational work, not just anti-drift.</td>
+      <td class="warn">MED</td>
+      <td>If T3 underperforms on identity, FLOWER (950M) is the capacity fallback.</td>
+    </tr>
+    <tr>
+      <td><strong>Loss-scale imbalance.</strong> Raw-summed losses on different scales let one term dominate the LoRA update.</td>
+      <td class="warn">MED</td>
+      <td>Scale-normalize; log per-loss gradient norms (§2).</td>
     </tr>
   </tbody>
 </table>
 
-<h2 id="timeline">§5 · 2-day timeline</h2>
+<h2><span class="num">9.</span> Success metric &amp; decision points</h2>
 
-<div class="day">
-  <h3>Day 1 — 2026-05-20 (Wednesday) <span class="time">today</span></h3>
-  <ul>
-    <li><span class="time">12:00 UTC</span> — Roham: strategy locked, this doc finalized.</li>
-    <li><span class="time">12:00-18:00</span> — Roham: build VL-pairs manifest on edna (RetinaFace pass over 193-celeb scraped bank + caption synthesis). Push to <code>HBOrtiz/eval3_objectvla_vl_pairs</code>.</li>
-    <li><span class="time">12:00-15:00</span> — owners locked: Track 2 → Sejohn+Darius, Track 3 → Mahbod, Hans → open research.</li>
-    <li><span class="time">15:00-20:00</span> — Track 2 owner: implement the lerobot-train patch for mixed-batch loading.</li>
-    <li><span class="time">15:00-20:00</span> — Track 3 owner: build projector pretrain dataset + train the MLP.</li>
-    <li><span class="time">~23:00 UTC</span> — brev_instance1 Track 1 (3-celeb LoRA) finishes. Push to <code>HBOrtiz/pi05_eval3_track_B</code>.</li>
-    <li><span class="time">23:00-00:00</span> — Darius: deploy Track 1 to Strix, run 3 rollouts (TOY/IID/OOD). Slack the verdict.</li>
-  </ul>
-</div>
-
-<div class="day">
-  <h3>Day 2 — 2026-05-21 (Thursday) — final ship day</h3>
-  <ul>
-    <li><span class="time">00:00-06:00</span> — Track 2 launches on brev_instance2. ~24h, finishes ~Day-3 06:00 UTC.</li>
-    <li><span class="time">00:00-06:00</span> — Track 3 launches on a 3rd Brev VM if we provision one (else uses brev_instance2 after Track 2 finishes — too late for eval).</li>
-    <li><span class="time">06:00-12:00</span> — Roham: re-launch Track 1 with 200-celeb dataset on brev_instance1 if Strix test on the 3-celeb version was promising.</li>
-    <li><span class="time">12:00-18:00</span> — eval-day dry-runs on whichever track has finished. 9 rollouts each (3 TOY / 3 IID / 3 OOD).</li>
-    <li><span class="time">18:00</span> — final ship checkpoint locked.</li>
-    <li><span class="time">22:00</span> — sleep. <strong>Eval day morning.</strong></li>
-  </ul>
-</div>
-
-<h2 id="decision">§6 · Day-2 evening decision tree</h2>
+<p>
+  <strong>The metric that decides everything is the rollout</strong> — the rate
+  at which the arm places the can on the <em>correct</em> celebrity's portrait,
+  on held-out eval images. KL loss, attention-IoU and probe scores are
+  diagnostic instruments, not the verdict — "attention looks right, behaviour
+  unchanged" is the most probable silent failure.
+</p>
 
 <pre>
-Day-2 evening (after Track 1's Strix test):
+Step 0 pre-flight (§7) — routing capacity in bottom-16 layers?
+   pass  -> launch T1, T2, T3 in parallel
+   fail  -> switch backbone to FLOWER, or run T1/T3 without L_attn
 
-  Track 1 (3-celeb LoRA) passes face-id ≥2/3 ?
-    ├─ YES → re-launch Track 1 on 200-celeb dataset.
-    │        Ship Track 1-200celeb if Day-2 Strix passes.
-    │
-    └─ NO  → ship whichever of {Track 2 (ObjectVLA), Track 3 (ArcFace)}
-             finishes first AND passes the Day-2 Strix test.
-
-If NEITHER Track 2 nor Track 3 finishes in time:
-   Ship Track 1 (3-celeb).
-   Accept that we can only confidently get the 3 IID celebs right.
-   Forfeit the 6 OOD celeb rollouts (-33% max score).
-
-If Track 1 fails AND Tracks 2 and 3 both fail OOD too:
-   Ship the closest-to-working track.
-   Accept the failure mode and write a comprehensive post-mortem.
+After the parallel runs, on held-out rollouts:
+   T1 already solves it          -> ship T1 (simplest, smallest risk)
+   T2 > T1                       -> KLAL earns its place; ship T2
+   T3 > T2                       -> the naming loss adds; ship T3
+   none beats the T0 floor       -> escalate; FLOWER backbone; ask for compute
 </pre>
 
-<h2 id="evidence">§7 · Research evidence base (4 parallel agents, 2026-05-20)</h2>
+<div class="note">
+  <span class="note-title">Timeline, compute &amp; ownership</span>
+  <ul>
+    <li><strong>Eval date:</strong> <em>to be confirmed with the TA</em> — fill
+    this in; the parallel schedule below assumes a few days of runway.</li>
+    <li><strong>Sequence:</strong> Step-0 pre-flight (Mahbod, §7) first → on
+    pass, T1 / T2 / T3 launch in parallel → held-out rollouts → decision above.</li>
+    <li><strong>Compute estimate:</strong> SmolVLA is 450M; prior SmolVLA
+    fine-tunes ran in ~6 h. Budget ~6–10 h per co-train run on one H100-class
+    GPU; three tracks in parallel ⇒ ~3 GPUs. The FLOWER fallback (950M) is
+    larger if triggered. If a track is blocked on GPUs, contact Nicole Damblon
+    immediately (§10).</li>
+    <li><strong>Owners:</strong> T1 Darius · T2 Mahbod · T3 Hans ·
+    Step-0 pre-flight Mahbod · prompt-engineering Roham.</li>
+  </ul>
+</div>
 
-<p>Per CLAUDE.md §9 (cross-validate load-bearing claims with parallel agents) and §7 (triple-source numerical defaults), we ran 4 independent research agents on 2026-05-20 to validate this strategy against published literature. Their summaries:</p>
+<h2><span class="num">10.</span> TA guidance (Liam)</h2>
 
-<h4>Agent 1 — VLA + fine-grained named-entity recognition SOTA</h4>
 <ul>
-  <li><strong>ObjectVLA (<a href="https://arxiv.org/abs/2502.19250">2502.19250</a>) is the closest paper to our problem.</strong> 10:1 robot:VL co-train; without bbox-grounding OOD drops 64% → 19%. <span class="citation">Verified via WebFetch on arxiv HTML.</span></li>
-  <li><strong>Pi0.5-KI (<a href="https://arxiv.org/abs/2505.23705">2505.23705</a>) does not validate LoRA.</strong> Their recipe is full backbone update + action-expert stop-gradient + FAST CE on lm_head. Our Track 1 LoRA recipe is paper-extrapolation, not paper-validated.</li>
-  <li><strong>OpenVLA-OFT+ (<a href="https://arxiv.org/abs/2502.19645">2502.19645</a>): FiLM is necessary for language-grounded discrimination.</strong> Removing FiLM drops multi-object success to chance. Independent confirmation of our SmolVLA attention-map diagnosis.</li>
-  <li><strong>Pi0.6 / RECAP (<a href="https://arxiv.org/abs/2511.14759">2511.14759</a>) is irrelevant.</strong> Offline RL for execution recovery, not language grounding.</li>
+  <li><strong>Co-train, don't stage</strong> — the whole basis of this plan.
+  Liam: this "should mostly be the solution."</li>
+  <li><strong>Prompt engineering</strong> <span class="citation">(owner:
+  Roham)</span>. Injecting a steering word such as "celebrity" into the prompt
+  may help. Probe the VLM directly to find which words steer it toward
+  recognizing the celebrities, then inject that word into the prompt at eval
+  time. A few hours of VLM probing — runs alongside the training tracks.</li>
+  <li><strong>Small celebrity set</strong> — §5. Top-famous handful only.</li>
+  <li><strong>Parallelize the ablation</strong> — T1/T2/T3 run concurrently,
+  one owner each. KLAL ("more experimental, not derisked conceptually" — Liam)
+  is exactly why T1 (without) and T2/T3 (with) run side by side.</li>
+  <li><strong>Compute.</strong> If a track is blocked on compute, contact
+  Nicole Damblon immediately rather than waiting.</li>
 </ul>
 
-<h4>Agent 2 — ArcFace ↔ VLM alignment</h4>
+<h2><span class="num">11.</span> Sources</h2>
+
 <ul>
-  <li><strong>BlindVLA (<a href="https://arxiv.org/abs/2510.25616">2510.25616</a>) is the only published alignment recipe.</strong> λ=0.2, frozen MLP projector (4096→2048→768), mid-layer cosine loss. Teacher is C-RADIOv3 (general ViT), NOT ArcFace.</li>
-  <li><strong>No published paper aligns ArcFace specifically with a VLM/VLA.</strong> Face-LLaVA, FaceInsight, FaceLLM, Face-MLLM all use landmarks/FLIP/face-VQA — none use ArcFace embedding injection. <strong>Our Track 3 would be the first.</strong></li>
-  <li><strong>MLP projector beats cross-attention at our data scale.</strong> LLaVA-1.5 ablation; Q-Former needs 10²-10³× more data than we have.</li>
-  <li><strong>Frozen teacher is unanimous in the published literature</strong> (BlindVLA, Arc2Face, FR distillation lit).</li>
+  <li>ObjectVLA — <a href="https://arxiv.org/abs/2502.19250">arXiv 2502.19250</a>
+  — "End-to-End Open-World Object Manipulation Without Demonstration." 10:1
+  robot:VL co-training; bbox grounding takes OOD object-targeting 19% → 64%.</li>
+  <li>KLAL — <a href="https://arxiv.org/abs/2511.12738">arXiv 2511.12738</a>
+  — "Direct Visual Grounding by Directing Attention of Visual Tokens"
+  (WACV 2026). "KL Attention Loss": forward-KL of model attention toward a
+  bbox-derived target. Validated on VQA/grounding — applying it to a VLA is
+  novel.</li>
+  <li>SmolVLA — <a href="https://arxiv.org/abs/2506.01844">arXiv 2506.01844</a>
+  — 450M VLA, Hugging Face; keeps the first 16 LLM layers.</li>
+  <li>FLOWER / FlowerVLA — <a href="https://arxiv.org/abs/2509.04996">arXiv 2509.04996</a>
+  — "Democratizing Generalist Robot Policies with Efficient Vision-Language-Action
+  Flow Policies"; 950M flow-based VLA; the fallback backbone.</li>
+  <li>RT-2 — <a href="https://arxiv.org/abs/2307.15818">arXiv 2307.15818</a>
+  — Google DeepMind; emergent placement-onto-symbol and person-targeting. The
+  conceptual precedent.</li>
+  <li>π₀.₅ — <a href="https://arxiv.org/abs/2504.16054">arXiv 2504.16054</a>
+  — "A Vision-Language-Action Model with Open-World Generalization"; co-trains
+  on heterogeneous data — the co-training precedent.</li>
+  <li>Knowledge Insulation — <a href="https://arxiv.org/abs/2505.23705">arXiv
+  2505.23705</a> — "Knowledge Insulating Vision-Language-Action Models";
+  insulates the VLM during action-expert training. (A general VLA-training
+  paper, not branded a π₀.₅ variant.)</li>
+  <li>Attention-supervision lineage —
+  <a href="https://arxiv.org/abs/1808.00265">arXiv 1808.00265</a> (VQA attention
+  supervision mining),
+  <a href="https://arxiv.org/abs/2207.02334">arXiv 2207.02334</a> (weakly
+  supervised grounding in VL transformers),
+  <a href="https://arxiv.org/abs/2503.06287">arXiv 2503.06287</a> (only a few
+  heads do visual grounding).</li>
+  <li>Internal — <a href="EVAL_3_FOR_TAS.html">EVAL_3_FOR_TAS.html</a>,
+  <a href="EVAL_3_RESULTS.md">EVAL_3_RESULTS.md</a>,
+  <a href="../experiments/2026-05-20_attention_routing_diagnosis.html">attention-routing
+  diagnosis</a>.</li>
 </ul>
 
-<h4>Agent 3 — VQA-pretrain → VLA fine-tune precedents</h4>
-<ul>
-  <li><strong>Pi0.5 itself is two-stage</strong> (FAST-only pretrain α=0 → flow-matching post-train α=10). But the field has moved to co-training.</li>
-  <li><strong>VLM2VLA (<a href="https://arxiv.org/abs/2509.22195">2509.22195</a>) explicitly argues sequential VQA-pretrain causes forgetting.</strong> LoRA-only on the backbone with co-training preserves 85% of base VLM capability across 12 benchmarks.</li>
-  <li><strong>LangGap (2603.00592) supports VQA pretrain</strong> for fine-grained discrimination, but warns thousands of task-specific examples are needed.</li>
-  <li><strong>Pi0.5-KI Fig. 11: removing web co-train data drops OOD from ~75% to ~45-50%.</strong> ~25-30 pp gap. Strong quantitative argument for any-kind-of-VL signal during training.</li>
-  <li><strong>Verdict: co-training &gt; two-stage.</strong> Hence the team's Option 2 (VQA warmstart) is suboptimal; Track 2 (ObjectVLA co-train) is preferred.</li>
-</ul>
+<h2>Ablation results — to fill in</h2>
 
-<h4>Agent 4 — Pi0.5 ecosystem + alternatives</h4>
-<ul>
-  <li><strong>Pi0.5 uses PaliGemma 1, not PaliGemma 2.</strong> Verified via <code>config.json</code>: <code>paligemma_variant=gemma_2b</code>. PG2's Entity-WebLI tuning doesn't apply to us. <strong>Backbone has a structural ceiling.</strong></li>
-  <li><strong>Pi0.5-KI not implemented in lerobot</strong> (openpi issue #649 + lerobot README confirms). Only flow-matching head supported. We can't run KI without ~3-5 days of port work.</li>
-  <li><strong>Pi0-FAST autoregressive variant: not better for our failure mode.</strong> Discrete action gradients don't help face→name binding; the gradient signal is in the wrong channel.</li>
-  <li><strong>pi05_droid variants: negative value for us</strong> — DROID is Franka 7-DoF, our SO-101 is 6-DoF. Action prior pollution.</li>
-  <li><strong>Strix bf16 inference fits at batch=1.</strong> ~8 GB weights + 2-3 GB activations + 4-5 GB margin on the 16 GB card. No quantization needed.</li>
-  <li><strong>No alt VLA (TinyVLA, X-VLA, FlowerVLA, OpenVLA, RoboFlamingo, RT-2) has demonstrated face-binding</strong> — staying on Pi0.5 is the best public bet.</li>
-</ul>
+<table>
+  <thead><tr><th>Track</th><th>Owner</th><th>Correct-portrait rate</th><th>Notes</th></tr></thead>
+  <tbody>
+    <tr><td>T0 (vanilla, prior)</td><td>—</td><td class="err">≈ chance (~⅓, 3 portraits)</td><td>S2/P1 baseline — already known</td></tr>
+    <tr><td>T1</td><td>Darius</td><td>—</td><td>—</td></tr>
+    <tr><td>T2</td><td>Mahbod</td><td>—</td><td>—</td></tr>
+    <tr><td>T3</td><td>Hans</td><td>—</td><td>—</td></tr>
+  </tbody>
+</table>
 
-<h2 id="cites">§8 · Sources cited</h2>
-
-<h4>Primary VLA papers</h4>
-<ul>
-  <li>Pi0.5 — <a href="https://arxiv.org/abs/2504.16054">arxiv 2504.16054</a></li>
-  <li>Pi0.5-KI — <a href="https://arxiv.org/abs/2505.23705">arxiv 2505.23705</a></li>
-  <li>FAST tokenizer — <a href="https://arxiv.org/abs/2501.09747">arxiv 2501.09747</a></li>
-  <li>Pi 0.6 / RECAP — <a href="https://arxiv.org/abs/2511.14759">arxiv 2511.14759</a></li>
-  <li>ObjectVLA — <a href="https://arxiv.org/abs/2502.19250">arxiv 2502.19250</a></li>
-  <li>OpenVLA-OFT+ — <a href="https://arxiv.org/abs/2502.19645">arxiv 2502.19645</a></li>
-  <li>VLM2VLA — <a href="https://arxiv.org/abs/2509.22195">arxiv 2509.22195</a></li>
-  <li>LangGap — arxiv 2603.00592</li>
-  <li>LAPA — <a href="https://arxiv.org/abs/2410.11758">arxiv 2410.11758</a></li>
-  <li>BlindVLA — <a href="https://arxiv.org/abs/2510.25616">arxiv 2510.25616</a></li>
-</ul>
-
-<h4>VLM + face-recognition</h4>
-<ul>
-  <li>PaliGemma 2 — <a href="https://arxiv.org/abs/2412.03555">arxiv 2412.03555</a></li>
-  <li>Face-LLaVA — <a href="https://arxiv.org/abs/2504.07198">arxiv 2504.07198</a></li>
-  <li>FaceInsight — <a href="https://arxiv.org/abs/2504.15624">arxiv 2504.15624</a></li>
-  <li>ArcFace — <a href="https://arxiv.org/abs/1801.07698">arxiv 1801.07698</a></li>
-  <li>Arc2Face — <a href="https://arxiv.org/abs/2403.11641">arxiv 2403.11641</a></li>
-  <li>REAL / Neglected Tails — <a href="https://arxiv.org/abs/2401.12425">arxiv 2401.12425</a></li>
-  <li>OVEN benchmark — <a href="https://arxiv.org/abs/2302.11154">arxiv 2302.11154</a></li>
-</ul>
-
-<h4>Code + checkpoints</h4>
-<ul>
-  <li><code>lerobot/pi05_base</code> — <a href="https://huggingface.co/lerobot/pi05_base">HF</a></li>
-  <li><code>HBOrtiz/so101_eval3_aug_v3_200celebs</code> — <a href="https://huggingface.co/datasets/HBOrtiz/so101_eval3_aug_v3_200celebs">HF</a></li>
-  <li>openpi — <a href="https://github.com/Physical-Intelligence/openpi">github</a></li>
-  <li>BlindVLA code — <a href="https://github.com/CognitiveAISystems/BlindVLA">github</a></li>
-  <li>openpi issue #649 (KI status) — <a href="https://github.com/Physical-Intelligence/openpi/issues/649">github</a></li>
-  <li>lerobot issue #2216 (pi05 VRAM) — <a href="https://github.com/huggingface/lerobot/issues/2216">github</a></li>
-</ul>
-
-<h4>Internal</h4>
-<ul>
-  <li><a href="../../eval_3/tracks/TRACK_B.md">eval_3/tracks/TRACK_B.md</a> — Track 1 (vanilla LoRA) full design</li>
-  <li><a href="../../eval_3/tracks/TRACK_B_WARMSTART.md">eval_3/tracks/TRACK_B_WARMSTART.md</a> — original warm-start plan (now Option 2, deprioritized)</li>
-  <li><a href="../../eval_3/HANDOVER_BREV_INSTANCE2.md">eval_3/HANDOVER_BREV_INSTANCE2.md</a> — VM-side runbook</li>
-  <li><a href="../../eval_3/HANDOVER_EDNA.md">eval_3/HANDOVER_EDNA.md</a> — edna aug runbook</li>
-  <li><a href="../experiments/2026-05-19_track_b_brev_debugging.md">docs/experiments/2026-05-19_track_b_brev_debugging.md</a> — Track 1 launch post-mortem</li>
-  <li><a href="../experiments/2026-05-19_track_b_validations.md">docs/experiments/2026-05-19_track_b_validations.md</a> — 3-agent Track-B validation (pre-pivot)</li>
-</ul>
-
-<p style="text-align: center; margin-top: 3rem; color: var(--muted); font-size: 0.9em;">
-  Last updated: 2026-05-20 12:00 UTC · Cross-validated by 4 parallel research agents · Maintained by <span class="tag tag-roham">Roham</span>
-</p>
+<footer>
+  LeMonkey · Eval 3 · 2026-05-20. Supersedes all prior Eval 3 strategy docs.
+  Paper citations verified against arXiv (and the WACV proceedings for KLAL)
+  by independent research agents; the recipe was pressure-tested by an
+  independent soundness review (§8). Eval date and per-track GPU allocation to
+  be confirmed with the TA.
+</footer>
 
 </div>
 
