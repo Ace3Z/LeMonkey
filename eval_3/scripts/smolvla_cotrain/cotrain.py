@@ -213,15 +213,18 @@ class VLPairsDataset(Dataset):
                     )
                     image_root = Path(full)
                     # The snapshot may have images.tar.zst still packed; unpack if so.
-                    tar_zst = image_root / "images.tar.zst"
-                    if tar_zst.is_file() and not (image_root / "images").is_dir():
-                        print(f"[vl_dataset] extracting {tar_zst} ...", flush=True)
-                        import subprocess
-                        subprocess.run(
-                            ["tar", "--use-compress-program=unzstd",
-                             "-xf", str(tar_zst), "-C", str(image_root)],
-                            check=True,
-                        )
+                    # Repo may use either images.tar.zst or data.tar.zst
+                    for _archive_name in ("images.tar.zst", "data.tar.zst"):
+                        tar_zst = image_root / _archive_name
+                        if tar_zst.is_file() and not (image_root / "images").is_dir():
+                            print(f"[vl_dataset] extracting {tar_zst} ...", flush=True)
+                            import subprocess
+                            subprocess.run(
+                                ["tar", "--use-compress-program=unzstd",
+                                 "-xf", str(tar_zst), "-C", str(image_root)],
+                                check=True,
+                            )
+                            break
 
         missing = self.REQUIRED_COLS - set(self.df.columns)
         if missing:
