@@ -77,8 +77,9 @@ export PUSH_REPO=youruser/smolvla_klal_lora_25k   # HF model repo for checkpoint
 `PUSH_REPO/step_005000`, `/step_010000`, …, `/final`.
 
 The two training datasets (`HBOrtiz/so101_eval3_track3_v3_baseline`,
-`HBOrtiz/eval3_objectvla_vl_pairs`) and the base model (`lerobot/smolvla_base`)
-are public — they download automatically, no token needed for them.
+`HBOrtiz/eval3_track3_vl_pairs`) and the base model (`lerobot/smolvla_base`)
+download automatically on the first run — the `HF_TOKEN` you set also
+authorizes those downloads.
 
 ---
 

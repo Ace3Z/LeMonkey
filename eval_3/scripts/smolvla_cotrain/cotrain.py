@@ -25,7 +25,7 @@ Usage
 
     python eval_3/scripts/smolvla_cotrain/cotrain.py \\
         --robot_dataset=HBOrtiz/so101_eval3_track3_v3_baseline \\
-        --vl_manifest=HBOrtiz/eval3_objectvla_vl_pairs \\
+        --vl_manifest=HBOrtiz/eval3_track3_vl_pairs \\
         --vl_ratio=10 \\
         --output_dir=outputs/smolvla_cotrain_10to1 \\
         --steps=30000 \\
@@ -164,10 +164,9 @@ def parse_args() -> argparse.Namespace:
 
 
 # -----------------------------------------------------------------------------
-# VL dataset — reads Roham's `eval3_objectvla_vl_pairs` parquet schema.
-# Schema (verified 2026-05-20): image_path, prompt, target, bbox_xyxy_norm,
-#                                celeb_name, celeb_slug, caption_type, episode,
-#                                frame_idx, pid
+# VL dataset — reads the `eval3_*_vl_pairs` parquet schema (e.g.
+# eval3_track3_vl_pairs). Required columns: image_path, prompt, target,
+# celeb_slug, caption_type (plus bbox_xyxy_norm, celeb_name, frame_idx, … ).
 # -----------------------------------------------------------------------------
 
 class VLPairsDataset(Dataset):
