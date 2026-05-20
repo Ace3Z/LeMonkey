@@ -908,6 +908,10 @@ def main() -> int:
         betas=(0.9, 0.95),
         weight_decay=1e-4,
     )
+    # Fixed, rank-identical list of trainable params for the gradient
+    # all-reduce below. policy.parameters() iterates in deterministic
+    # registration order, so this list is identical on every rank.
+    ddp_params = [p for p in policy.parameters() if p.requires_grad]
 
     # 5. Training loop.
     print(f"[cotrain] starting training: steps={args.steps}, "
@@ -991,14 +995,18 @@ def main() -> int:
 
         loss.backward()
 
-        # Distributed data parallelism: average gradients across ranks. On a VL
-        # step the action-expert params have grad=None on every rank, so they
-        # are skipped consistently — no DDP `find_unused_parameters` needed.
+        # Distributed data parallelism: average gradients across ranks.
+        # All-reduce the FIXED ddp_params list unconditionally — zero-filling
+        # any grad autograd left as None this step. Every rank reduces the
+        # same tensors in the same order, so the collective is safe by
+        # construction (gating on `p.grad is not None` would risk an NCCL
+        # hang if the grad-coverage set ever differed across ranks).
         if world_size > 1:
-            for p in policy.parameters():
-                if p.grad is not None:
-                    dist.all_reduce(p.grad, op=dist.ReduceOp.SUM)
-                    p.grad /= world_size
+            for p in ddp_params:
+                g = p.grad if p.grad is not None else torch.zeros_like(p)
+                dist.all_reduce(g, op=dist.ReduceOp.SUM)
+                g /= world_size
+                p.grad = g
 
         if args.grad_clip > 0:
             grad_norm = torch.nn.utils.clip_grad_norm_(
