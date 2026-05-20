@@ -431,7 +431,7 @@ def load_robot_dataset(args):
     return ds
 
 
-def build_robot_preprocessor(policy_cfg, dataset, pretrained_path: str, device: torch.device):
+def build_robot_preprocessor(policy_cfg, dataset, pretrained_path: str, device: torch.device):  # noqa: ARG001
     """Builds the SmolVLA pre/post-processor pipeline from lerobot's factory.
 
     The preprocessor is responsible for:
@@ -448,25 +448,11 @@ def build_robot_preprocessor(policy_cfg, dataset, pretrained_path: str, device: 
     """
     from lerobot.policies.factory import make_pre_post_processors
 
+    # Do NOT pass pretrained_path — lerobot/smolvla_base has no policy_preprocessor.json
+    # (that file only exists on post-v0.5.2 checkpoints).  Build fresh from config + stats.
     pre, post = make_pre_post_processors(
         policy_cfg=policy_cfg,
-        pretrained_path=pretrained_path,
         dataset_stats=dataset.meta.stats,
-        preprocessor_overrides={
-            "device_processor": {"device": device.type},
-            "normalizer_processor": {
-                "stats": dataset.meta.stats,
-                "features": {**policy_cfg.input_features, **policy_cfg.output_features},
-                "norm_map": policy_cfg.normalization_mapping,
-            },
-        },
-        postprocessor_overrides={
-            "unnormalizer_processor": {
-                "stats": dataset.meta.stats,
-                "features": policy_cfg.output_features,
-                "norm_map": policy_cfg.normalization_mapping,
-            },
-        },
     )
     return pre, post
 
