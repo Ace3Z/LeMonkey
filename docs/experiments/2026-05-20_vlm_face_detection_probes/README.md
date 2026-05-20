@@ -182,3 +182,30 @@ to the raw 6-d SO-101 state → crash. Fixed to read the dim from
 - `warm_paligemma/` — 25 PNGs: `input.png` + `<celeb>_layer{06,10,14,17}_{heatmap,overlay}.png`
 - `smolvla_track_d_25k/` — 25 PNGs: `input.png` + `<celeb>_layer{09,11,13,15}_{heatmap,overlay}.png`
 - `track_e_step1000/` — 25 PNGs: `input.png` + `<celeb>_layer{06,10,14,17}_{heatmap,overlay}.png`
+- `warm_paligemma_v2/` — 25 PNGs: `input.png` + `<celeb>_layer{06,10,14,17}_{heatmap,overlay}.png`
+
+## Update 13:00 — pi05_paligemma_celeb_warm_v2 probe
+
+Probed `HBOrtiz/pi05_paligemma_celeb_warm_v2` — the teammate's v2 of the warm
+VLM (full Pi0.5, 4.14B). Real weights confirmed loaded (`✓ Loaded state dict`
+/ `All keys loaded successfully` — NOT the random-weights failure mode).
+
+Name-token → image-patch argmax (16×16 grid; LeCun cols 0-5, Obama 5-10,
+Swift 10-15):
+
+| layer | swift | obama | lecun | shifts? |
+|-------|-------|-------|-------|---------|
+| 6  | (6,8)  | (6,8)  | (0,1)  | ~ lecun only; swift = obama |
+| 10 | (0,1)  | (0,1)  | (0,1)  | ✗ constant |
+| 14 | (0,1)  | (0,1)  | (0,1)  | ✗ constant |
+| 17 | (15,3) | (15,3) | (15,3) | ✗ constant |
+
+Same sink-locked pattern as v1: argmax constant across all 3 celebs at 3 of
+4 layers; the one layer with any movement (6) has swift = obama. `max_attn`
+0.002-0.045 — below uniform (1/256). Visual gate (`warm_paligemma_v2/*`):
+diffuse warm wash, near-identical across the 3 prompts, no lock on any face.
+
+**Verdict: v2 does NOT detect faces** — no improvement over v1. Path B with
+v2's VLM frozen is not viable. The teammate's warm-start (v1 or v2) does not
+produce name→face attention; only training the attention directly (Track E
+KLAL) addresses it.
