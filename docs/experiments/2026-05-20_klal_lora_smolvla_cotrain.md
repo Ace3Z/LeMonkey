@@ -88,13 +88,32 @@ The smoke caught one real bug — the original position_ids capture used a
 forward-pre-hook on `vlm_with_expert`, but SmolVLA calls `.forward()`
 directly so it never fired; fixed by wrapping `apply_rope` (above).
 
-## Open risks / to verify on the GPU box
+## Full cotrain smoke on a-toy-pi05 (H100) — PASSED
 
-1. **Full 200-step cotrain still UNSMOKED.** The component smoke covers the
-   building blocks; the end-to-end trainer with real datasets has not run.
-   Run the 200-step smoke (`STEPS=200 ENABLE_LORA=1 ENABLE_KLAL=1 ...`) and
-   confirm: `klal=` prints non-zero, finite; `flow`/`vqa` still trend down;
-   no OOM.
+200-step run on the real datasets (`so101_eval3_track3_v3_baseline` robot +
+`eval3_objectvla_vl_pairs` VL), `--enable_lora --enable_klal`, bs 4 / vl_bs 2:
+
+- 200/200 steps, no NaN (`non-finite=0`), no OOM, final checkpoint saved.
+- `flow_loss` (robot, pure) ↓ ~0.5–1.1 → ~0.10–0.26.
+- `vqa_loss` ↓ ~15.9 → ~10–12, on real face images.
+- `klal` active and finite throughout, ~1.3 → ~0.95–1.1.
+- merge-on-save verified — the final `model.safetensors` has 0 LoRA/base
+  keys: a vanilla loadable `SmolVLAPolicy`.
+
+Reaching a green smoke required fixing **five pre-existing bugs in the
+(never-smoke-tested) cotrain base** — none in the KLAL/LoRA code:
+1. VL collator passed `images` as a flat list (SmolVLM wants list-of-lists).
+2. VL collator truncated at 256 tokens, cutting the ~1088 image tokens.
+3. `SmolVLMVisionEmbeddings` built `boundaries` on CPU (transformers 4.55).
+4. robot dataloader used `delta_timestamps=None` — no action chunk.
+5. `VLPairsDataset` only extracted `images.tar.zst`; the dataset ships
+   `data.tar.zst`, so all 176k VL images had fallen back to gray.
+
+## Open risks / to verify on a longer run
+
+1. **Smoke ≠ convergence.** 200 steps confirms the mechanics, not that KLAL
+   actually binds names to faces — that is the step-~10k attention-probe
+   gate, on a full 30k run.
 2. **Robot batch keys.** KLAL assumes the raw `LeRobotDataset` batch carries
    `episode_index` + `frame_index`. If it doesn't, the run raises loudly
    (no silent fallback) — fix by deriving `frame_index` from `index`.
