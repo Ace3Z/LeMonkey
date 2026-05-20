@@ -682,7 +682,10 @@ def _setup_distributed():
     rank = int(os.environ.get("RANK", "0"))
     local_rank = int(os.environ.get("LOCAL_RANK", "0"))
     if world_size > 1:
-        dist.init_process_group(backend="nccl")
+        # nccl for real multi-GPU. COTRAIN_DDP_BACKEND=gloo is a fallback that
+        # also lets the distributed path be exercised on a single-GPU box.
+        backend = os.environ.get("COTRAIN_DDP_BACKEND", "nccl")
+        dist.init_process_group(backend=backend)
         if torch.cuda.is_available():
             torch.cuda.set_device(local_rank % torch.cuda.device_count())
         print(f"[cotrain] distributed: rank {rank}/{world_size} "
