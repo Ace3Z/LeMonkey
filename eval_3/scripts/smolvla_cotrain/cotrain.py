@@ -421,21 +421,40 @@ def load_policy_and_processor(args, device: torch.device):
     return policy, vl_processor, cfg
 
 
-def load_robot_dataset(args):
+def load_robot_dataset(args, policy_cfg):
     """Loads the LeRobot dataset.
 
     We use LeRobotDataset directly (not make_dataset()) to avoid the full
     TrainPipelineConfig surface. The dataset's per-frame items are RAW —
     they need to be put through the policy's preprocessor (see
     `build_robot_preprocessor` below) before `policy.forward()`.
+
+    CRITICAL: `delta_timestamps` must be passed. SmolVLA's flow-matching loss
+    operates on an *action chunk* of shape (chunk_size, action_dim); without
+    delta_timestamps each frame yields a single action (action_dim,) and
+    `policy.forward()` blows up inside `embed_suffix` (att/pad mask length
+    mismatch). We build delta_timestamps from the policy config exactly as
+    lerobot's own `make_dataset()` factory does (resolve_delta_timestamps):
+    action → chunk_size future steps, observations → [0].
     """
-    from lerobot.datasets.lerobot_dataset import LeRobotDataset
+    from lerobot.datasets.lerobot_dataset import LeRobotDataset, LeRobotDatasetMetadata
+    from lerobot.datasets.factory import resolve_delta_timestamps
+
+    meta = LeRobotDatasetMetadata(repo_id=args.robot_dataset)
+    delta_timestamps = resolve_delta_timestamps(policy_cfg, meta)
+    if delta_timestamps is None or "action" not in delta_timestamps:
+        raise RuntimeError(
+            f"resolve_delta_timestamps produced {delta_timestamps!r} — expected an "
+            f"'action' chunk of length chunk_size={policy_cfg.chunk_size}. SmolVLA's "
+            f"flow-matching loss cannot run on single-step actions."
+        )
 
     episodes = list(range(args.robot_max_episodes)) if args.robot_max_episodes else None
-    ds = LeRobotDataset(repo_id=args.robot_dataset, delta_timestamps=None,
+    ds = LeRobotDataset(repo_id=args.robot_dataset, delta_timestamps=delta_timestamps,
                         video_backend=args.video_backend, episodes=episodes)
     print(f"[robot_dataset] {len(ds)} frames across {ds.num_episodes} episodes "
-          f"(video_backend={args.video_backend}"
+          f"(video_backend={args.video_backend}, "
+          f"action chunk={len(delta_timestamps['action'])}"
           + (f", capped at {args.robot_max_episodes}" if args.robot_max_episodes else "")
           + ")", flush=True)
     return ds
@@ -512,7 +531,7 @@ def main() -> int:
 
     # 2. Robot dataset + preprocessor + dataloader.
     print(f"[cotrain] loading robot dataset {args.robot_dataset} ...", flush=True)
-    robot_ds = load_robot_dataset(args)
+    robot_ds = load_robot_dataset(args, policy_cfg)
     print("[cotrain] building robot preprocessor (tokenizer + normalizer + device) ...", flush=True)
     preprocessor, postprocessor = build_robot_preprocessor(
         policy_cfg=policy_cfg,
