@@ -194,7 +194,82 @@ Per the handover template — Slack-style updates:
 
 ---
 
-## 8 · Live log (append below as the run progresses)
+## 8 · Live log
 
 - 2026-05-19 18:30 UTC — env verified, VGGFace2 + identity_meta.csv on disk, trainer updated for parquet input, branch `track-b-warmstart-vqa` created.
-- (next: smoke test results)
+- 2026-05-19 ~19:00 UTC — smoke test passed (loss 12.37, no dict-mask crash, save/reload round-trip OK).
+- 2026-05-19 ~19:10 UTC — full run launched (`--epochs 0.15`, ~470k rows, batch 32).
+- 2026-05-20 ~00:30 UTC — full run finished. 15 507 steps, 5.6 h wall, final loss ~5.0 (mean-over-run 6.12). Merged + pushed `HBOrtiz/pi05_paligemma_celeb_warm`. Loads from HF clean (4.143 B params).
+
+---
+
+## 9 · Validation results (2026-05-20) — honest assessment
+
+### Method note — why not generation
+
+First attempt used `.generate()` on the PaliGemma submodule → **garbage tokens** from
+*both* baseline and warmed models. Root cause: lerobot's Pi0.5 port
+(`PaliGemmaForConditionalGenerationWithPiGemma` / `PiGemmaModel`) was built for
+flow-matching *action* inference; its autoregressive *text* `.generate()` path is
+untested and broken. Not a model defect — a harness defect.
+
+Also discovered + ruled out: pi05 uses the **PaliGemma 1** tokenizer
+(`google/paligemma-3b-pt-224`); the warm-start trained with the PaliGemma **2**
+processor. Verified harmless — PG1 and PG2 tokenizers are byte-identical
+(`GemmaTokenizer`, vocab 257152, same IDs for all test strings, same `<image>`
+id 257152). pi05_base `lm_head` is healthy (norm 4259, tied to embeddings).
+
+Switched to **teacher-forced N-way discrimination** — the working forward path
+(same one training used). For each face, score candidate names by cross-entropy
+on the name tokens; the model "picks" the lowest-CE candidate. This mirrors the
+real eval task (closed-set celeb selection).
+
+### Results
+
+`eval_3/scripts/warmstart/eval_warmstart_vqa.py --n-way 5 --n-vggface2 60`
+
+| Test | BASELINE (`pi05_base`) | WARMED (`pi05_paligemma_celeb_warm`) | Random |
+|---|---|---|---|
+| **A — VGGFace2, 5-way** (identities the warm-start trained on) | 20 % (12/60) | **37 % (22/60)** | 20 % |
+| **B — our 8 eval celebs, 8-way** (Swift/Obama/LeCun/Federer/Bezos/Musk/Messi/Ronaldo — NOT in VGGFace2) | 0/8 | 1/8 | 12.5 % |
+
+### Honest interpretation
+
+- **Test A: real but modest gain.** The warm-start lifted in-distribution face
+  discrimination from chance (20 %) to 37 % on a 5-way task. The LoRA adapters
+  genuinely learned *some* face→name capability. But 37 % is weak — loss
+  plateaued at ~5.0 (perplexity 148); the model never became a strong
+  recognizer.
+- **Test B: no usable transfer.** On our 8 actual eval celebs, both models are
+  at random. WARMED *collapses to "Jeff Bezos" for 7 of 8 celebs* — it is not
+  discriminating, just emitting one name. The "1/8 correct" is a lucky artifact
+  of that collapse (Bezos is in the set), not real recognition.
+
+### What this means
+
+1. A light VGGFace2 LoRA warm-start (0.15 epoch, ~50 img/identity, r=32, frozen
+   `lm_head`) is **too weak to transfer** to identities it never saw. The
+   general-skill-then-transfer hypothesis did not hold at this training budget.
+2. The warmed checkpoint is, at best, a **marginally better Track B init**
+   (slightly better in-distribution face features). It is **not** a fix for our
+   celeb-discrimination problem.
+3. **Strategic consequence:** the planned Day-3 fallback ("if vanilla Track B
+   fails Strix → re-train with warmed checkpoint") is **weaker than designed**.
+   If vanilla Track B fails on face discrimination, the warmed re-train will
+   most likely also fail. The real fallback is **Track A / Track C (SmolVLA)**.
+
+### Candidate next steps (not yet decided)
+
+- **C1 — warm-start on our scraped bank instead.** 193 celebs incl. our 8 eval
+  ones, ~8-11 photos each + heavy augmentation. Directly targets our celebs.
+  ~2-4 h. Cheapest way to learn whether *any* PaliGemma warm-start can move the
+  8-way number.
+- **C2 — stronger VGGFace2 run.** Full 1-2 epochs, higher LoRA rank, unfreeze
+  `lm_head`. ~12-30 h. Higher cost, uncertain payoff.
+- **C3 — ArcFace distillation (Track A's M2) ported to Pi0.5.** The "collapse to
+  one name" is the signature of a vision encoder not extracting identity-
+  discriminative features. ArcFace distillation explicitly fixes that. Code lift.
+- **C4 — accept Pi0.5 VLM face-discrimination is weak; lean on Track A/C.**
+
+The vanilla Track B run on brev_instance1 is still the primary; its Day-3 Strix
+result is the load-bearing data point.
