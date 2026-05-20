@@ -38,6 +38,20 @@ DTYPE="${DTYPE:-bfloat16}"
 OUT_DIR="${OUT_DIR:-outputs/smolvla_cotrain_${VL_RATIO}to1}"
 PUSH_REPO="${PUSH_REPO:-}"                  # leave empty to skip HF push
 
+# Auto-detect a fully-downloaded local snapshot to bypass snapshot_download.
+# snapshot_download stalls on certain blobs even when the dataset is cached;
+# passing root= skips the HF fetch entirely.
+_LEROBOT_CACHE="${HOME}/.cache/huggingface/lerobot/hub"
+_ROBOT_SLUG="datasets--$(echo "$ROBOT_DATASET" | sed 's|/|--|g')"
+_SNAP_DIR="$_LEROBOT_CACHE/$_ROBOT_SLUG/snapshots"
+if [ -d "$_SNAP_DIR" ]; then
+    _SNAP=$(ls -1 "$_SNAP_DIR" 2>/dev/null | head -1)
+    if [ -n "$_SNAP" ] && [ -d "$_SNAP_DIR/$_SNAP/videos" ]; then
+        ROBOT_LOCAL_DIR="${ROBOT_LOCAL_DIR:-$_SNAP_DIR/$_SNAP}"
+        echo "==> robot dataset cached locally, bypassing HF download: $ROBOT_LOCAL_DIR"
+    fi
+fi
+
 # ---- Pre-flight ---------------------------------------------------------------
 
 if [ -z "${HF_TOKEN:-}" ]; then
@@ -88,8 +102,9 @@ CMD=( python -u "$SCRIPT"
       --dtype="$DTYPE"
       --output_dir="$OUT_DIR" )
 
-[ -n "$VL_IMAGE_ROOT" ] && CMD+=( --vl_image_root="$VL_IMAGE_ROOT" )
-[ -n "$VLM_OVERRIDE"  ] && CMD+=( --vlm_model_name="$VLM_OVERRIDE" )
-[ -n "$PUSH_REPO"     ] && CMD+=( --push_to_hub_repo="$PUSH_REPO" )
+[ -n "${ROBOT_LOCAL_DIR:-}" ] && CMD+=( --robot_local_dir="$ROBOT_LOCAL_DIR" )
+[ -n "$VL_IMAGE_ROOT" ]      && CMD+=( --vl_image_root="$VL_IMAGE_ROOT" )
+[ -n "$VLM_OVERRIDE"  ]      && CMD+=( --vlm_model_name="$VLM_OVERRIDE" )
+[ -n "$PUSH_REPO"     ]      && CMD+=( --push_to_hub_repo="$PUSH_REPO" )
 
 "${CMD[@]}"
