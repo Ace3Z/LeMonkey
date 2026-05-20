@@ -48,8 +48,10 @@ while true; do
     [ -f "$pretrained/model.safetensors" ] || continue
     grep -qx "$step" "$PUSHED_LOG" && continue
 
-    echo "[autopush] step=$step → pushing to $HF_REPO@step-$step"
-    rev="step-$step"
+    # Strip leading zeros from the dir name (lerobot pads to 6 digits).
+    step_num=$((10#$step))
+    echo "[autopush] step=$step_num → pushing to $HF_REPO@step-$step_num"
+    rev="step-$step_num"
 
     # Push.
     python - <<PYTHON
