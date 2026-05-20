@@ -92,8 +92,39 @@ Fix:
 - Flow loss: `~0.06–1.09`, no non-finite values, grad norms 3–50 (clip=10).
 - ~7–8 steps/s steady-state; no OOM.
 
+## Reference video stream downloaded — full dataset unlocked
+
+The 938-episode cap was a *cache* limitation. Per-stream coverage audit:
+
+| stream    | files needed | cached before | cached after |
+|-----------|--------------|---------------|--------------|
+| data      | 5            | 5             | 5            |
+| camera1   | 9394         | 9394          | 9394         |
+| reference | 9394         | 938           | **9394**     |
+
+`reference` was the sole bottleneck. Downloaded the missing 8456 files
+(~2 GB) via `hf download --include "videos/observation.images.reference/*"`
+into the snapshot dir. The download hung twice (all 8 worker threads stalled
+on dead connections); a retry loop with `timeout -s KILL 150` per attempt +
+`HF_HUB_DOWNLOAD_TIMEOUT=20` carried it through — hf download is resumable so
+each attempt picked up from disk.
+
+Post-download, `_episodes_with_complete_files()` reports **9394/9394**
+episodes covered, contiguous `0..9393`.
+
+## Result — 200-step smoke passes on the full dataset
+
+`STEPS=200 BATCH_SIZE=4 VL_BATCH_SIZE=2`, final checkpoint saved.
+
+- `[robot_dataset] 5053812 frames across 9394 episodes` — no `[WARN]`, no cap.
+- VQA loss (19 VL steps): `15.86 → 11.68 → 10.59 → … → 3.87` — clear downward
+  trend, action loss not collapsed.
+- Flow loss: `~0.03–0.78`, no non-finite values, grad norms 3–43 (clip=10).
+- No `FileNotFoundError` — partial-cache crash gone.
+
 ## Next steps
 
-- The 938-episode cap is a *cache* limitation, not a code one — to train on
-  more, download the rest of the `reference` video stream.
-- Ready for the longer run; watch VQA loss does not collapse the action loss.
+- Pipeline is verified end-to-end on the complete 9394-episode dataset.
+  Ready for the full run (`STEPS=30000`, `BATCH_SIZE=32`).
+- During the long run, watch that VQA loss keeps trending down without
+  spiking the flow loss.
