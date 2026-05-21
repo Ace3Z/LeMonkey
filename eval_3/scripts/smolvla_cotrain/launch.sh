@@ -50,11 +50,8 @@ ENABLE_KLAL="${ENABLE_KLAL:-0}"             # 1 => add KLAL attention loss
 KLAL_LAMBDA="${KLAL_LAMBDA:-1.0}"
 KLAL_LAYERS="${KLAL_LAYERS:-10,12,14}"      # must be a subset of LoRA layers
 KLAL_SIGMA="${KLAL_SIGMA:-1.0}"
-# KLAL bbox supervision — M2 toolkit paths (required when ENABLE_KLAL=1):
-FACE_LABELS_DIR="${FACE_LABELS_DIR:-}"
-CELEB_MANIFEST="${CELEB_MANIFEST:-}"
-AUG_ROOT="${AUG_ROOT:-}"
-EPISODE_MAPPING="${EPISODE_MAPPING:-}"
+# KLAL's attention target is built from the VL dataset's quad_corners_norm
+# column — no external bbox source is needed.
 
 # ---- Pre-flight ---------------------------------------------------------------
 
@@ -125,11 +122,7 @@ if [ "$ENABLE_KLAL" = "1" ]; then
     CMD+=( --enable_klal
            --klal_lambda="$KLAL_LAMBDA"
            --klal_layers="$KLAL_LAYERS"
-           --klal_sigma="$KLAL_SIGMA"
-           --face_labels_dir="$FACE_LABELS_DIR"
-           --celeb_manifest="$CELEB_MANIFEST"
-           --aug_root="$AUG_ROOT"
-           --episode_mapping="$EPISODE_MAPPING" )
+           --klal_sigma="$KLAL_SIGMA" )
 fi
 
 "${CMD[@]}"

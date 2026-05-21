@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # run_cluster.sh — multi-GPU KLAL + LoRA co-training launch.
 #
-# One command for the whole run: autodetects every GPU on the node, extracts
-# the bundled KLAL data, and launches `cotrain.py` under torchrun with manual
-# data-parallel gradient all-reduce. 25k steps, checkpoint + HF push every 5k.
+# One command for the whole run: autodetects every GPU on the node and
+# launches `cotrain.py` under torchrun with manual data-parallel gradient
+# all-reduce. Checkpoint + HF push every SAVE_FREQ steps.
 #
 # Prereqs (see RUN_ON_CLUSTER.md for the full step-by-step):
 #   1. repo cloned, branch dev/mahbod/kl-divergence checked out
@@ -42,11 +42,11 @@ export HF_TOKEN
 export TOKENIZERS_PARALLELISM=false
 
 # ── tunables (override via env) ──────────────────────────────────────────────
-STEPS="${STEPS:-25000}"               # total training steps
+STEPS="${STEPS:-50000}"               # total training steps
 SAVE_FREQ="${SAVE_FREQ:-5000}"        # checkpoint + HF push every N steps
 BATCH_SIZE="${BATCH_SIZE:-200}"       # robot batch PER GPU  (~115 GB on a 141 GB card)
-VL_BATCH_SIZE="${VL_BATCH_SIZE:-100}" # VL batch PER GPU     (keep at BATCH_SIZE/2)
-VL_RATIO="${VL_RATIO:-10}"            # 10:1 robot:VL (ObjectVLA recipe)
+VL_BATCH_SIZE="${VL_BATCH_SIZE:-$BATCH_SIZE}"  # VL batch PER GPU = robot batch (true 5:1)
+VL_RATIO="${VL_RATIO:-5}"             # 5:1 robot:VL — 2x ObjectVLA's VL for the harder face task
 LR="${LR:-5e-5}"
 NUM_WORKERS="${NUM_WORKERS:-16}"      # dataloader workers per GPU process
 ROBOT_DATASET="${ROBOT_DATASET:-HBOrtiz/so101_eval3_track3_v3_baseline}"
@@ -55,7 +55,7 @@ PRETRAINED="${PRETRAINED:-lerobot/smolvla_base}"
 OUT_DIR="${OUT_DIR:-outputs/smolvla_klal_lora_25k}"
 # KLAL + LoRA
 KLAL_LAYERS="${KLAL_LAYERS:-10,12,14}"
-KLAL_LAMBDA="${KLAL_LAMBDA:-1.0}"
+KLAL_LAMBDA="${KLAL_LAMBDA:-1.0}"   # KLAL is on the VL step (vs the VQA loss) — see handover
 KLAL_SIGMA="${KLAL_SIGMA:-1.0}"
 LORA_R="${LORA_R:-16}"
 LORA_ALPHA="${LORA_ALPHA:-32}"
@@ -74,19 +74,6 @@ if [ "${NGPU:-0}" -lt 1 ]; then
 fi
 echo "==> using $NGPU GPU(s):"
 nvidia-smi --query-gpu=index,name,memory.total --format=csv,noheader
-
-# ── extract the bundled KLAL data (once) ─────────────────────────────────────
-M2_DIR="$HERE/m2_klal_data"
-M2B="$M2_DIR/m2bundle"
-if [ ! -d "$M2B" ]; then
-    echo "==> extracting KLAL data bundle (m2_klal_data.tar.zst) ..."
-    mkdir -p "$M2_DIR"
-    tar --use-compress-program=unzstd -xf "$HERE/m2_klal_data.tar.zst" -C "$M2_DIR"
-fi
-for f in face_labels celeb_embeddings.json aug episode_mapping.json; do
-    [ -e "$M2B/$f" ] || { echo "[ERROR] KLAL bundle missing $f" >&2; exit 1; }
-done
-echo "==> KLAL data ready at $M2B"
 
 # ── preflight ────────────────────────────────────────────────────────────────
 python -c "import lerobot.policies.smolvla.modeling_smolvla" 2>/dev/null \
@@ -122,8 +109,4 @@ exec torchrun --standalone --nproc_per_node="$NGPU" \
     --push_to_hub_repo="$PUSH_REPO" \
     --enable_lora --lora_r="$LORA_R" --lora_alpha="$LORA_ALPHA" \
     --enable_klal --klal_layers="$KLAL_LAYERS" \
-    --klal_lambda="$KLAL_LAMBDA" --klal_sigma="$KLAL_SIGMA" \
-    --face_labels_dir="$M2B/face_labels" \
-    --celeb_manifest="$M2B/celeb_embeddings.json" \
-    --aug_root="$M2B/aug" \
-    --episode_mapping="$M2B/episode_mapping.json"
+    --klal_lambda="$KLAL_LAMBDA" --klal_sigma="$KLAL_SIGMA"

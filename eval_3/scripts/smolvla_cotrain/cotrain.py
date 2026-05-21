@@ -40,15 +40,11 @@ Optional KLAL + LoRA (celeb-routing enhancement)
 ------------------------------------------------
 `--enable_lora` adapts the VLM via low-rank adapters (base frozen) instead of
 full fine-tuning. `--enable_klal` adds the KLAL attention-supervision loss on
-robot batches — it teaches the policy's name-token to attend to the prompted
-celeb's face patch, against a bbox-derived target. KLAL needs the M2 toolkit's
-face-bbox data (bboxes only — the M2 ArcFace loss is NOT added):
+the VL batches — it teaches the celeb-name token to attend to the prompted
+portrait, against a Gaussian target built from the VL dataset's
+`quad_corners_norm` column (no external bbox source needed):
 
-    ... --enable_lora --enable_klal \\
-        --face_labels_dir=eval_3/aug/stats/face_labels \\
-        --celeb_manifest=eval_3/aug/stats/celeb_embeddings.json \\
-        --aug_root=/data/eval3_track3_aug \\
-        --episode_mapping=eval_3/aug/stats/episode_mapping.json
+    ... --enable_lora --enable_klal --klal_layers=10,12,14 --klal_lambda=1.0
 
 Checkpoints are saved with the LoRA delta merged into the base weights, so
 they load as a vanilla SmolVLAPolicy (eval-day recipe unchanged).
@@ -71,10 +67,11 @@ from pathlib import Path
 # thread pool before any fork. Must be set before `tokenizers` is imported.
 os.environ.setdefault("TOKENIZERS_PARALLELISM", "false")
 
+import numpy as np
 import torch
 import torch.distributed as dist
 import torch.nn.functional as F
-from torch.utils.data import DataLoader, Dataset, DistributedSampler
+from torch.utils.data import DataLoader, Dataset, DistributedSampler, Subset
 
 # The m2_* helpers (LoRA, KLAL attention supervision) live in eval_3/aug.
 # Add it to the path so the bare `import m2_*` statements resolve regardless
@@ -158,16 +155,8 @@ def parse_args() -> argparse.Namespace:
                    help="Gaussian target sigma in patch units. SmolVLA's 8x8 "
                         "grid is coarser than Pi0.5's 16x16, so 1.0 (vs the "
                         "Pi0.5 KLAL's 1.5) — empirical default, see the port doc.")
-    # KLAL bbox supervision source — the M2 toolkit's data builder. KLAL uses
-    # only the face bounding boxes from it; the M2 ArcFace loss is NOT added.
-    p.add_argument("--face_labels_dir", default=None,
-                   help="M2 toolkit face_labels/ dir (required with --enable_klal).")
-    p.add_argument("--celeb_manifest", default=None,
-                   help="M2 toolkit celeb_embeddings.json (required with --enable_klal).")
-    p.add_argument("--aug_root", default=None,
-                   help="Dir of per-variant augmentation.json (required with --enable_klal).")
-    p.add_argument("--episode_mapping", default=None,
-                   help="M2 toolkit episode_mapping.json (required with --enable_klal).")
+    # KLAL's attention-supervision target is built from the VL dataset's
+    # `quad_corners_norm` column — no external bbox source is needed.
     return p.parse_args()
 
 
@@ -180,7 +169,8 @@ def parse_args() -> argparse.Namespace:
 class VLPairsDataset(Dataset):
     """VQA pairs: (image, prompt) → target. Used for the LM-head CE loss."""
 
-    REQUIRED_COLS = {"image_path", "prompt", "target", "celeb_slug", "caption_type"}
+    REQUIRED_COLS = {"image_path", "prompt", "target", "celeb_slug",
+                     "caption_type", "quad_corners_norm", "bbox_refit_ok"}
 
     def __init__(self, manifest_path_or_id: str, image_root: Path | None = None):
         try:
@@ -281,6 +271,13 @@ class VLPairsDataset(Dataset):
             "prompt": str(row["prompt"]),
             "target": str(row["target"]),
             "celeb_slug": str(row["celeb_slug"]),
+            # KLAL attention target: the printed-portrait quad (4 corners,
+            # normalised [0,1]) and whether its refit was reliable. The parquet
+            # stores the quad as an object-array of four (2,)-arrays — np.stack
+            # joins them into a clean (4,2); np.asarray(...,float32) would raise.
+            "quad_corners_norm": np.stack(
+                row["quad_corners_norm"]).astype(np.float32).reshape(-1, 2),
+            "bbox_refit_ok": bool(row["bbox_refit_ok"]),
         }
 
 
@@ -321,9 +318,10 @@ def make_vl_collator(processor):
             images=images,
             return_tensors="pt",
             padding="longest",
-            # No truncation: SmolVLM expands each <image> into ~1088 tokens;
-            # a small max_length would truncate them and desync the image-token
-            # count between text and input_ids. VL pairs are short Q&A.
+            # do_image_splitting=False: one image -> exactly 64 contiguous
+            # <image> tokens on a clean 8x8 grid, which KLAL's quad->patch
+            # mask relies on. No truncation either (VL pairs are short Q&A).
+            do_image_splitting=False,
         )
 
         # 2. Process prompt-only with the SAME images so image-token
@@ -334,9 +332,7 @@ def make_vl_collator(processor):
             images=images,
             return_tensors="pt",
             padding="longest",
-            # No truncation: SmolVLM expands each <image> into ~1088 tokens;
-            # a small max_length would truncate them and desync the image-token
-            # count between text and input_ids. VL pairs are short Q&A.
+            do_image_splitting=False,
         )
         # Per-sample prompt token length (number of non-pad tokens).
         prompt_lens = prompt_inputs["attention_mask"].sum(dim=1).tolist()
@@ -354,6 +350,13 @@ def make_vl_collator(processor):
 
         out = dict(full_inputs)
         out["labels"] = labels
+        # KLAL (VL-forward attention supervision) inputs — consumed by
+        # compute_klal_loss_vl on VL steps; ignored by the VQA loss.
+        out["celeb_slug"] = [ex["celeb_slug"] for ex in batch]
+        out["quad_corners_norm"] = torch.from_numpy(
+            np.stack([ex["quad_corners_norm"] for ex in batch])).float()
+        out["bbox_refit_ok"] = torch.tensor(
+            [ex["bbox_refit_ok"] for ex in batch], dtype=torch.bool)
         return out
 
     return collate
@@ -620,75 +623,6 @@ def merged_lora_for_save(lora_registry):
         yield
 
 
-def robot_episode_frame_indices(raw_batch: dict) -> tuple[list[int], list[int]]:
-    """Per-sample (episode_index, frame_index) from a raw LeRobotDataset batch.
-
-    KLAL supervision is keyed on these so the bbox builder can look up the
-    prompted celeb's face box for each frame.
-    """
-    if "episode_index" not in raw_batch or "frame_index" not in raw_batch:
-        raise KeyError(
-            "robot batch missing 'episode_index'/'frame_index' — KLAL needs "
-            "both to look up face bboxes. Got keys: "
-            f"{sorted(k for k in raw_batch if isinstance(k, str))}"
-        )
-    ep = raw_batch["episode_index"]
-    fr = raw_batch["frame_index"]
-    if ep.ndim == 2:
-        ep = ep[:, -1]
-    if fr.ndim == 2:
-        fr = fr[:, -1]
-    return (ep.detach().cpu().long().tolist(),
-            fr.detach().cpu().long().tolist())
-
-
-def compute_klal_loss(hookset, cfg, builder, name_ids, batch, ep_idx, fr_idx,
-                      device) -> torch.Tensor:
-    """Build KLAL supervision for the robot batch and return the scaled loss.
-
-    Returns a 0-d tensor; 0.0 (no grad) if no name tokens / bboxes / image
-    offset could be resolved for the batch (logged once — CLAUDE.md §5).
-    """
-    from m2_klal import klal_loss
-    from m2_klal_smolvla import extract_name_token_positions
-
-    sup = builder.build_batch_from_episode_indices(
-        episode_indices=ep_idx, frame_idxs=fr_idx, device=device)
-    bbox_masks = sup["bbox_masks"]                       # (B, 3, P) bool
-    B = bbox_masks.shape[0]
-    tgt_slot = sup.get("target_slot_idx")
-    if tgt_slot is None:
-        # No explicit prompted-slot index — union the 3 slots (less precise).
-        target_masks = bbox_masks.any(dim=1)             # (B, P)
-    else:
-        target_masks = torch.stack(
-            [bbox_masks[b, int(tgt_slot[b])] for b in range(B)], dim=0)
-
-    lang_tokens = batch.get("observation.language.tokens")
-    name_pos = None
-    if lang_tokens is not None:
-        name_pos = extract_name_token_positions(
-            lang_tokens, sup.get("target_celeb_short"), name_ids)
-
-    off = hookset.image_prefix_len()
-    patches = hookset.patches_per_image()
-    if name_pos is None or off is None or patches is None:
-        if not getattr(compute_klal_loss, "_warned", False):
-            print(f"[WARN] KLAL: no supervision this step — "
-                  f"expected=name tokens + measured image-prefix length, got "
-                  f"name_pos={name_pos is not None} off={off} patches={patches}, "
-                  f"fallback=KLAL contributes 0 (logged once)", flush=True)
-            compute_klal_loss._warned = True
-        return torch.zeros((), device=device)
-
-    # name_pos holds positions WITHIN the language sequence; offset by the
-    # image-patch span to get prefix-row indices.
-    shifted = torch.where(name_pos >= 0, name_pos + off, name_pos).to(device)
-    return klal_loss(hookset, image_patch_slice=slice(0, patches),
-                     name_token_positions=shifted,
-                     target_masks=target_masks.to(device), cfg=cfg)
-
-
 # -----------------------------------------------------------------------------
 # Multi-GPU helpers
 # -----------------------------------------------------------------------------
@@ -808,29 +742,18 @@ def main() -> int:
         print(f"[cotrain] rank {rank}: broadcast-synced model from rank 0",
               flush=True)
 
-    # 1b. KLAL attention supervision (robot steps only). Teaches the VLM's
-    # name-token to attend to the prompted celeb's face patch, against a
-    # bbox-derived Gaussian target. Bboxes come from the M2 toolkit's data
-    # builder — bboxes only, the M2 ArcFace loss is NOT added.
+    # 1b. KLAL attention supervision (VL steps). On each VL batch, after the
+    # VQA loss, KLAL supervises the celeb-name token's attention toward the
+    # prompted portrait's quad (eval3_track3_vl_pairs.quad_corners_norm),
+    # recomputed faithfully from the SmolVLM2 text model's q/k + rotary_emb.
     klal_hookset = None
     klal_cfg = None
-    klal_builder = None
     klal_name_ids = None
     if args.enable_klal:
-        for flag, val in [("--face_labels_dir", args.face_labels_dir),
-                          ("--celeb_manifest", args.celeb_manifest),
-                          ("--aug_root", args.aug_root),
-                          ("--episode_mapping", args.episode_mapping)]:
-            if not val:
-                raise SystemExit(f"--enable_klal requires {flag}")
-        if getattr(policy_cfg, "add_image_special_tokens", False):
-            raise SystemExit(
-                "KLAL needs add_image_special_tokens=False — with special "
-                "tokens the image-prefix length the loss relies on is wrong.")
-
-        from m2_dataloader import M2SupervisionBuilder
         from m2_klal import KLALConfig
-        from m2_klal_smolvla import KLALHookSetSmolVLA, build_name_token_ids
+        from m2_klal_smolvla import build_name_token_ids
+        from m2_klal_vl import (KLALHookSetSmolVLMVL, compute_klal_loss_vl,
+                                NUM_IMAGE_PATCHES, PATCH_GRID)
 
         klal_layers = tuple(int(x) for x in args.klal_layers.split(","))
         if args.enable_lora and not set(klal_layers).issubset(set(lora_layers)):
@@ -838,28 +761,31 @@ def main() -> int:
                 f"--klal_layers {klal_layers} must be a subset of the LoRA "
                 f"layers {sorted(lora_layers)} — KLAL can only shape attention "
                 f"where the q/k projections are trainable.")
-
-        klal_builder = M2SupervisionBuilder(
-            face_labels_dir=Path(args.face_labels_dir),
-            manifest_path=Path(args.celeb_manifest),
-            aug_root=Path(args.aug_root),
-            episode_mapping_path=Path(args.episode_mapping),
-        )
-        vlm_we = policy.model.vlm_with_expert
-        tcfg = vlm_we.config.text_config
+        text_model = policy.model.vlm_with_expert.vlm.model.text_model
+        n_text_layers = len(text_model.layers)
+        if max(klal_layers) >= n_text_layers:
+            raise SystemExit(
+                f"--klal_layers {klal_layers} out of range — the VLM text "
+                f"model has only {n_text_layers} layers (lerobot truncates it).")
+        tcfg = text_model.config
+        attn0 = text_model.layers[0].self_attn
         n_heads = tcfg.num_attention_heads
         n_kv = tcfg.num_key_value_heads
-        head_dim = getattr(tcfg, "head_dim", None) or (tcfg.hidden_size // n_heads)
-        klal_hookset = KLALHookSetSmolVLA(
-            vlm_we.vlm.model.text_model, vlm_we, klal_layers,
-            n_heads, n_kv, head_dim)
+        head_dim = (getattr(attn0, "head_dim", None)
+                    or getattr(tcfg, "head_dim", None)
+                    or tcfg.hidden_size // n_heads)
+        scaling = getattr(attn0, "scaling", None) or (head_dim ** -0.5)
+        klal_hookset = KLALHookSetSmolVLMVL(
+            text_model, klal_layers, n_heads, n_kv, head_dim, scaling)
         klal_cfg = KLALConfig(capture_layers=klal_layers,
                               target_sigma_patches=args.klal_sigma,
                               lam=args.klal_lambda,
-                              patch_grid=8, num_image_patches_total=64)
+                              patch_grid=PATCH_GRID,
+                              num_image_patches_total=NUM_IMAGE_PATCHES)
         klal_name_ids = build_name_token_ids(vl_processor.tokenizer)
-        print(f"[cotrain] KLAL enabled: layers={klal_layers} "
+        print(f"[cotrain] KLAL (VL-forward) enabled: layers={klal_layers} "
               f"lambda={args.klal_lambda} sigma={args.klal_sigma}, "
+              f"heads={n_heads}/{n_kv} head_dim={head_dim}, "
               f"celeb name-tokens="
               f"{ {k: len(v) for k, v in klal_name_ids.items()} }", flush=True)
 
@@ -874,11 +800,26 @@ def main() -> int:
         pretrained_path=args.pretrained_path,
         device=device,
     )
-    robot_sampler = (DistributedSampler(robot_ds, num_replicas=world_size, rank=rank,
-                                        shuffle=True, drop_last=True)
+    # The merged dataset's metadata can overcount frames vs the actual data
+    # rows (so101_eval3_track3_v3_baseline: meta says 5,053,972, the parquet
+    # has 5,053,812). LeRobotDataset.__len__ trusts the metadata, so the
+    # sampler would emit out-of-range indices and crash a DataLoader worker.
+    # Cap the dataloader to the real row count; robot_ds itself is left intact
+    # for the preprocessor above (which needs its LeRobotDataset metadata).
+    robot_true_len = len(robot_ds.hf_dataset)
+    if len(robot_ds) != robot_true_len:
+        print(f"[WARN] robot dataset: metadata frame count {len(robot_ds)} != "
+              f"actual data rows {robot_true_len} (off by "
+              f"{len(robot_ds) - robot_true_len}); fallback=capping the "
+              f"dataloader to {robot_true_len} usable frames", flush=True)
+        robot_ds_loader = Subset(robot_ds, range(robot_true_len))
+    else:
+        robot_ds_loader = robot_ds
+    robot_sampler = (DistributedSampler(robot_ds_loader, num_replicas=world_size,
+                                        rank=rank, shuffle=True, drop_last=True)
                      if world_size > 1 else None)
     robot_loader = DataLoader(
-        robot_ds,
+        robot_ds_loader,
         batch_size=args.batch_size,
         sampler=robot_sampler,
         shuffle=(robot_sampler is None),
@@ -946,12 +887,24 @@ def main() -> int:
                     vl_sampler.set_epoch(vl_epoch)
                 vl_iter = iter(vl_loader)
                 batch = next(vl_iter)
+            # KLAL: arm the hooks before the VL forward — q/k + rotary_emb are
+            # captured during smolvla_vqa_loss's vlm(...) call.
+            if klal_hookset is not None:
+                klal_hookset.reset()
             with torch.amp.autocast(device_type=device.type,
                                      dtype=torch.bfloat16 if args.dtype == "bfloat16"
                                                           else torch.float32):
-                loss = smolvla_vqa_loss(policy, batch, device)
+                vqa_loss = smolvla_vqa_loss(policy, batch, device)
+            loss = vqa_loss
+            last_vqa_loss = float(vqa_loss.detach())
+            # KLAL attention-supervision loss, recomputed from the q/k captured
+            # during the VL forward; its gradient flows into the VLM q/k LoRA.
+            if klal_hookset is not None:
+                klal_v = compute_klal_loss_vl(
+                    klal_hookset, klal_cfg, klal_name_ids, batch, device)
+                loss = vqa_loss + klal_v.to(vqa_loss.dtype)
+                last_klal_loss = float(klal_v.detach())
             loss_name = "vqa_loss"
-            last_vqa_loss = loss.item()
         else:
             try:
                 batch = next(robot_iter)
@@ -961,11 +914,6 @@ def main() -> int:
                     robot_sampler.set_epoch(robot_epoch)
                 robot_iter = iter(robot_loader)
                 batch = next(robot_iter)
-            # KLAL: read episode/frame indices off the RAW batch and arm the
-            # attention hooks before the forward.
-            if klal_hookset is not None:
-                ep_idx, fr_idx = robot_episode_frame_indices(batch)
-                klal_hookset.reset()
             # Apply the SmolVLA preprocessor: tokenizes the language task,
             # normalizes state/action features, moves to device. Without
             # this the policy's forward raises KeyError on language tokens.
@@ -975,15 +923,7 @@ def main() -> int:
                                                           else torch.float32):
                 flow_loss = smolvla_action_loss(policy, batch)
             loss = flow_loss
-            last_flow_loss = flow_loss.item()
-            # KLAL loss — recomputed from the q/k captured during the forward
-            # above; its gradient flows back into the VLM q/k (LoRA adapters).
-            if klal_hookset is not None:
-                klal_v = compute_klal_loss(
-                    klal_hookset, klal_cfg, klal_builder, klal_name_ids,
-                    batch, ep_idx, fr_idx, device)
-                loss = flow_loss + klal_v.to(flow_loss.dtype)
-                last_klal_loss = float(klal_v.detach())
+            last_flow_loss = float(flow_loss.detach())
             loss_name = "flow_loss"
 
         # Skip the step if the loss is non-finite on ANY rank. The finite flag
