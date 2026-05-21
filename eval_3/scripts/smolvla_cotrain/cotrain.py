@@ -694,6 +694,38 @@ def _save_and_push(policy, preprocessor, postprocessor, lora_registry,
 # Main training loop
 # -----------------------------------------------------------------------------
 
+def _assert_ddp_synced(policy, world_size: int, is_main: bool, device, tag: str
+                       ) -> None:
+    """Verify every rank holds bit-identical trainable weights.
+
+    If the broadcast-sync and the per-step gradient all-reduce are working,
+    all ranks apply the identical averaged gradient and stay in lockstep, so
+    a checksum of the trainable params is identical across ranks. A mismatch
+    means the ranks have diverged into different models — raise rather than
+    let a 24h run silently train 8 disagreeing policies. Cheap: one checksum
+    + two all-reduces; called post-broadcast and at every checkpoint.
+    """
+    if world_size <= 1:
+        return
+    checksum = torch.zeros((), dtype=torch.float64, device=device)
+    for p in policy.parameters():
+        if p.requires_grad:
+            checksum = checksum + p.detach().double().sum()
+    lo = checksum.clone()
+    hi = checksum.clone()
+    dist.all_reduce(lo, op=dist.ReduceOp.MIN)
+    dist.all_reduce(hi, op=dist.ReduceOp.MAX)
+    if not torch.isfinite(checksum) or not torch.isclose(lo, hi, rtol=1e-5,
+                                                         atol=1e-3):
+        raise RuntimeError(
+            f"[cotrain] DDP DESYNC at {tag}: trainable-param checksum differs "
+            f"across ranks (min={lo.item():.6f} max={hi.item():.6f}) — the "
+            f"ranks have diverged into different models. Aborting.")
+    if is_main:
+        print(f"[cotrain] DDP sync verified at {tag} "
+              f"(trainable-param checksum={lo.item():.6f})", flush=True)
+
+
 def main() -> int:
     args = parse_args()
 
@@ -741,6 +773,7 @@ def main() -> int:
             dist.broadcast(b.data, src=0)
         print(f"[cotrain] rank {rank}: broadcast-synced model from rank 0",
               flush=True)
+        _assert_ddp_synced(policy, world_size, is_main, device, "post-broadcast")
 
     # 1b. KLAL attention supervision (VL steps). On each VL batch, after the
     # VQA loss, KLAL supervises the celeb-name token's attention toward the
@@ -979,10 +1012,13 @@ def main() -> int:
                   f"(last flow={last_flow_loss:.4f} vqa={last_vqa_loss:.4f} "
                   f"klal={last_klal_loss:.4f})  "
                   f"grad={grad_norm:.2f}  steps/s={steps_per_sec:.2f}  "
+                  f"vram={torch.cuda.max_memory_reserved(device) / 2**30:.1f}gib  "
                   f"elapsed={elapsed_min:.0f}min  eta={eta_min:.0f}min",
                   flush=True)
 
         if step > 0 and step % args.save_freq == 0:
+            _assert_ddp_synced(policy, world_size, is_main, device,
+                               f"step {step}")
             if is_main:
                 _save_and_push(policy, preprocessor, postprocessor, lora_registry,
                                out_dir / f"step_{step:06d}",

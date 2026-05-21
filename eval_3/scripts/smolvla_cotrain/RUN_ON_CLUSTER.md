@@ -92,8 +92,8 @@ bash eval_3/scripts/smolvla_cotrain/run_cluster.sh
 That's it. The script:
 - autodetects **every GPU** on the node and launches one process per GPU
   (`torchrun`, manual data-parallel gradient all-reduce);
-- extracts the bundled KLAL data (`m2_klal_data.tar.zst`, already in the repo);
-- trains **25,000 steps**, 10:1 robot:VL, with KLAL + LoRA;
+- trains **50,000 steps**, 5:1 robot:VL, with KLAL + LoRA — KLAL's attention
+  target is built from the VL dataset's `quad_corners_norm` column;
 - saves a checkpoint and **pushes it to HF every 5,000 steps** (+ a final one).
 
 **First run downloads ~15 GB of datasets** before training starts — this is
