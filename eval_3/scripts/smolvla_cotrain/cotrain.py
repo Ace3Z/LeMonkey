@@ -584,6 +584,45 @@ def build_robot_preprocessor(policy_cfg, dataset, pretrained_path: str, device: 
 # it runs single-GPU exactly as before.
 # -----------------------------------------------------------------------------
 
+def upload_checkpoint(local_dir: Path, repo_id: str, path_in_repo: str | None) -> bool:
+    """Upload a checkpoint dir to the HF Hub. Best-effort: never raises.
+
+    Returns True on success, False on failure (after logging a [WARN]).
+
+    launch.sh exports HF_HUB_OFFLINE=1 once both datasets are cached, which
+    would block every Hub HTTP call. By training time the datasets are loaded
+    and per-item reads hit local disk, so we flip the offline flag off just
+    for the upload and restore it afterwards (workers have their own copy).
+    A failed upload must never kill a multi-hour run — hence the [WARN].
+    """
+    import huggingface_hub.constants as hf_const
+    from huggingface_hub import HfApi
+
+    prev_offline = hf_const.HF_HUB_OFFLINE
+    hf_const.HF_HUB_OFFLINE = False
+    try:
+        api = HfApi(token=os.environ.get("HF_TOKEN"))
+        api.create_repo(repo_id, repo_type="model", exist_ok=True)
+        api.upload_folder(
+            folder_path=str(local_dir),
+            repo_id=repo_id,
+            repo_type="model",
+            path_in_repo=path_in_repo,
+            commit_message=f"checkpoint: {path_in_repo or 'final'}",
+        )
+        dest = f"{repo_id}/{path_in_repo}" if path_in_repo else repo_id
+        print(f"[cotrain] uploaded {local_dir.name} → "
+              f"https://huggingface.co/{dest}", flush=True)
+        return True
+    except Exception as e:
+        print(f"[WARN] checkpoint upload: expected=upload {local_dir} to "
+              f"{repo_id}/{path_in_repo or '(root)'}, got={type(e).__name__}: {e}, "
+              f"fallback=local-only checkpoint at {local_dir}", flush=True)
+        return False
+    finally:
+        hf_const.HF_HUB_OFFLINE = prev_offline
+
+
 def main() -> int:
     args = parse_args()
 
@@ -829,6 +868,10 @@ def main() -> int:
                 preprocessor.save_pretrained(ckpt_dir)
                 postprocessor.save_pretrained(ckpt_dir)
                 log(f"[cotrain] checkpoint saved → {ckpt_dir}")
+                # Auto-upload this checkpoint to its own step_NNNNNN/ subfolder.
+                if args.push_to_hub_repo:
+                    upload_checkpoint(ckpt_dir, args.push_to_hub_repo,
+                                      f"step_{step:06d}")
             # All ranks meet here so non-main ranks do not run ahead into the
             # next step's collectives while rank 0 is still writing the ckpt.
             if is_distributed:
@@ -852,18 +895,9 @@ def main() -> int:
         dist.barrier()
         dist.destroy_process_group()
 
-    # 7. HF push (policy + processors) — rank 0 only, no live process group.
+    # 7. HF push (final checkpoint dir) — rank 0 only, no live process group.
     if is_main and args.push_to_hub_repo:
-        try:
-            policy.push_to_hub(args.push_to_hub_repo)
-            preprocessor.push_to_hub(args.push_to_hub_repo)
-            postprocessor.push_to_hub(args.push_to_hub_repo)
-            log(f"[cotrain] pushed to https://huggingface.co/{args.push_to_hub_repo}")
-        except Exception as e:
-            print(f"[WARN] HF push failed: expected=push policy+preprocessor+postprocessor "
-                  f"to {args.push_to_hub_repo}, got={type(e).__name__}: {e}, "
-                  f"fallback=local-only checkpoint at {final_dir}",
-                  flush=True)
+        if not upload_checkpoint(final_dir, args.push_to_hub_repo, None):
             rc = 1
 
     return rc
