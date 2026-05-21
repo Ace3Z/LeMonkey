@@ -1,5 +1,5 @@
-The branch that was tested for **eval 3** is https://github.com/Ace3Z/LeMonkey/tree/feat/cotrain-smolvla-darius and trained on these datasets:
-https://huggingface.co/datasets/HBOrtiz/so101_eval3_track3_v3_baseline
+The branch that was tested for **eval 3** is https://github.com/Ace3Z/LeMonkey/tree/feat/cotrain-smolvla-darius and trained on these datasets:   
+https://huggingface.co/datasets/HBOrtiz/so101_eval3_track3_v3_baseline   
 https://huggingface.co/datasets/HBOrtiz/eval3_track3_vl_pairs
 
 The Trained model for **eval 3** is sitting at:
