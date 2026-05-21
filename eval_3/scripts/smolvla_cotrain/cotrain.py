@@ -644,12 +644,14 @@ def _setup_distributed():
         # nccl for real multi-GPU. COTRAIN_DDP_BACKEND=gloo is a fallback that
         # also lets the distributed path be exercised on a single-GPU box.
         backend = os.environ.get("COTRAIN_DDP_BACKEND", "nccl")
+        # set_device MUST precede init_process_group so NCCL binds each rank to
+        # its own GPU (matches feat/cotrain-smolvla-darius's ordering).
+        if torch.cuda.is_available():
+            torch.cuda.set_device(local_rank % torch.cuda.device_count())
         # Generous timeout: rank 0 downloads the full ~15 GB dataset inside a
         # main_process_first() barrier while the other ranks wait — that can
         # exceed the default 10-minute collective timeout.
         dist.init_process_group(backend=backend, timeout=timedelta(hours=2))
-        if torch.cuda.is_available():
-            torch.cuda.set_device(local_rank % torch.cuda.device_count())
         print(f"[cotrain] distributed: rank {rank}/{world_size} "
               f"(local_rank {local_rank})", flush=True)
     return rank, world_size, local_rank, (rank == 0)
@@ -1028,13 +1030,16 @@ def main() -> int:
             if world_size > 1:
                 dist.barrier()
 
-    # 6. Final save + push (rank 0).
-    if is_main:
-        _save_and_push(policy, preprocessor, postprocessor, lora_registry,
-                       out_dir / "final", args.push_to_hub_repo, "final")
+    # Sync, then tear the process group DOWN before the final save + push: the
+    # HF upload can be slow, and a barrier left live during it would trip the
+    # NCCL watchdog on the waiting ranks (matches feat/cotrain-smolvla-darius).
     if world_size > 1:
         dist.barrier()
         dist.destroy_process_group()
+    # 6. Final save + push (rank 0 only — no live process group now).
+    if is_main:
+        _save_and_push(policy, preprocessor, postprocessor, lora_registry,
+                       out_dir / "final", args.push_to_hub_repo, "final")
 
     return 0
 
