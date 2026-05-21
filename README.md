@@ -2,6 +2,9 @@ The branch that was tested for **eval 3** is https://github.com/Ace3Z/LeMonkey/t
 https://huggingface.co/datasets/HBOrtiz/so101_eval3_track3_v3_baseline
 https://huggingface.co/datasets/HBOrtiz/eval3_track3_vl_pairs
 
+The Trained model for **eval 3** is sitting at:
+https://huggingface.co/HBOrtiz/smolvla_eval3_cotrain_track3_5to1_cam1
+
 The branch that was tested and trained for eval 1 and 2 are sitting at the **main branch**
 
 # LeMonkey
