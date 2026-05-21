@@ -1,3 +1,9 @@
+The branch that was tested for **eval 3** is https://github.com/Ace3Z/LeMonkey/tree/feat/cotrain-smolvla-darius and trained on these datasets:
+https://huggingface.co/datasets/HBOrtiz/so101_eval3_track3_v3_baseline
+https://huggingface.co/datasets/HBOrtiz/eval3_track3_vl_pairs
+
+The branch that was tested and trained for eval 1 and 2 are sitting at the **main branch**
+
 # LeMonkey
 
 > Vision-Language-Action manipulation policy for the ETH Robot Learning FS26
