@@ -4,13 +4,13 @@
 <table>
   <tr>
     <td align="center" valign="middle">
-      <img src="media/figures/cvg_logo_colour-white.png" height="60"/>
+      <img src="media/figures/cvg_logo_colour-white.png" height="40"/>
     </td>
     <td align="center" valign="middle">
       <img src="media/figures/eth_logo_kurz_neg.png" height="100"/>
     </td>
     <td align="center" valign="middle">
-      <img src="media/figures/ETHRC_primarywhite.svg" height="30"/>
+      <img src="media/figures/ETHRC_primarywhite.svg" height="35"/>
     </td>
     <td align="center" valign="middle">
       <img src="media/figures/Microsoft-logo_rgb_c-gray.png" height="120"/>
