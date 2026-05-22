@@ -6,7 +6,7 @@ batches** (the `eval3_track3_vl_pairs` grounding stream) — the companion to
 `m2_klal_smolvla.py`, which handles the robot-action forward.
 
 Why a separate module — verified facts (research probe 2026-05-21, see
-`docs/report/2026-05-21_brev_handover.md`):
+`2026-05-21_brev_handover.md`):
 
 - SmolVLA's VLM (SmolVLM2-500M) text model is a stock transformers
   `LlamaModel`: a shared `rotary_emb` module emits `(cos, sin)`, and

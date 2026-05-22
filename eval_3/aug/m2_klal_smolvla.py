@@ -32,7 +32,7 @@ Why the recompute is faithful (same argument as the Pi0.5 KLAL):
 - RoPE MUST be applied: `forward_attn_layer` RoPEs q/k before attention; a
   no-RoPE recompute would supervise a proxy decoupled from the policy's real
   attention — the HIGH-severity bug found in the Pi0.5 KLAL
-  (docs/experiments/2026-05-20_track_E_method_validation.md §3).
+  (2026-05-20_track_E_method_validation.md §3).
 """
 from __future__ import annotations
 

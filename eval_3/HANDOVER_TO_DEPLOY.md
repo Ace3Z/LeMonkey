@@ -16,7 +16,7 @@ We're at the point where Eval 3's **dataset is locked, the policy is trained, an
 | Augmented + base merged dataset | [`HBOrtiz/so101_eval3_all`](https://huggingface.co/datasets/HBOrtiz/so101_eval3_all) (public) | 4195 episodes, 933 unique prompts, 2.26M frames, 7.5 GB. Schema: `observation.images.camera1` (480×640 wrist) + `observation.images.reference` (480×480 constant-frame ref photo). |
 | Trained SmolVLA policy | [`HBOrtiz/smolvla_eval3`](https://huggingface.co/HBOrtiz/smolvla_eval3) | 450M params, 30k steps, 6 checkpoints (5k–25k under `checkpoints/`, 30k at root for `from_pretrained()`). Final loss 0.018. |
 | Training recipe + brev scripts | `eval_3/scripts/brev/` | Locked. Includes `TORCHCODEC_OOM_REPORT.md` capturing the only major incident we hit. |
-| 50-celebrity sample PDF + zip | `docs/Eval_3_Sample_Celebrity_Images.{pdf,zip,index.txt}` | A5 portraits, includes the 3 IID OOD photos. Can be printed to physically extend the eval set. |
+| 50-celebrity sample PDF + zip | `Eval_3_Sample_Celebrity_Images.{pdf,zip,index.txt}` | A5 portraits, includes the 3 IID OOD photos. Can be printed to physically extend the eval set. |
 
 ## What's NOT yet built
 
@@ -30,7 +30,7 @@ The `rename_map` we used at training time was `{"observation.images.reference": 
 
 Per-rollout flow:
 1. Operator picks a target celebrity (CLI arg / prompt input).
-2. Script loads the reference photo for that celebrity (e.g. from `~/LeMonkey/docs/Eval_3_Sample_Celebrity_Images.zip` → `images/NN_<slug>.<ext>`, or any external photo).
+2. Script loads the reference photo for that celebrity (e.g. from `~/LeMonkey/Eval_3_Sample_Celebrity_Images.zip` → `images/NN_<slug>.<ext>`, or any external photo).
 3. Resize/letterbox the reference photo to 480×480 (the training resolution).
 4. Build the text prompt - same format as training: `"Set the coke down on <Display Name>'s picture."` (or any of the 933 templates - they're synonymous to the model now).
 5. Start a 20 s rollout: at every step, the policy gets (camera1 = live wrist frame, camera2 = the same reference photo, camera3 = zeros, prompt = text) → returns a 6-DOF action chunk → SO-101 follower follows.
@@ -90,11 +90,11 @@ print('expects keys  :', p.config.image_features)
 ## Reference photo source for rollouts
 
 For the 9 official eval rollouts you'll need:
-- **Runs 1–3 (known IID):** photos from `docs/Eval_3_TOY_Celebrity_Images.pdf` - the exact same images the TAs handed out and which the workspace prints are cut from. Use 1 per celeb.
+- **Runs 1–3 (known IID):** photos from `Eval_3_TOY_Celebrity_Images.pdf` - the exact same images the TAs handed out and which the workspace prints are cut from. Use 1 per celeb.
 - **Runs 4–6 (held-out IID):** photos from `datasets/eval3_celebs/heldout/{lecun,obama,swift}/` - none of these were in the training set's reference stream (they're held out specifically for this).
 - **Runs 7–9 (OOD):** TBD by TAs (they publish on Slack). If they pick a celeb in our 192-celeb training pool, the model has seen *augmented* portraits of them but not *photos* of them as references - that's still mostly OOD. If they pick someone outside our pool, fully OOD.
 
-For practice / smoke tests before the official eval, you can use any photo from `docs/Eval_3_Sample_Celebrity_Images.zip` - that bundle has 50 portraits including the 3 IID OOD photos already selected.
+For practice / smoke tests before the official eval, you can use any photo from `Eval_3_Sample_Celebrity_Images.zip` - that bundle has 50 portraits including the 3 IID OOD photos already selected.
 
 ## Don'ts
 

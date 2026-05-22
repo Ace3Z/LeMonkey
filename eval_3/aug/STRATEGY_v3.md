@@ -365,7 +365,7 @@ For any such pair, manually:
   same training triple (target + distractors).
 
 Implementation: `eval_3/scripts/audit_bank_arcface.py` (new). Output:
-`docs/report/eval3_arcface_audit.json` with the matrix + the flagged
+`eval3_arcface_audit.json` with the matrix + the flagged
 pairs.
 
 ### §7.2 Per-celeb photo count audit
@@ -583,7 +583,7 @@ Each load-bearing decision verified against ≥ 3 independent sources.
 - `eval_3/aug/VALIDATION.md` - triple-source audit of v1 numerical defaults; still applies to MTF blur σ, Reinhard, etc.
 - `eval_3/scripts/scrape_headshots.py` - multi-source bank builder
 - `eval_3/scripts/record_eval3_guided.sh` - 180-ep recording structure
-- `docs/PROJECT.md` - Eval 3 task brief
+- `PROJECT.md` - Eval 3 task brief
 
 ---
 

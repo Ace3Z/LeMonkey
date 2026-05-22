@@ -9,7 +9,7 @@ labelled with the celeb names from the VL-pairs manifest. Degenerate quads
 Originally written to inspect the ~21% degenerate-quad bug in the pre-v3
 VL-pairs dataset (the augmented videos themselves were fine — the degenerate
 quad was an annotation-only defect). Kept as a general quad-overlay video
-renderer. See docs/experiments/2026-05-21_vl_pairs_image_mispairing.md
+renderer. See 2026-05-21_vl_pairs_image_mispairing.md
 
 Usage:
     python eval_3/tools/render_quad_overlay_videos.py --manifest manifest.parquet

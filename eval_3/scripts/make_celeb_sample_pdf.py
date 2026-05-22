@@ -14,7 +14,7 @@ of the page and the celebrity's display name printed underneath. 50
 pages total, alphabetized by display name for easy lookup.
 
 Usage:
-    make_celeb_sample_pdf.py [--seed 42] [--out docs/Eval_3_Sample_Celebrity_Images.pdf]
+    make_celeb_sample_pdf.py [--seed 42] [--out Eval_3_Sample_Celebrity_Images.pdf]
 """
 from __future__ import annotations
 
@@ -122,7 +122,7 @@ def main() -> int:
     p.add_argument("--heldout-root", type=Path,
                    default=Path("datasets/eval3_celebs/heldout"))
     p.add_argument("--out", type=Path,
-                   default=Path("docs/Eval_3_Sample_Celebrity_Images.pdf"))
+                   default=Path("Eval_3_Sample_Celebrity_Images.pdf"))
     p.add_argument("--seed", type=int, default=42)
     p.add_argument("--n-random", type=int, default=47)
     args = p.parse_args()

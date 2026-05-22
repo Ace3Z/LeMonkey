@@ -59,7 +59,7 @@ import numpy as np
 #   FAR=1e-4 → 0.42, FAR=1e-3 → 0.36 (InsightFace docs)
 #   For OUR inpainted-painted-photo distribution (NOT clean web headshots),
 #   empirical scatter is ~10-15% looser (per Mahbod's M2 data audit
-#   docs/experiments/2026-05-19_m2_data_audit.md: same-celeb cos ~0.5-0.8,
+#   2026-05-19_m2_data_audit.md: same-celeb cos ~0.5-0.8,
 #   cross-celeb cos ~0.0-0.2).
 #   → 0.5 keep threshold = "well above noise floor, below clean-face mean"
 DEFAULT_KEEP_COS = 0.50

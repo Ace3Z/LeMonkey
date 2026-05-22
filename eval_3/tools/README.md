@@ -22,7 +22,5 @@ re-render anytime via the scripts). Current contents:
 ## Provenance
 
 These came out of the 2026-05-21 dataset audit that found and fixed two bugs in
-`eval3_track3_vl_pairs` (image↔label mispairing, degenerate quads). Full record:
-
-- `docs/experiments/2026-05-21_vl_pairs_image_mispairing.md`
-- `docs/experiments/2026-05-21_track3_robot_dataset_visual_verify.md`
+`eval3_track3_vl_pairs`: image-to-label mispairing, and degenerate bounding-box
+quads.

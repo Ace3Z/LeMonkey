@@ -8,7 +8,7 @@ confirm every label matches the face inside its quad and the quads tightly
 bound the rotated portraits.
 
 Used 2026-05-21 to validate the v3 VL-pairs dataset after the image<->label
-mispairing fix. See docs/experiments/2026-05-21_vl_pairs_image_mispairing.md
+mispairing fix. See 2026-05-21_vl_pairs_image_mispairing.md
 
 Expects the dataset's data.tar.zst already extracted under --data-root, so
 that <data-root>/images/ and <data-root>/references/ exist.

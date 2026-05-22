@@ -8,7 +8,7 @@ Covers, with real torch:
            hooks fire and KLAL's gradient reaches the LoRA adapters.
 
 The full 200-step cotrain smoke (datasets + flow/vqa/klal losses) is a
-separate GPU-box run — see docs/experiments/2026-05-20_klal_lora_smolvla_cotrain.md.
+separate GPU-box run — see 2026-05-20_klal_lora_smolvla_cotrain.md.
 
 Run:  <lemonkey-env-python> eval_3/aug/tests/test_klal_lora_smoke.py
 """

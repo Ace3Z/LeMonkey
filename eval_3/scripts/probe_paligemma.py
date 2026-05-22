@@ -11,7 +11,7 @@ Decision rule (per eval_3/README.md):
     anything below                               → Path A mandatory
 
 Inputs:
-  • TOY images extracted from docs/Eval_3_TOY_Celebrity_Images.pdf
+  • TOY images extracted from Eval_3_TOY_Celebrity_Images.pdf
     (skips img-006-009 which has "BARACK OBAMA" text overlay → would let the
     VLM OCR-cheat; skips img-008-015, a duplicate of img-008-013).
   • A handful of OOD reference photos pulled from Wikimedia Commons at runtime
@@ -144,7 +144,7 @@ def main() -> int:
     if not TOY_DIR.is_dir() or not any(TOY_DIR.glob("img-*.png")):
         print(f"ERROR: TOY images not found at {TOY_DIR}", file=sys.stderr)
         print("       Run first:", file=sys.stderr)
-        print(f"       pdfimages -p -j /home/lemonkey/LeMonkey/docs/Eval_3_TOY_Celebrity_Images.pdf {TOY_DIR}/img", file=sys.stderr)
+        print(f"       pdfimages -p -j /home/lemonkey/LeMonkey/Eval_3_TOY_Celebrity_Images.pdf {TOY_DIR}/img", file=sys.stderr)
         print("       (then convert ppm → png)", file=sys.stderr)
         return 1
 

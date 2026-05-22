@@ -5,7 +5,7 @@
 Why we need it: M2 distillation shaped face-patch hidden states to align
 with ArcFace centroids on SmolVLA, but the language-name token never
 attended to those face patches (attention probe found constant argmax
-across prompts → `docs/experiments/2026-05-19_attention_probe_step10000`).
+across prompts → `2026-05-19_attention_probe_step10000`).
 KLAL directly supervises the attention distribution from name-tokens to
 image-patches with a target distribution built from bounding-box
 annotations.

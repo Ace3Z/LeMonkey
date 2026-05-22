@@ -1,65 +1,48 @@
-# macOS
-.DS_Store
+# ===== LeMonkey .gitignore =====
+# Tracked: code, scripts, configs, READMEs, demo GIFs.
+# Local only: datasets, model weights, recordings, internal notes.
 
-# IDE / editor
-.vscode/
-.idea/
-*.swp
-
-# Python
-__pycache__/
-*.py[cod]
-*.egg-info/
-.venv/
-venv/
-env/
-.env
-.ipynb_checkpoints/
-
-# ML / training artifacts
-checkpoints/
-runs/
-outputs/
-logs/
-wandb/
-*.ckpt
-*.pth
-*.pt
-*.safetensors
-
-# Third-party deps installed locally (sam2 is cloned + checkpoint downloaded per machine)
-third_party/sam2/
-
-# Datasets (typically hosted on HF Hub, not in git)
-data/
+# Datasets and model weights (hosted on the Hugging Face Hub)
 datasets/
+*.safetensors
+*.pt
+*.pth
+*.ckpt
 
-# docs/ — internal only: course brief, experiment logs, reports, setup notes (local-only, not for git)
-docs/
-
-# eval_1/: track the scripts, ignore heavy artifacts
+# Per-eval runtime artifacts (scripts are tracked, heavy outputs are not)
 eval_1/train/
 eval_1/rollouts/
-eval_1/bench/
 eval_1/evals/
+eval_1/bench/
 eval_1/SETUP.md
-eval_1/__pycache__/
-
-# eval_2/: track the scripts, ignore heavy artifacts and personal recording state
 eval_2/train/
 eval_2/rollouts/
 eval_2/evals/
 eval_2/state/
-eval_2/__pycache__/
-
-# eval_3/: track the scripts, ignore heavy artifacts and personal recording state
 eval_3/train/
 eval_3/rollouts/
 eval_3/evals/
 eval_3/state/
-eval_3/__pycache__/
 eval_3/outputs/
 
-# claude code agent state
+# Internal notes: kept local, not published to the repo
+docs/
+CLAUDE.md
+
+# Heavy eval-day video recordings (the READMEs use the GIFs in media/gifs/)
+media/videos/
+
+# Third-party dependency installed per machine
+third_party/sam2/
+
+# Python, editor, and OS cruft
+__pycache__/
+*.py[cod]
+.DS_Store
+.vscode/
+.idea/
+*.swp
+
+# Claude Code agent state and secrets
 .claude/
 secrets/

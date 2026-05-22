@@ -4,12 +4,7 @@
 **Status:** Post-TA-ruling pivot. 4-day sprint, 5-person team. Tracks A / B / C locked.
 
 > **Read this file first** in every new session. It is the operational source of truth
-> for what's being worked on. The deeper "why" lives in:
->
-> - [`docs/report/EVAL_3_FINAL_PLAN.html`](docs/report/EVAL_3_FINAL_PLAN.html) - the canonical 4-day plan (text-only, 5-person)
-> - [`docs/EVAL_3_DATASETS.md`](docs/EVAL_3_DATASETS.md) - what's on HF and what to use
-> - [`eval_3/STRATEGY.md`](eval_3/STRATEGY.md) - full strategy history
-> - [`docs/report/EVAL_3_RESEARCH_REPORT.md`](docs/report/EVAL_3_RESEARCH_REPORT.md) - M1–M8 mechanism enumeration + audits
+> for what's being worked on.
 
 ---
 

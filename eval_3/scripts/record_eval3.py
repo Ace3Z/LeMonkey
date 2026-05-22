@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Record Eval 3 teleop episodes against a balanced 144-episode plan.
 
-Per docs/PROJECT.md §2 (Eval 3) and eval_3/README.md (Path A: image-as-prompt
+Per PROJECT.md §2 (Eval 3) and eval_3/README.md (Path A: image-as-prompt
 + co-train, decided after Phase 1 PaliGemma probe yielded 0% name recall):
 
   - Workspace shows 3 A5 portraits (Swift / Obama / LeCun) arranged

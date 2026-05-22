@@ -8,7 +8,7 @@ green and distractors red. Lets a human confirm the can lands on the labelled
 target portrait.
 
 Used 2026-05-21 to verify the Track-3 co-training robot dataset (20/20 correct).
-See docs/experiments/2026-05-21_track3_robot_dataset_visual_verify.md
+See 2026-05-21_track3_robot_dataset_visual_verify.md
 
 Usage:
     python eval_3/tools/verify_robot_episodes.py

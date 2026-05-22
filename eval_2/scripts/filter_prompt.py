@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Strip the "from the robot perspective" qualifier from Eval 2 prompts.
 
-Per docs/PROJECT.md §2 (latest Google Doc rule), spatial prompts on eval day
+Per PROJECT.md §2 (latest Google Doc rule), spatial prompts on eval day
 have the qualifier embedded inline, e.g.:
 
     "Put the banana into the 2nd bowl from the left from the robot perspective"
