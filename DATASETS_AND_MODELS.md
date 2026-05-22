@@ -82,8 +82,7 @@ knowledge into the policy weights themselves. See [`eval_3/README.md`](eval_3/RE
 
 ## Notes
 
-- The Hugging Face repos are under the team organization `HBOrtiz`. Some are
-  private; request access if a link 404s.
+- The Hugging Face repos are under the team organization `HBOrtiz` and are all public.
 - Older or superseded artifacts from earlier iterations also exist on the Hub
   but are not listed here. The tables above are the current, deployed set.
 - For the co-training trainer and recipe, see
