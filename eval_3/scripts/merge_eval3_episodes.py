@@ -90,7 +90,7 @@ def main() -> int:
     p.add_argument("--dst", type=Path,
                    default=Path("datasets/eval3_merged"),
                    help="Output dir for the merged dataset")
-    p.add_argument("--repo-id", default="local/so101_eval3_all",
+    p.add_argument("--repo-id", default="local/so101_eval3",
                    help="Made-up local repo_id for the merged dataset")
     p.add_argument("--lerobot-bin",
                    default="lerobot-edit-dataset",

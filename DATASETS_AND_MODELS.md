@@ -19,13 +19,13 @@ is trained on per-eval data. Datasets use the
 
 | Repo | Description |
 |---|---|
-| [`HBOrtiz/smolvla_eval1_v2`](https://huggingface.co/HBOrtiz/smolvla_eval1_v2) | Deployed Eval 1 policy: SmolVLA-450M, 25k steps from `smolvla_base`, image augmentation on. Final checkpoint at the repo root, intermediates under `checkpoints/`. |
+| [`HBOrtiz/smolvla_eval1`](https://huggingface.co/HBOrtiz/smolvla_eval1) | Deployed Eval 1 policy: SmolVLA-450M, 25k steps from `smolvla_base`, image augmentation on. Final checkpoint at the repo root, intermediates under `checkpoints/`. |
 
 ### Datasets
 
 | Repo | Type | Contents |
 |---|---|---|
-| [`so101_eval1_all_v2`](https://huggingface.co/datasets/HBOrtiz/so101_eval1_all_v2) | training set | Merged 153 episodes / 44.6k frames: 118 behavior-cloning demos plus 35 HG-DAgger correction demos. |
+| [`so101_eval1`](https://huggingface.co/datasets/HBOrtiz/so101_eval1) | training set | Merged 153 episodes / 44.6k frames: 118 behavior-cloning demos plus 35 HG-DAgger correction demos. |
 
 ---
 
@@ -41,7 +41,7 @@ is trained on per-eval data. Datasets use the
 
 | Repo | Type | Contents |
 |---|---|---|
-| [`so101_eval2_all`](https://huggingface.co/datasets/HBOrtiz/so101_eval2_all) | training set | 180 teleop episodes / 107,820 frames. 123 distinct compositional prompts, balanced over 6 bowl arrangements and 6 prompt families (direct, absolute spatial, ordinal spatial, left/right relational, between, negation). |
+| [`so101_eval2`](https://huggingface.co/datasets/HBOrtiz/so101_eval2) | training set | 180 teleop episodes / 107,820 frames. 123 distinct compositional prompts, balanced over 6 bowl arrangements and 6 prompt families (direct, absolute spatial, ordinal spatial, left/right relational, between, negation). |
 
 ---
 
@@ -55,16 +55,16 @@ out-of-distribution coverage.
 
 | Repo | Use | Description |
 |---|---|---|
-| [`HBOrtiz/smolvla_eval3_cotrain_track3_5to1_cam1`](https://huggingface.co/HBOrtiz/smolvla_eval3_cotrain_track3_5to1_cam1) | in-distribution celebrities | SmolVLA-450M co-trained on robot episodes and vision-language grounding pairs at a 5:1 robot-to-vision-language ratio. Single-camera inference contract (`cam1`). Checkpoints nested under `step_NNNNNN/`. |
+| [`HBOrtiz/smolvla_eval3_cotrain`](https://huggingface.co/HBOrtiz/smolvla_eval3_cotrain) | in-distribution celebrities | SmolVLA-450M co-trained on robot episodes and vision-language grounding pairs at a 5:1 robot-to-vision-language ratio. Single-camera inference contract (`cam1`). Checkpoints nested under `step_NNNNNN/`. |
 | [`HBOrtiz/smolvla_eval3`](https://huggingface.co/HBOrtiz/smolvla_eval3) | broad and out-of-distribution | SmolVLA-450M trained on the 192-celebrity dataset, 30k steps. Final 25k checkpoint at the repo root, intermediates under `checkpoints/`. |
 
 ### Datasets
 
 | Repo | Type | Contents |
 |---|---|---|
-| [`so101_eval3_track3_v3_baseline`](https://huggingface.co/datasets/HBOrtiz/so101_eval3_track3_v3_baseline) | robot training stream | 9,394 episodes / 5,053,972 frames: real base teleops plus identity-preserving augmented variants of the can placed on Taylor Swift / Barack Obama / Yann LeCun portraits. 15 prompt templates (5 paraphrases per celebrity). |
-| [`eval3_track3_vl_pairs`](https://huggingface.co/datasets/HBOrtiz/eval3_track3_vl_pairs) | vision-language stream | 56,202 vision-language pairs over 9,367 frames. Each pair links a portrait bounding box to the celebrity's name (two caption types: location-to-name and name-to-location). The grounding signal for co-training. |
-| [`so101_eval3_all`](https://huggingface.co/datasets/HBOrtiz/so101_eval3_all) | training set (broad) | The 192-celebrity dataset: real base teleops plus augmented variants drawn from a 200-celebrity scraped photo bank. Training input for `smolvla_eval3`. |
+| [`so101_eval3_cotrain`](https://huggingface.co/datasets/HBOrtiz/so101_eval3_cotrain) | robot training stream | 9,394 episodes / 5,053,972 frames: real base teleops plus identity-preserving augmented variants of the can placed on Taylor Swift / Barack Obama / Yann LeCun portraits. 15 prompt templates (5 paraphrases per celebrity). |
+| [`eval3_vl_pairs`](https://huggingface.co/datasets/HBOrtiz/eval3_vl_pairs) | vision-language stream | 56,202 vision-language pairs over 9,367 frames. Each pair links a portrait bounding box to the celebrity's name (two caption types: location-to-name and name-to-location). The grounding signal for co-training. |
+| [`so101_eval3`](https://huggingface.co/datasets/HBOrtiz/so101_eval3) | training set (broad) | The 192-celebrity dataset: real base teleops plus augmented variants drawn from a 200-celebrity scraped photo bank. Training input for `smolvla_eval3`. |
 
 ### How the Eval 3 datasets were built
 

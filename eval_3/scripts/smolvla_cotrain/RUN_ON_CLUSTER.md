@@ -76,8 +76,8 @@ export PUSH_REPO=youruser/smolvla_klal_lora_25k   # HF model repo for checkpoint
 `PUSH_REPO` is created automatically if it doesn't exist. Checkpoints land at
 `PUSH_REPO/step_005000`, `/step_010000`, …, `/final`.
 
-The two training datasets (`HBOrtiz/so101_eval3_track3_v3_baseline`,
-`HBOrtiz/eval3_track3_vl_pairs`) and the base model (`lerobot/smolvla_base`)
+The two training datasets (`HBOrtiz/so101_eval3_cotrain`,
+`HBOrtiz/eval3_vl_pairs`) and the base model (`lerobot/smolvla_base`)
 download automatically on the first run - the `HF_TOKEN` you set also
 authorizes those downloads.
 

@@ -18,7 +18,7 @@ set -euo pipefail
 
 # ---- Defaults (override via env) ----------------------------------------------
 
-ROBOT_DATASET="${ROBOT_DATASET:-HBOrtiz/so101_eval3_track3_v3_baseline}"
+ROBOT_DATASET="${ROBOT_DATASET:-HBOrtiz/so101_eval3_cotrain}"
 VL_MANIFEST="${VL_MANIFEST:-HBOrtiz/eval3_objectvla_vl_pairs}"
 VL_IMAGE_ROOT="${VL_IMAGE_ROOT:-}"          # leave empty to auto-download
 PRETRAINED="${PRETRAINED:-lerobot/smolvla_base}"   # or HansOrtiz/smolvlm2_celeb_warm

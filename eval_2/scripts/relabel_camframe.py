@@ -20,7 +20,7 @@ Usage:
     relabel_camframe.py                         # dry-run, prints diffs
     relabel_camframe.py --apply                 # write the file in place
     relabel_camframe.py --apply --push-to-hub   # also push the changed
-                                                  file to HBOrtiz/so101_eval2_all
+                                                  file to HBOrtiz/so101_eval2
 """
 from __future__ import annotations
 
@@ -33,7 +33,7 @@ from pathlib import Path
 import pandas as pd
 
 DEFAULT_DS = Path("/home/lemonkey/LeMonkey/datasets/eval2_merged")
-HF_REPO = "HBOrtiz/so101_eval2_all"
+HF_REPO = "HBOrtiz/so101_eval2"
 
 
 def relabel(prompt: str) -> str:

@@ -9,11 +9,11 @@
 #            --repo-id local/eval3_track3_v3 \
 #            --root /home/rohamzn/ETH_Uni/LeMonkey/datasets/eval3_track3_v3_merged \
 #            --overwrite
-#   2. Dataset re-pushed to HF (so HBOrtiz/so101_eval3_track3_v3_baseline has the
+#   2. Dataset re-pushed to HF (so HBOrtiz/so101_eval3_cotrain has the
 #      corrected meta/stats.json):
 #        python eval_3/scripts/push_dataset_to_hf.py \
 #            --local /home/rohamzn/ETH_Uni/LeMonkey/datasets/eval3_track3_v3_merged \
-#            --repo HBOrtiz/so101_eval3_track3_v3_baseline
+#            --repo HBOrtiz/so101_eval3_cotrain
 #   3. Brev VM has the conda 'lemonkey' env + this repo synced.
 
 set -euo pipefail

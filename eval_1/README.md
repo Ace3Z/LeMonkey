@@ -38,7 +38,7 @@ stages:
 The two sets are merged into one 153-episode dataset (118 clean demonstrations
 plus 35 correction demonstrations) and **SmolVLA-450M** is fine tuned on it from
 `lerobot/smolvla_base` for 25k steps with image augmentation. The deployed
-checkpoint is **`HBOrtiz/smolvla_eval1_v2`** at step `025000`.
+checkpoint is **`HBOrtiz/smolvla_eval1`** at step `025000`.
 
 To confirm the policy actually reads the colour word rather than memorising a
 motion, the `probe_language_conditioning.py` script swaps `blue` for `red` in
@@ -49,8 +49,8 @@ means the policy is genuinely listening to the prompt.
 
 | Repo | Type | Contents |
 |---|---|---|
-| [`smolvla_eval1_v2`](https://huggingface.co/HBOrtiz/smolvla_eval1_v2) | model | Deployed policy: 450M parameters, 25k steps, image augmentation, 5 intermediate checkpoints |
-| [`so101_eval1_all_v2`](https://huggingface.co/datasets/HBOrtiz/so101_eval1_all_v2) | dataset | Merged behaviour-cloning plus DAgger training data: 153 episodes, 44.6k frames |
+| [`smolvla_eval1`](https://huggingface.co/HBOrtiz/smolvla_eval1) | model | Deployed policy: 450M parameters, 25k steps, image augmentation, 5 intermediate checkpoints |
+| [`so101_eval1`](https://huggingface.co/datasets/HBOrtiz/so101_eval1) | dataset | Merged behaviour-cloning plus DAgger training data: 153 episodes, 44.6k frames |
 
 ## Running a rollout
 

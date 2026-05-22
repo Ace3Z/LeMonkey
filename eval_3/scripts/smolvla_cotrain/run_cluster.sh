@@ -49,8 +49,8 @@ VL_BATCH_SIZE="${VL_BATCH_SIZE:-$BATCH_SIZE}"  # VL batch PER GPU = robot batch 
 VL_RATIO="${VL_RATIO:-5}"             # 5:1 robot:VL — 2x ObjectVLA's VL for the harder face task
 LR="${LR:-5e-5}"
 NUM_WORKERS="${NUM_WORKERS:-16}"      # dataloader workers per GPU process
-ROBOT_DATASET="${ROBOT_DATASET:-HBOrtiz/so101_eval3_track3_v3_baseline}"
-VL_MANIFEST="${VL_MANIFEST:-HBOrtiz/eval3_track3_vl_pairs}"
+ROBOT_DATASET="${ROBOT_DATASET:-HBOrtiz/so101_eval3_cotrain}"
+VL_MANIFEST="${VL_MANIFEST:-HBOrtiz/eval3_vl_pairs}"
 PRETRAINED="${PRETRAINED:-lerobot/smolvla_base}"
 OUT_DIR="${OUT_DIR:-outputs/smolvla_klal_lora_25k}"
 # KLAL + LoRA

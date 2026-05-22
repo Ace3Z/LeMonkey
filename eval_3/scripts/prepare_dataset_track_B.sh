@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Prepare a Track-B-ready local copy of the augmented eval3 dataset.
 #
-# Materialises HBOrtiz/so101_eval3_track3_v3_baseline locally (camera1 + meta
+# Materialises HBOrtiz/so101_eval3_cotrain locally (camera1 + meta
 # + data only), swaps in the corrected stats.json from
 # HBOrtiz/so101_eval3_track3_v3_pi05, and applies the five schema renames
 # Pi0.5 needs (drop reference, rename camera1 -> right_wrist_0_rgb, patch
@@ -12,7 +12,7 @@
 set -euo pipefail
 
 DATASET_ROOT="${DATASET_ROOT:-$HOME/datasets/eval3_track3_v3_pi05}"
-BASELINE_REPO="${BASELINE_REPO:-HBOrtiz/so101_eval3_track3_v3_baseline}"
+BASELINE_REPO="${BASELINE_REPO:-HBOrtiz/so101_eval3_cotrain}"
 PI05_REPO="${PI05_REPO:-HBOrtiz/so101_eval3_track3_v3_pi05}"
 
 # Resolve HF token from common locations

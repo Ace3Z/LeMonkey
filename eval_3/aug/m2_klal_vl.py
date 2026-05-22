@@ -2,7 +2,7 @@
 
 Track-T2's KLAL teaches the celebrity-name token to attend to the prompted
 celeb's printed-portrait region. This module computes that loss on the **VL
-batches** (the `eval3_track3_vl_pairs` grounding stream) — the companion to
+batches** (the `eval3_vl_pairs` grounding stream) — the companion to
 `m2_klal_smolvla.py`, which handles the robot-action forward.
 
 Why a separate module — verified facts (research probe 2026-05-21, see

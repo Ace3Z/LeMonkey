@@ -18,7 +18,7 @@
 | **D** (opt) | **Mahbod** | tooling | M2 ArcFace cosine distillation toolkit on SmolVLA, drop-in | - | - | n/a - on standby |
 | - | **Darius** | Strix testing | deploys each checkpoint, runs 3-rollout protocol | - | - | - |
 
-All three training tracks load the same input: `HBOrtiz/so101_eval3_track3_v3_baseline`
+All three training tracks load the same input: `HBOrtiz/so101_eval3_cotrain`
 (178 base + 9,216 aug = 9,394 episodes, 14.3 GB, text-only prompts). The reference
 camera channel is zero-padded via `--policy.empty_cameras=N`.
 
@@ -29,7 +29,7 @@ camera channel is zero-padded via `--policy.empty_cameras=N`.
 - [x] Track 3 augmentation: 9,216 / 9,216 variants written (`datasets/eval3_track3_aug/`)
 - [x] Prompt re-label: all 9,216 variants converted to default-bucket prompts
 - [x] Custom fast merger written + ran (85 s vs estimated 2 h for upstream `aggregate_datasets()`)
-- [x] Merged dataset pushed to **`HBOrtiz/so101_eval3_track3_v3_baseline`** (6 min upload)
+- [x] Merged dataset pushed to **`HBOrtiz/so101_eval3_cotrain`** (6 min upload)
 - [x] Drive backup: `datasets/eval3_track3_aug.tar.zst` (13.2 GB, 38 s wall)
 - [x] Code committed + pushed to `origin/main` (commits `3836e5f .. d1e8fca`)
 - [x] EVAL_3_FINAL_PLAN.html distributed to team
@@ -42,7 +42,7 @@ camera channel is zero-padded via `--policy.empty_cameras=N`.
 - [ ] **Roham:** compute Pi0.5 quantile state/action stats on the merged dataset:
   ```
   python eval_3/aug/compute_quantile_stats.py \
-      --dataset HBOrtiz/so101_eval3_track3_v3_baseline \
+      --dataset HBOrtiz/so101_eval3_cotrain \
       --output  eval_3/aug/stats/track3_v3_quantile.json
   ```
 - [ ] **Roham:** write `eval_3/scripts/brev/run_training_track_{A,B,C}.sh` launch scripts.
@@ -63,7 +63,7 @@ lerobot-train \
   --policy.empty_cameras=1 \
   --policy.optimizer_lr=5e-5 \
   --policy.compile_model=False \
-  --dataset.repo_id=HBOrtiz/so101_eval3_track3_v3_baseline \
+  --dataset.repo_id=HBOrtiz/so101_eval3_cotrain \
   --batch_size=64 --steps=30000 \
   --output_dir=outputs/smolvla_track_A \
   --policy.push_to_hub=True \
@@ -85,7 +85,7 @@ lerobot-train \
   --policy.optimizer_lr=1e-5 \
   --policy.compile_model=True \
   --policy.gradient_checkpointing=True \
-  --dataset.repo_id=HBOrtiz/so101_eval3_track3_v3_baseline \
+  --dataset.repo_id=HBOrtiz/so101_eval3_cotrain \
   --batch_size=24 --steps=30000 \
   --output_dir=outputs/pi05_track_B \
   --policy.push_to_hub=True \
@@ -105,7 +105,7 @@ lerobot-train \
   --policy.train_expert_only=True \
   --policy.empty_cameras=1 \
   --policy.optimizer_lr=5e-5 \
-  --dataset.repo_id=HBOrtiz/so101_eval3_track3_v3_baseline \
+  --dataset.repo_id=HBOrtiz/so101_eval3_cotrain \
   --batch_size=64 --steps=30000 \
   --output_dir=outputs/smolvla_track_C \
   --policy.push_to_hub=True \

@@ -83,8 +83,8 @@ A banana sits in a fixed position. Three colored bowls (blue, red, green) sit in
 
 > *"Put the banana in the blue colored bowl."*
 
-- **Deployed model:** [`HBOrtiz/smolvla_eval1_v2`](https://huggingface.co/HBOrtiz/smolvla_eval1_v2)
-- **Trained on:** [`HBOrtiz/so101_eval1_all_v2`](https://huggingface.co/datasets/HBOrtiz/so101_eval1_all_v2), 153 teleop episodes (behavior-cloning demos plus HG-DAgger corrections)
+- **Deployed model:** [`HBOrtiz/smolvla_eval1`](https://huggingface.co/HBOrtiz/smolvla_eval1)
+- **Trained on:** [`HBOrtiz/so101_eval1`](https://huggingface.co/datasets/HBOrtiz/so101_eval1), 153 teleop episodes (behavior-cloning demos plus HG-DAgger corrections)
 - **Runbook:** [`eval_1/README.md`](eval_1/README.md)
 
 ### Eval 2: compositional instruction following
@@ -97,7 +97,7 @@ The banana stays put, but the bowls are reshuffled across positions and the prom
 > *"Put the banana into the bowl that is not green and not blue."*
 
 - **Deployed model:** [`HBOrtiz/smolvla_eval2`](https://huggingface.co/HBOrtiz/smolvla_eval2)
-- **Trained on:** [`HBOrtiz/so101_eval2_all`](https://huggingface.co/datasets/HBOrtiz/so101_eval2_all), 180 teleop episodes balanced over 6 bowl arrangements and 6 compositional prompt families
+- **Trained on:** [`HBOrtiz/so101_eval2`](https://huggingface.co/datasets/HBOrtiz/so101_eval2), 180 teleop episodes balanced over 6 bowl arrangements and 6 compositional prompt families
 - **Runbook:** [`eval_2/README.md`](eval_2/README.md)
 
 ### Eval 3: coke can onto a celebrity portrait
@@ -110,8 +110,8 @@ Three printed celebrity portraits are laid out on the workspace. The policy plac
 
 The course rule: no separate face-recognition model or external VLM may run at inference, so the deployed VLA has to do the identity reasoning itself. We solve this with **co-training**, training the policy jointly on robot manipulation episodes and on a vision-language grounding dataset, so celebrity knowledge ends up inside the policy weights.
 
-- **Deployed model (in-distribution celebrities):** [`HBOrtiz/smolvla_eval3_cotrain_track3_5to1_cam1`](https://huggingface.co/HBOrtiz/smolvla_eval3_cotrain_track3_5to1_cam1), trained on [`HBOrtiz/so101_eval3_track3_v3_baseline`](https://huggingface.co/datasets/HBOrtiz/so101_eval3_track3_v3_baseline) (robot episodes) plus [`HBOrtiz/eval3_track3_vl_pairs`](https://huggingface.co/datasets/HBOrtiz/eval3_track3_vl_pairs) (grounding pairs)
-- **Deployed model (broad celebrities):** [`HBOrtiz/smolvla_eval3`](https://huggingface.co/HBOrtiz/smolvla_eval3), trained on [`HBOrtiz/so101_eval3_all`](https://huggingface.co/datasets/HBOrtiz/so101_eval3_all) (192-celebrity dataset)
+- **Deployed model (in-distribution celebrities):** [`HBOrtiz/smolvla_eval3_cotrain`](https://huggingface.co/HBOrtiz/smolvla_eval3_cotrain), trained on [`HBOrtiz/so101_eval3_cotrain`](https://huggingface.co/datasets/HBOrtiz/so101_eval3_cotrain) (robot episodes) plus [`HBOrtiz/eval3_vl_pairs`](https://huggingface.co/datasets/HBOrtiz/eval3_vl_pairs) (grounding pairs)
+- **Deployed model (broad celebrities):** [`HBOrtiz/smolvla_eval3`](https://huggingface.co/HBOrtiz/smolvla_eval3), trained on [`HBOrtiz/so101_eval3`](https://huggingface.co/datasets/HBOrtiz/so101_eval3) (192-celebrity dataset)
 - **Runbook:** [`eval_3/README.md`](eval_3/README.md)
 
 ---
@@ -181,10 +181,10 @@ Deployed models at a glance:
 
 | Eval | Model | Backbone | Trained on |
 |---|---|---|---|
-| 1 | [`smolvla_eval1_v2`](https://huggingface.co/HBOrtiz/smolvla_eval1_v2) | SmolVLA-450M | `so101_eval1_all_v2` (153 ep) |
-| 2 | [`smolvla_eval2`](https://huggingface.co/HBOrtiz/smolvla_eval2) | SmolVLA-450M | `so101_eval2_all` (180 ep) |
-| 3 | [`smolvla_eval3_cotrain_track3_5to1_cam1`](https://huggingface.co/HBOrtiz/smolvla_eval3_cotrain_track3_5to1_cam1) | SmolVLA-450M | `so101_eval3_track3_v3_baseline` plus `eval3_track3_vl_pairs` |
-| 3 | [`smolvla_eval3`](https://huggingface.co/HBOrtiz/smolvla_eval3) | SmolVLA-450M | `so101_eval3_all` (192 celebrities) |
+| 1 | [`smolvla_eval1`](https://huggingface.co/HBOrtiz/smolvla_eval1) | SmolVLA-450M | `so101_eval1` (153 ep) |
+| 2 | [`smolvla_eval2`](https://huggingface.co/HBOrtiz/smolvla_eval2) | SmolVLA-450M | `so101_eval2` (180 ep) |
+| 3 | [`smolvla_eval3_cotrain`](https://huggingface.co/HBOrtiz/smolvla_eval3_cotrain) | SmolVLA-450M | `so101_eval3_cotrain` plus `eval3_vl_pairs` |
+| 3 | [`smolvla_eval3`](https://huggingface.co/HBOrtiz/smolvla_eval3) | SmolVLA-450M | `so101_eval3` (192 celebrities) |
 
 ---
 

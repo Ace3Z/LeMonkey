@@ -15,7 +15,7 @@
 set -euo pipefail
 
 CKPT_STEP="${1:-025000}"
-POLICY="/home/lemonkey/LeMonkey/eval_1/train/smolvla_eval1_v2/checkpoints/${CKPT_STEP}/pretrained_model"
+POLICY="/home/lemonkey/LeMonkey/eval_1/train/smolvla_eval1/checkpoints/${CKPT_STEP}/pretrained_model"
 ROLLOUT_DIR="/home/lemonkey/LeMonkey/eval_1/rollouts"
 HERE="$(dirname "$(readlink -f "$0")")"
 TRANSCRIBE="$HERE/voice_transcribe.py"

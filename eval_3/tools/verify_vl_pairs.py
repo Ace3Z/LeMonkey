@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Visually verify the eval3_track3_vl_pairs dataset: label <-> bbox <-> face.
+"""Visually verify the eval3_vl_pairs dataset: label <-> bbox <-> face.
 
 Renders verification panels from a VL-pairs manifest: each panel draws the
 frame-0 wrist-cam image with all 3 portrait quads (`quad_corners_norm`) and

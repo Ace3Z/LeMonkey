@@ -13,7 +13,7 @@ We're at the point where Eval 3's **dataset is locked, the policy is trained, an
 | Artifact | Where it lives | Notes |
 |---|---|---|
 | Augmentation pipeline | `eval_3/aug/` | Done, ran 2026-05-14/15, produced 4017 inpainted variants. Don't re-run. |
-| Augmented + base merged dataset | [`HBOrtiz/so101_eval3_all`](https://huggingface.co/datasets/HBOrtiz/so101_eval3_all) (public) | 4195 episodes, 933 unique prompts, 2.26M frames, 7.5 GB. Schema: `observation.images.camera1` (480×640 wrist) + `observation.images.reference` (480×480 constant-frame ref photo). |
+| Augmented + base merged dataset | [`HBOrtiz/so101_eval3`](https://huggingface.co/datasets/HBOrtiz/so101_eval3) (public) | 4195 episodes, 933 unique prompts, 2.26M frames, 7.5 GB. Schema: `observation.images.camera1` (480×640 wrist) + `observation.images.reference` (480×480 constant-frame ref photo). |
 | Trained SmolVLA policy | [`HBOrtiz/smolvla_eval3`](https://huggingface.co/HBOrtiz/smolvla_eval3) | 450M params, 30k steps, 6 checkpoints (5k–25k under `checkpoints/`, 30k at root for `from_pretrained()`). Final loss 0.018. |
 | Training recipe + brev scripts | `eval_3/scripts/brev/` | Locked. Includes `TORCHCODEC_OOM_REPORT.md` capturing the only major incident we hit. |
 | 50-celebrity sample PDF + zip | `Eval_3_Sample_Celebrity_Images.{pdf,zip,index.txt}` | A5 portraits, includes the 3 IID OOD photos. Can be printed to physically extend the eval set. |

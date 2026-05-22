@@ -32,7 +32,7 @@ def main() -> int:
                    default=Path("/home/lemonkey/LeMonkey/datasets/eval2"))
     p.add_argument("--dst", type=Path,
                    default=Path("/home/lemonkey/LeMonkey/datasets/eval2_merged"))
-    p.add_argument("--repo-id", default="local/so101_eval2_all",
+    p.add_argument("--repo-id", default="local/so101_eval2",
                    help="Made-up local repo_id for the merged dataset")
     p.add_argument("--lerobot-bin",
                    default="/home/lemonkey/miniconda3/envs/lerobot/bin/lerobot-edit-dataset")

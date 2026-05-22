@@ -4,7 +4,7 @@
 #
 # Recipe diffs vs eval_1/v2:
 #   - base policy: lerobot/smolvla_base (NOT a v2 warm-start — see eval_2/README.md)
-#   - dataset    : merged 180-ep so101_eval2_all (compositional prompts)
+#   - dataset    : merged 180-ep so101_eval2 (compositional prompts)
 #   - no --rename_map (eval2 datasets already have observation.images.camera1)
 #   - output_dir : ~/outputs/train/smolvla_eval2/
 set -e
@@ -24,7 +24,7 @@ python -u "$(which lerobot-train)" \
   --policy.path=lerobot/smolvla_base \
   --policy.push_to_hub=false \
   --policy.empty_cameras=2 \
-  --dataset.repo_id=local/so101_eval2_all \
+  --dataset.repo_id=local/so101_eval2 \
   --dataset.root=/home/shadeform/LeMonkey/datasets/eval2_merged \
   --dataset.image_transforms.enable=true \
   --batch_size=192 \

@@ -62,7 +62,7 @@ The result is **`HBOrtiz/smolvla_eval2`**, SmolVLA-450M trained for 25k steps.
 | Repo | Type | Contents |
 |---|---|---|
 | [`HBOrtiz/smolvla_eval2`](https://huggingface.co/HBOrtiz/smolvla_eval2) | model | Deployed Eval 2 policy: SmolVLA-450M, 25k steps from `lerobot/smolvla_base`, image augmentation. Final checkpoint at the repo root, intermediates under `checkpoints/`. |
-| [`HBOrtiz/so101_eval2_all`](https://huggingface.co/datasets/HBOrtiz/so101_eval2_all) | dataset | 180 teleop episodes, 107,820 frames, 123 distinct compositional prompts, balanced over 6 arrangements and 6 prompt families. |
+| [`HBOrtiz/so101_eval2`](https://huggingface.co/datasets/HBOrtiz/so101_eval2) | dataset | 180 teleop episodes, 107,820 frames, 123 distinct compositional prompts, balanced over 6 arrangements and 6 prompt families. |
 
 ## Running a rollout
 

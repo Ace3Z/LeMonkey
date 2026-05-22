@@ -24,8 +24,8 @@ Usage
 =====
 
     python eval_3/scripts/smolvla_cotrain/cotrain.py \\
-        --robot_dataset=HBOrtiz/so101_eval3_track3_v3_baseline \\
-        --vl_manifest=HBOrtiz/eval3_track3_vl_pairs \\
+        --robot_dataset=HBOrtiz/so101_eval3_cotrain \\
+        --vl_manifest=HBOrtiz/eval3_vl_pairs \\
         --vl_ratio=10 \\
         --output_dir=outputs/smolvla_cotrain_10to1 \\
         --steps=30000 \\
@@ -89,7 +89,7 @@ def parse_args() -> argparse.Namespace:
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     # Data
     p.add_argument("--robot_dataset", required=True,
-                   help="LeRobotDataset HF repo id (e.g. HBOrtiz/so101_eval3_track3_v3_baseline)")
+                   help="LeRobotDataset HF repo id (e.g. HBOrtiz/so101_eval3_cotrain)")
     p.add_argument("--vl_manifest", required=True,
                    help="VL pairs HF repo id (e.g. HBOrtiz/eval3_objectvla_vl_pairs) "
                         "OR local parquet path")
@@ -162,7 +162,7 @@ def parse_args() -> argparse.Namespace:
 
 # -----------------------------------------------------------------------------
 # VL dataset — reads the `eval3_*_vl_pairs` parquet schema (e.g.
-# eval3_track3_vl_pairs). Required columns: image_path, prompt, target,
+# eval3_vl_pairs). Required columns: image_path, prompt, target,
 # celeb_slug, caption_type (plus bbox_xyxy_norm, celeb_name, frame_idx, … ).
 # -----------------------------------------------------------------------------
 
@@ -779,7 +779,7 @@ def main() -> int:
 
     # 1b. KLAL attention supervision (VL steps). On each VL batch, after the
     # VQA loss, KLAL supervises the celeb-name token's attention toward the
-    # prompted portrait's quad (eval3_track3_vl_pairs.quad_corners_norm),
+    # prompted portrait's quad (eval3_vl_pairs.quad_corners_norm),
     # recomputed faithfully from the SmolVLM2 text model's q/k + rotary_emb.
     klal_hookset = None
     klal_cfg = None
@@ -836,7 +836,7 @@ def main() -> int:
         device=device,
     )
     # The merged dataset's metadata can overcount frames vs the actual data
-    # rows (so101_eval3_track3_v3_baseline: meta says 5,053,972, the parquet
+    # rows (so101_eval3_cotrain: meta says 5,053,972, the parquet
     # has 5,053,812). LeRobotDataset.__len__ trusts the metadata, so the
     # sampler would emit out-of-range indices and crash a DataLoader worker.
     # Cap the dataloader to the real row count; robot_ds itself is left intact

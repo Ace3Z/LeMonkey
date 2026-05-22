@@ -6,7 +6,7 @@
 #   - paths: /home/lemonkey/... → /home/rohamzn/ETH_Uni/...
 #   - python: ~/miniconda3 → ~/anaconda3
 #   - --policy.path points at the FINAL checkpoint at the repo root
-#     (HBOrtiz/smolvla_eval1_v2 was downloaded with only root-level
+#     (HBOrtiz/smolvla_eval1 was downloaded with only root-level
 #     files; the checkpoints/ subdir is empty here)
 #   - wrapped in `sg dialout -c` so the new dialout group membership
 #     applies (Claude Code's parent shell is still on the old group set)
@@ -16,7 +16,7 @@
 # Press right-arrow during a rollout to end it early. Type 'q' at the prompt to quit.
 set -euo pipefail
 
-POLICY="/home/rohamzn/ETH_Uni/LeMonkey/eval_1/train/smolvla_eval1_v2"
+POLICY="/home/rohamzn/ETH_Uni/LeMonkey/eval_1/train/smolvla_eval1"
 ROLLOUT_DIR="/home/rohamzn/ETH_Uni/LeMonkey/eval_1/rollouts"
 HERE="$(dirname "$(readlink -f "$0")")"
 PYBIN="/home/rohamzn/anaconda3/envs/lemonkey/bin/python"

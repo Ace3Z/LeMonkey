@@ -61,7 +61,7 @@ range of faces.
 
 | Model | Use | Recipe |
 |---|---|---|
-| [`HBOrtiz/smolvla_eval3_cotrain_track3_5to1_cam1`](https://huggingface.co/HBOrtiz/smolvla_eval3_cotrain_track3_5to1_cam1) | in-distribution celebrities | SmolVLA-450M, robot plus vision-language co-training at 5:1, single-camera contract. Checkpoints under `step_NNNNNN/`. |
+| [`HBOrtiz/smolvla_eval3_cotrain`](https://huggingface.co/HBOrtiz/smolvla_eval3_cotrain) | in-distribution celebrities | SmolVLA-450M, robot plus vision-language co-training at 5:1, single-camera contract. Checkpoints under `step_NNNNNN/`. |
 | [`HBOrtiz/smolvla_eval3`](https://huggingface.co/HBOrtiz/smolvla_eval3) | broad and out-of-distribution | SmolVLA-450M trained on the 192-celebrity dataset. Final checkpoint at the repo root. |
 
 Both are SmolVLA-450M fine tuned from `lerobot/smolvla_base`: the SmolVLM2
@@ -73,9 +73,9 @@ uses a single live camera; the unused camera slots are zero-padded by SmolVLA's
 
 | Dataset | Role |
 |---|---|
-| [`HBOrtiz/so101_eval3_track3_v3_baseline`](https://huggingface.co/datasets/HBOrtiz/so101_eval3_track3_v3_baseline) | Robot stream: 9,394 episodes (real base teleops plus augmented variants) of the can placed on Swift, Obama, and LeCun portraits. |
-| [`HBOrtiz/eval3_track3_vl_pairs`](https://huggingface.co/datasets/HBOrtiz/eval3_track3_vl_pairs) | Vision-language stream: 56k grounding pairs linking a portrait bounding box to a celebrity name. |
-| [`HBOrtiz/so101_eval3_all`](https://huggingface.co/datasets/HBOrtiz/so101_eval3_all) | The 192-celebrity dataset behind `smolvla_eval3`. |
+| [`HBOrtiz/so101_eval3_cotrain`](https://huggingface.co/datasets/HBOrtiz/so101_eval3_cotrain) | Robot stream: 9,394 episodes (real base teleops plus augmented variants) of the can placed on Swift, Obama, and LeCun portraits. |
+| [`HBOrtiz/eval3_vl_pairs`](https://huggingface.co/datasets/HBOrtiz/eval3_vl_pairs) | Vision-language stream: 56k grounding pairs linking a portrait bounding box to a celebrity name. |
+| [`HBOrtiz/so101_eval3`](https://huggingface.co/datasets/HBOrtiz/so101_eval3) | The 192-celebrity dataset behind `smolvla_eval3`. |
 
 Full provenance and build details: [`DATASETS_AND_MODELS.md`](../DATASETS_AND_MODELS.md).
 

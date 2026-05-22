@@ -18,7 +18,7 @@
 #   ./eval_checkpoint.sh                       # v1 base, ckpt 020000, random seed
 #   ./eval_checkpoint.sh 015000                # v1 base, different ckpt
 #   ./eval_checkpoint.sh 020000 42             # v1 base, fixed seed (reproducible shuffle)
-#   MODEL=v2 ./eval_checkpoint.sh 025000       # v2 base (smolvla_eval1_v2)
+#   MODEL=v2 ./eval_checkpoint.sh 025000       # v2 base (smolvla_eval1)
 #   MODEL=v2 ./eval_checkpoint.sh 020000 42    # v2 base at intermediate step, fixed seed
 set -euo pipefail
 
@@ -28,7 +28,7 @@ MODEL="${MODEL:-v1}"
 
 case "$MODEL" in
   v1) MODEL_DIR="smolvla_eval1" ;;
-  v2) MODEL_DIR="smolvla_eval1_v2" ;;
+  v2) MODEL_DIR="smolvla_eval1" ;;
   *) echo "ERROR: MODEL must be v1 or v2 (got: $MODEL)" >&2; exit 1 ;;
 esac
 
