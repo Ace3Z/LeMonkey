@@ -37,7 +37,7 @@ def main() -> int:
                    help="per-variant augmented episode dirs")
     p.add_argument("--base-root", default="datasets/eval3",
                    help="base teleop dirs (hold portrait_corners.json)")
-    p.add_argument("--out", default="eval_3/attention_steering/dataset_verify",
+    p.add_argument("--out", default="eval_3/outputs/dataset_verify",
                    help="output dir for annotated mp4s + montage")
     p.add_argument("--n", type=int, default=20, help="episodes to sample")
     p.add_argument("--seed", type=int, default=20)

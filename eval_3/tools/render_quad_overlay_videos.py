@@ -38,7 +38,7 @@ def main() -> int:
     p.add_argument("--manifest", required=True, help="VL-pairs manifest.parquet")
     p.add_argument("--aug-root", default="datasets/eval3_track3_aug",
                    help="per-variant augmented episode dirs")
-    p.add_argument("--out", default="eval_3/attention_steering/quad_overlay_videos")
+    p.add_argument("--out", default="eval_3/outputs/quad_overlay_videos")
     p.add_argument("--n", type=int, default=4, help="episodes to render")
     p.add_argument("--only-degenerate", action="store_true",
                    help="only sample episodes that have >=1 degenerate quad")

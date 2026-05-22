@@ -33,7 +33,7 @@ def main() -> int:
     p.add_argument("--manifest", required=True, help="VL-pairs manifest.parquet")
     p.add_argument("--data-root", required=True,
                    help="dir with extracted images/ and references/ subdirs")
-    p.add_argument("--out", default="eval_3/attention_steering/vl_pairs_audit")
+    p.add_argument("--out", default="eval_3/outputs/vl_pairs_audit")
     p.add_argument("--n-t3", type=int, default=6, help="t3-variant episodes to sample")
     p.add_argument("--n-base", type=int, default=2, help="base-teleop episodes to sample")
     p.add_argument("--seed", type=int, default=3)
