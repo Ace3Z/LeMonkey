@@ -4,16 +4,16 @@
 <table>
   <tr>
     <td align="center" valign="middle">
-      <img src="media/figures/cvg_logo_colour-white.png" height="40"/>
+      <img src="media/figures/cvg_logo_colour-white.png" height="60"/>
     </td>
     <td align="center" valign="middle">
-      <img src="media/figures/eth_logo_kurz_neg.png" height="80"/>
+      <img src="media/figures/eth_logo_kurz_neg.png" height="100"/>
     </td>
     <td align="center" valign="middle">
-      <img src="media/figures/ETHRC_primarywhite.svg" height="40"/>
+      <img src="media/figures/ETHRC_primarywhite.svg" height="30"/>
     </td>
     <td align="center" valign="middle">
-      <img src="media/figures/Microsoft-logo_rgb_c-gray.png" height="100"/>
+      <img src="media/figures/Microsoft-logo_rgb_c-gray.png" height="120"/>
     </td>
   </tr>
 </table>
