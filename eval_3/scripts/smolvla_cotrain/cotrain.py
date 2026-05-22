@@ -25,14 +25,14 @@ Usage
 
     python eval_3/scripts/smolvla_cotrain/cotrain.py \\
         --robot_dataset=HBOrtiz/so101_eval3_track3_v3_baseline \\
-        --vl_manifest=HBOrtiz/eval3_objectvla_vl_pairs \\
-        --vl_ratio=10 \\
-        --output_dir=outputs/smolvla_cotrain_10to1 \\
+        --vl_manifest=HBOrtiz/eval3_track3_vl_pairs \\
+        --vl_ratio=5 \\
+        --output_dir=outputs/smolvla_cotrain_5to1 \\
         --steps=30000 \\
         --batch_size=32 \\
         --vl_batch_size=8 \\
         --lr=5e-5 \\
-        --push_to_hub_repo=HBOrtiz/smolvla_eval3_cotrain_10to1
+        --push_to_hub_repo=HBOrtiz/smolvla_eval3_cotrain_5to1
 
 For a smoke test, drop --steps=200 and --batch_size=4.
 """
@@ -129,7 +129,7 @@ def parse_args() -> argparse.Namespace:
                    help="Cap dataset to the first N episodes. Use when only a subset of video "
                         "files are cached locally to avoid FileNotFoundError mid-training.")
     p.add_argument("--vl_manifest", required=True,
-                   help="VL pairs HF repo id (e.g. HBOrtiz/eval3_objectvla_vl_pairs) "
+                   help="VL pairs HF repo id (e.g. HBOrtiz/eval3_track3_vl_pairs) "
                         "OR local parquet path")
     p.add_argument("--vl_image_root", default=None,
                    help="Override path to pre-extracted VL images dir. "
@@ -147,9 +147,10 @@ def parse_args() -> argparse.Namespace:
                    help="Robot batch size (per step on robot-batch steps)")
     p.add_argument("--vl_batch_size", type=int, default=8,
                    help="VL batch size (per step on VL-batch steps). Usually smaller.")
-    p.add_argument("--vl_ratio", type=int, default=10,
+    p.add_argument("--vl_ratio", type=int, default=5,
                    help="Number of robot batches per 1 VL batch. RT-2 spec is "
-                        "'robot >> web'; ObjectVLA used 10. Test 5/10 in parallel.")
+                        "'robot >> web'; ObjectVLA used 10. We ran the eval-day "
+                        "checkpoint at 5:1 (more VQA pressure than ObjectVLA).")
     p.add_argument("--lr", type=float, default=5e-5,
                    help="Optimizer LR. SmolVLA default; RT-2 says 'use VLM-paper hparams'.")
     p.add_argument("--grad_clip", type=float, default=10.0)
