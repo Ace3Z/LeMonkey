@@ -85,25 +85,26 @@ Full provenance and build details: [`docs/DATASETS_AND_MODELS.md`](../docs/DATAS
 
 ## Running a rollout
 
-From the repo root, with the `lemonkey` conda env active:
+With the `lemonkey` conda env active, the two eval-day rollout runners live in
+[`scripts/`](scripts/):
 
 ```bash
 # In-distribution celebrities (Swift / Obama / LeCun)
-./strix_rollouts/eval_3/scripts/run_rollout_cotrain_track3_5to1_strix.sh
+./eval_3/scripts/run_rollout_cotrain_track3_5to1.sh
 
 # Broad / out-of-distribution celebrities
-./strix_rollouts/eval_3/scripts/run_rollout_smolvla_eval3_strix.sh
+./eval_3/scripts/run_rollout_smolvla_eval3.sh
 ```
 
 Each script downloads its checkpoint from the Hub on first use, then loops:
 type a prompt (`Put the coke on <name>.`), the arm captures its home pose, runs
 the policy for one 25 s episode against a single live wrist camera, and drives
 back home. Type `q` to quit. Pass a checkpoint name as the first argument to use
-an earlier step (e.g. `… run_rollout_cotrain_track3_5to1_strix.sh step_020000`).
+an earlier step (e.g. `./eval_3/scripts/run_rollout_cotrain_track3_5to1.sh step_020000`).
 
-> The `*_strix.sh` wrappers hard-code laptop-specific paths and offline-mode env
-> vars — see [`strix_rollouts/MANIFEST.md`](../strix_rollouts/MANIFEST.md) before
-> running on a different machine.
+The scripts assume the standard repo robot setup — SO-101 follower at
+`/dev/so101-follower`, wrist camera at `/dev/video0` — and force HF offline mode
+to avoid a chat-template rate-limit stall on first load.
 
 ---
 

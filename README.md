@@ -4,13 +4,13 @@
 <table>
   <tr>
     <td align="center" valign="middle">
-      <img src="media/figures/cvg_logo_colour-white.png" height="40"/>
+      <img src="media/figures/logos/cvg_logo_colour-white.png" height="40"/>
     </td>
     <td align="center" valign="middle">
-      <img src="media/figures/eth_logo_kurz_neg.png" height="80"/>
+      <img src="media/figures/logos/eth_logo_kurz_neg.png" height="80"/>
     </td>
     <td align="center" valign="middle">
-      <img src="media/figures/Microsoft-logo_rgb_c-gray.png" height="100"/>
+      <img src="media/figures/logos/Microsoft-logo_rgb_c-gray.png" height="100"/>
     </td>
   </tr>
 </table>
@@ -128,8 +128,8 @@ hf auth login          # paste a read token (write token if you will push)
 
 ### 3. Robot setup (only needed to run on real hardware)
 
-- **SO-101 arm** — create a udev rule so the follower is stable at `/dev/so101-follower`
-  (and `/dev/so101-leader` for the teleop arm). See [`strix_rollouts/MANIFEST.md`](strix_rollouts/MANIFEST.md) §2.
+- **SO-101 arm** — a udev rule pinning the follower to `/dev/so101-follower`
+  (and `/dev/so101-leader` for the teleop arm); the user must be in the `dialout` group.
 - **Camera** — a USB wrist camera at `/dev/video0`, 640×480 @ 30 fps.
 - **Calibration** — per-arm calibration JSONs are checked in under [`calibration/`](calibration/);
   symlink them into LeRobot's cache:
@@ -137,8 +137,6 @@ hf auth login          # paste a read token (write token if you will push)
   mkdir -p ~/.cache/huggingface/lerobot
   ln -s "$PWD/calibration" ~/.cache/huggingface/lerobot/calibration
   ```
-
-Full machine-specific notes (offline-mode env vars, group permissions, the laptop `rerun` viewer) are in [`strix_rollouts/MANIFEST.md`](strix_rollouts/MANIFEST.md).
 
 ---
 
@@ -157,14 +155,12 @@ cd eval_2 && ./scripts/run_rollout.sh
 
 # Eval 3 — coke can on a celebrity portrait
 #   in-distribution celebrities (Swift / Obama / LeCun):
-./strix_rollouts/eval_3/scripts/run_rollout_cotrain_track3_5to1_strix.sh
+./eval_3/scripts/run_rollout_cotrain_track3_5to1.sh
 #   broad / out-of-distribution celebrities:
-./strix_rollouts/eval_3/scripts/run_rollout_smolvla_eval3_strix.sh
+./eval_3/scripts/run_rollout_smolvla_eval3.sh
 ```
 
 Type the prompt at the menu (e.g. `Put the coke on Barack Obama.`), watch the rollout, then type the next one or `q` to quit. Each `eval_N/README.md` documents the per-eval scripts, checkpoints, and structured-evaluation tooling.
-
-> The `strix_rollouts/*_strix.sh` wrappers hard-code laptop-specific paths — see [`strix_rollouts/MANIFEST.md`](strix_rollouts/MANIFEST.md) for what to search-and-replace on a new machine.
 
 ---
 
@@ -201,10 +197,9 @@ LeMonkey/
 ├── eval_3/                    Eval 3 — runtime, scripts, README
 │   ├── README.md
 │   ├── aug/                   data-augmentation pipeline (celebrity portraits)
-│   ├── scripts/               training, dataset-build, recording scripts
+│   ├── scripts/               training, rollout, dataset-build, recording scripts
 │   │   └── smolvla_cotrain/   the SmolVLA co-training trainer
 │   └── tools/                 dataset verification tooling
-├── strix_rollouts/            laptop rollout wrappers used on eval day
 ├── calibration/               per-arm SO-101 calibration JSONs
 ├── media/                     logos, figures, eval-day videos
 └── docs/                      project brief, datasets/models, experiment logs
@@ -235,7 +230,6 @@ and per-session state stay local.
 | [`eval_1/README.md`](eval_1/README.md) · [`eval_2/README.md`](eval_2/README.md) · [`eval_3/README.md`](eval_3/README.md) | Per-eval runbooks |
 | [`docs/VLA_ARCHITECTURES.md`](docs/VLA_ARCHITECTURES.md) | VLA / VLM background and the SmolVLA choice |
 | [`docs/experiments/`](docs/experiments/) | Dated experiment logs |
-| [`strix_rollouts/MANIFEST.md`](strix_rollouts/MANIFEST.md) | Laptop deployment notes |
 
 ---
 
@@ -243,7 +237,7 @@ and per-session state stay local.
 
 **Team 7 — ETH Robot Learning FS26, Project 1**
 
-Mahbod · Roham Zendehdel Nobari · Hans Baumann Ortiz · Sejohn · Darius Foodeei
+Roham Z. Nobari · Mahbod Tajdini · Darius Foodeii · Sejohn Uruthiralingam · Hans Baumann Oritz
 
 ---
 
