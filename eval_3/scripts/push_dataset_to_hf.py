@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Push the merged eval3 dataset to HBOrtiz/so101_eval3 on HF Hub.
+"""Push the merged eval3 dataset to HBOrtiz/so101_eval3_broad on HF Hub.
 
 Uses upload_large_folder (multi-part, resumable, retries on transient
 failures) and the HBOrtiz token stored at
@@ -7,7 +7,7 @@ secrets/huggingface/token_hbortiz.
 
 Usage:
     push_dataset_to_hf.py [--local datasets/eval3_merged]
-                          [--repo  HBOrtiz/so101_eval3]
+                          [--repo  HBOrtiz/so101_eval3_broad]
                           [--token-file secrets/huggingface/token_hbortiz]
 """
 from __future__ import annotations
@@ -22,7 +22,7 @@ from huggingface_hub import HfApi
 def main() -> int:
     p = argparse.ArgumentParser()
     p.add_argument("--local", type=Path, default=Path("datasets/eval3_merged"))
-    p.add_argument("--repo", default="HBOrtiz/so101_eval3")
+    p.add_argument("--repo", default="HBOrtiz/so101_eval3_broad")
     p.add_argument("--token-file", type=Path,
                    default=Path("secrets/huggingface/token_hbortiz"))
     args = p.parse_args()

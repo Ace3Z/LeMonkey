@@ -19,7 +19,7 @@ PUSH_REPO=HBOrtiz/smolvla_eval3_cotrain_10to1 bash launch.sh
 1. Loads `SmolVLAPolicy` from `lerobot/smolvla_base` (or a warm VLM) with `train_expert_only=False` (VLM body trainable) and `freeze_vision_encoder=True` (SigLIP frozen).
 2. Builds **two** dataloaders:
    - Robot: `LeRobotDataset` over `HBOrtiz/so101_eval3_cotrain`.
-   - VL: custom dataset over `HBOrtiz/eval3_objectvla_vl_pairs` parquet (~177k face-VQA pairs).
+   - VL: custom dataset over `HBOrtiz/eval3_vl_pairs_broad` parquet (~177k face-VQA pairs).
 3. Alternates batches: `step % (vl_ratio+1) == 0` → VL batch (CE loss via `vlm.forward(labels=...)`); else → robot batch (`policy.forward(batch)`).
 4. Single AdamW optimizer over all trainable params, gradient clip 10.0.
 5. Periodic checkpoints + final HF push.
@@ -32,7 +32,7 @@ PUSH_REPO=HBOrtiz/smolvla_eval3_cotrain_10to1 bash launch.sh
 | GPU available | `nvidia-smi` |
 | `lerobot` import works | `python -c "import lerobot.policies.smolvla.modeling_smolvla as m; print(m.SmolVLAPolicy.name)"` |
 | Robot dataset loads | `python -c "from lerobot.datasets.lerobot_dataset import LeRobotDataset; d=LeRobotDataset('HBOrtiz/so101_eval3_cotrain'); print(len(d))"` |
-| VL manifest loads | `python -c "from huggingface_hub import hf_hub_download; p=hf_hub_download('HBOrtiz/eval3_objectvla_vl_pairs','manifest.parquet',repo_type='dataset'); import pandas as pd; print(len(pd.read_parquet(p)))"` |
+| VL manifest loads | `python -c "from huggingface_hub import hf_hub_download; p=hf_hub_download('HBOrtiz/eval3_vl_pairs_broad','manifest.parquet',repo_type='dataset'); import pandas as pd; print(len(pd.read_parquet(p)))"` |
 
 ## Smoke-test gates (200 steps, must all pass)
 

@@ -168,7 +168,7 @@ def main() -> int:
     # --- Check 7-8: load videos for random samples ---
     print(f"[7-8] sample-load {args.n_video_samples} eps' videos", flush=True)
     from lerobot.datasets.lerobot_dataset import LeRobotDataset
-    ds = LeRobotDataset("local/so101_eval3", root=args.merged)
+    ds = LeRobotDataset("local/so101_eval3_broad", root=args.merged)
     samples = rng.sample(range(info["total_episodes"]), args.n_video_samples)
     ref_ok = 0
     cam_ok = 0

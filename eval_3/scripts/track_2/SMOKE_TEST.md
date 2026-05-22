@@ -14,7 +14,7 @@ the 30 k step production launch.
 | Gate | Owner | Verify |
 |---|---|---|
 | Darius's Strix VRAM probe | Darius | Pi0.5 fits 16 GB, latency < 20 s on cold `pi05_base`. If RED → abort Track 2 entirely, pivot to SmolVLA. |
-| Darius's VL pairs manifest | Darius | `HBOrtiz/eval3_objectvla_vl_pairs` on HF, parquet schema matches `lerobot_train_with_vl_cotrain.py` `VLPairsDataset.__init__` required cols (`image_path`, `prompt`, `target`) |
+| Darius's VL pairs manifest | Darius | `HBOrtiz/eval3_vl_pairs_broad` on HF, parquet schema matches `lerobot_train_with_vl_cotrain.py` `VLPairsDataset.__init__` required cols (`image_path`, `prompt`, `target`) |
 | Roham's robot-frame bboxes | Roham | parquet with `episode_idx`, `frame_idx`, `bbox_xyxy`, `target_celeb` columns for 200-celeb dataset |
 | brev_instance2 access | - | SSH works; conda `lemonkey` env activates; `python -c "import lerobot, peft, transformers, torch; print(...)"` reports versions |
 | warm-PG checkpoint accessible | Roham | `hf download HBOrtiz/pi05_paligemma_celeb_warm_v2` succeeds (or local cache present) |

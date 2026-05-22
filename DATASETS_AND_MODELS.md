@@ -54,7 +54,7 @@ Eval 3 publishes several models. The two deployed on eval day are the **5:1 cotr
 | Repo | Use | Description |
 |---|---|---|
 | [`HBOrtiz/so101_smolvla_eval3_cotrain`](https://huggingface.co/HBOrtiz/so101_smolvla_eval3_cotrain) | in-distribution celebrities | SmolVLA-450M co-trained on robot episodes and vision-language grounding pairs at a 5:1 robot-to-vision-language ratio. Single-camera inference contract (`cam1`). Checkpoints nested under `step_NNNNNN/`. |
-| [`HBOrtiz/so101_smolvla_eval3_broad`](https://huggingface.co/HBOrtiz/so101_smolvla_eval3_broad) | broad and out-of-distribution | SmolVLA-450M trained on the 192-celebrity dataset, 30k steps. Final 25k checkpoint at the repo root, intermediates under `checkpoints/`. |
+| [`HBOrtiz/so101_smolvla_eval3_broad`](https://huggingface.co/HBOrtiz/so101_smolvla_eval3_broad) | broad and out-of-distribution | SmolVLA-450M co-trained on the 192-celebrity robot dataset plus the 192-celebrity vision-language grounding pairs, 30k steps. Final 25k checkpoint at the repo root, intermediates under `checkpoints/`. |
 
 ### Other published variants
 
@@ -71,7 +71,8 @@ Eval 3 publishes several models. The two deployed on eval day are the **5:1 cotr
 |---|---|---|
 | [`so101_eval3_cotrain`](https://huggingface.co/datasets/HBOrtiz/so101_eval3_cotrain) | robot training stream | 9,394 episodes / 5,053,972 frames: real base teleops plus identity-preserving augmented variants of the can placed on Taylor Swift / Barack Obama / Yann LeCun portraits. 15 prompt templates (5 paraphrases per celebrity). |
 | [`eval3_vl_pairs`](https://huggingface.co/datasets/HBOrtiz/eval3_vl_pairs) | vision-language stream | 56,202 vision-language pairs over 9,367 frames. Each pair links a portrait bounding box to the celebrity's name (two caption types: location-to-name and name-to-location). The grounding signal for co-training. |
-| [`so101_eval3`](https://huggingface.co/datasets/HBOrtiz/so101_eval3) | training set (broad) | The 192-celebrity dataset: real base teleops plus augmented variants drawn from a 200-celebrity scraped photo bank. Training input for `so101_smolvla_eval3_broad`. |
+| [`so101_eval3_broad`](https://huggingface.co/datasets/HBOrtiz/so101_eval3_broad) | robot training stream (broad) | 9,842 episodes / 5,294,800 frames: real base teleops plus identity-preserving augmented variants drawn from a 200-celebrity scraped photo bank. Robot half of the broad cotrain. |
+| [`eval3_vl_pairs_broad`](https://huggingface.co/datasets/HBOrtiz/eval3_vl_pairs_broad) | vision-language stream (broad) | 176,670 grounding pairs over 9,815 frames, covering 192 celebrities. The grounding half of the broad cotrain that produced `so101_smolvla_eval3_broad`. |
 
 ### How the Eval 3 datasets were built
 

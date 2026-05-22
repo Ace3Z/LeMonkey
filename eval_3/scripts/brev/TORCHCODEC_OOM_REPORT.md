@@ -34,7 +34,7 @@ python -u lerobot-train \
   --policy.empty_cameras=1 \
   --policy.optimizer_lr=5e-5 \
   --policy.use_amp=true \
-  --dataset.repo_id=local/so101_eval3 \
+  --dataset.repo_id=local/so101_eval3_broad \
   --dataset.root=/home/shadeform/LeMonkey/datasets/eval3_merged \
   --dataset.image_transforms.enable=true \
   --rename_map='{"observation.images.reference": "observation.images.camera2"}' \
@@ -153,5 +153,5 @@ Run with:
 ## Pointers
 
 - The script that actually triggered this: [`eval_3/scripts/brev/run_training.sh`](../scripts/brev/run_training.sh) - see the long header comment for the live diagnostic notes captured during the incident.
-- The dataset: [`HBOrtiz/so101_eval3`](https://huggingface.co/datasets/HBOrtiz/so101_eval3) - pulling and iterating this exact dataset will reproduce the workload.
+- The dataset: [`HBOrtiz/so101_eval3_broad`](https://huggingface.co/datasets/HBOrtiz/so101_eval3_broad) - pulling and iterating this exact dataset will reproduce the workload.
 - The successful (post-fix) training log: [`so101_smolvla_eval3_broad.log`](so101_smolvla_eval3_broad.log) in this same dir - for "this is what a healthy 30 k-step run looks like" reference.

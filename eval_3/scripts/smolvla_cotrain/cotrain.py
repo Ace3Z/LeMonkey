@@ -91,7 +91,7 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--robot_dataset", required=True,
                    help="LeRobotDataset HF repo id (e.g. HBOrtiz/so101_eval3_cotrain)")
     p.add_argument("--vl_manifest", required=True,
-                   help="VL pairs HF repo id (e.g. HBOrtiz/eval3_objectvla_vl_pairs) "
+                   help="VL pairs HF repo id (e.g. HBOrtiz/eval3_vl_pairs_broad) "
                         "OR local parquet path")
     p.add_argument("--vl_image_root", default=None,
                    help="Override path to pre-extracted VL images dir. "
@@ -206,7 +206,7 @@ class VLPairsDataset(Dataset):
                     image_root = Path(full)
                     # The images ship as a packed archive — named data.tar.zst
                     # or images.tar.zst depending on how the dataset was pushed
-                    # (eval3_objectvla_vl_pairs uses data.tar.zst). Extract
+                    # (eval3_vl_pairs_broad uses data.tar.zst). Extract
                     # whichever *.tar.zst exists; it unpacks to images/chunk-*/.
                     if not (image_root / "images").is_dir():
                         archives = sorted(image_root.glob("*.tar.zst"))

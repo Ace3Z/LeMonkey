@@ -2,7 +2,7 @@
 # Eval 3 rollout runner — HBOrtiz/so101_smolvla_eval3_broad.
 #
 # The broad / out-of-distribution Eval 3 policy: SmolVLA-450M trained on the
-# 192-celebrity dataset (so101_eval3), 30k steps. Final 25k checkpoint at
+# 192-celebrity dataset (so101_eval3_broad), 30k steps. Final 25k checkpoint at
 # the HF repo root; intermediates under checkpoints/{005000..025000}/.
 #
 # Single-camera inference: supply only camera1; the unused camera slot is auto

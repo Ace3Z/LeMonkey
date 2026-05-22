@@ -73,7 +73,7 @@ python <<'EOF'
 from huggingface_hub import snapshot_download
 import os
 p = snapshot_download(
-    repo_id="HBOrtiz/eval3_objectvla_vl_pairs",
+    repo_id="HBOrtiz/eval3_vl_pairs_broad",
     repo_type="dataset",
     local_dir="~/data/vl_pairs",
     token=os.environ["HF_TOKEN"],
@@ -104,7 +104,7 @@ from lerobot_train_with_vl_cotrain import VLPairsDataset
 # Construct without a processor - just verify schema + image lookup.
 class DummyProcessor: pass
 ds = VLPairsDataset(
-    manifest_path_or_id="HBOrtiz/eval3_objectvla_vl_pairs",
+    manifest_path_or_id="HBOrtiz/eval3_vl_pairs_broad",
     processor=DummyProcessor(),
     image_root=__import__("pathlib").Path("~/data/vl_pairs/images").expanduser(),
 )

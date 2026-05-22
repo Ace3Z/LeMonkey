@@ -83,7 +83,7 @@ python -u "$(which lerobot-train)" \
   --policy.scheduler_warmup_steps=1000 \
   --policy.use_amp=true \
   --policy.device=cuda \
-  --dataset.repo_id=local/so101_eval3 \
+  --dataset.repo_id=local/so101_eval3_broad \
   --dataset.root=/home/shadeform/LeMonkey/datasets/eval3_merged \
   --dataset.video_backend=pyav \
   --dataset.image_transforms.enable=true \

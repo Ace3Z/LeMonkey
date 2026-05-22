@@ -26,7 +26,7 @@ For ad-hoc smoke testing:
         --policy.type=pi05 \\
         --policy.pretrained_path=HBOrtiz/pi05_paligemma_celeb_warm_v2 \\
         --dataset.repo_id=HBOrtiz/so101_eval3_aug_v3_200celebs \\
-        --vl_dataset.manifest=HBOrtiz/eval3_objectvla_vl_pairs \\
+        --vl_dataset.manifest=HBOrtiz/eval3_vl_pairs_broad \\
         --vl_ratio=10 \\
         --batch_size=8 --steps=200    # smoke
 
@@ -108,7 +108,7 @@ def build_argparser() -> argparse.ArgumentParser:
 # -----------------------------------------------------------------------------
 
 class VLPairsDataset(torch.utils.data.Dataset):
-    """Loads bbox-grounded face VQA pairs from `HBOrtiz/eval3_objectvla_vl_pairs`.
+    """Loads bbox-grounded face VQA pairs from `HBOrtiz/eval3_vl_pairs_broad`.
 
     Verified manifest schema (Roham's actual push, 2026-05-20):
         image_path        (str)   relative path inside the HF dataset
