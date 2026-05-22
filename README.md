@@ -237,7 +237,7 @@ and per-session state stay local.
 
 **Team 7 — ETH Robot Learning FS26, Project 1**
 
-[Roham Z. Nobari](https://github.com/rzninvo) · [Mahbod Tajdini](https://github.com/Ace3Z) · [Darius Foodeii](https://github.com/userdarius) · [Sejohn Uruthiralingam](https://github.com/SjohnU) · [Hans Baumann Oritz](https://github.com/katari16)
+[Roham Z. Nobari](https://github.com/rzninvo) · [Mahbod Tajdini](https://github.com/Ace3Z) · [Darius Foodeei](https://github.com/userdarius) · [Sejohn Uruthiralingam](https://github.com/SjohnU) · [Hans Baumann-Ortiz](https://github.com/katari16)
 
 ---
 
