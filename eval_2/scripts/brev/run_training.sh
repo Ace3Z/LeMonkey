@@ -6,7 +6,7 @@
 #   - base policy: lerobot/smolvla_base (NOT a v2 warm-start — see eval_2/README.md)
 #   - dataset    : merged 180-ep so101_eval2 (compositional prompts)
 #   - no --rename_map (eval2 datasets already have observation.images.camera1)
-#   - output_dir : ~/outputs/train/smolvla_eval2/
+#   - output_dir : ~/outputs/train/so101_smolvla_eval2/
 set -e
 
 source ~/miniconda3/etc/profile.d/conda.sh
@@ -15,7 +15,7 @@ cd ~/LeMonkey
 
 mkdir -p ~/outputs/train
 
-LOG=~/outputs/train/smolvla_eval2.log
+LOG=~/outputs/train/so101_smolvla_eval2.log
 echo "==> training log: $LOG"
 echo "==> started at: $(date)"
 echo
@@ -30,8 +30,8 @@ python -u "$(which lerobot-train)" \
   --batch_size=192 \
   --steps=25000 \
   --save_freq=5000 \
-  --output_dir=/home/shadeform/outputs/train/smolvla_eval2 \
-  --job_name=smolvla_eval2 \
+  --output_dir=/home/shadeform/outputs/train/so101_smolvla_eval2 \
+  --job_name=so101_smolvla_eval2 \
   --policy.device=cuda \
   --wandb.enable=false \
   2>&1 | tee "$LOG"

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Eval 3 rollout runner — HBOrtiz/smolvla_eval3_cotrain.
+# Eval 3 rollout runner — HBOrtiz/so101_smolvla_eval3_cotrain.
 #
 # The in-distribution Eval 3 policy: SmolVLA-450M co-trained on robot episodes
 # + vision-language grounding pairs at a 5:1 robot-to-VL ratio. Single-camera
@@ -14,7 +14,7 @@
 #   ./run_rollout_cotrain_track3_5to1.sh /local/dir      # a custom local pretrained dir
 set -euo pipefail
 
-REPO_ID="HBOrtiz/smolvla_eval3_cotrain"
+REPO_ID="HBOrtiz/so101_smolvla_eval3_cotrain"
 ARG="${1:-step_045000}"
 
 # Repo-relative paths (this script lives at eval_3/scripts/).

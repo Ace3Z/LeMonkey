@@ -35,7 +35,7 @@ from lerobot.policies.smolvla.modeling_smolvla import SmolVLAPolicy
 from lerobot.utils.control_utils import predict_action
 
 MODEL = os.environ.get("MODEL", "v2")
-MODEL_DIR = {"v1": "smolvla_eval1", "v2": "smolvla_eval1"}.get(MODEL)
+MODEL_DIR = {"v1": "so101_smolvla_eval1", "v2": "so101_smolvla_eval1"}.get(MODEL)
 if MODEL_DIR is None:
     print(f"ERROR: MODEL must be v1 or v2 (got: {MODEL})", file=sys.stderr)
     sys.exit(1)

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Eval 3 rollout runner — HBOrtiz/smolvla_eval3.
+# Eval 3 rollout runner — HBOrtiz/so101_smolvla_eval3_broad.
 #
 # The broad / out-of-distribution Eval 3 policy: SmolVLA-450M trained on the
 # 192-celebrity dataset (so101_eval3), 30k steps. Final 25k checkpoint at
@@ -14,14 +14,14 @@
 #   ./run_rollout_smolvla_eval3.sh /local/dir           # a custom local pretrained dir
 set -euo pipefail
 
-REPO_ID="HBOrtiz/smolvla_eval3"
+REPO_ID="HBOrtiz/so101_smolvla_eval3_broad"
 ARG="${1:-}"
 
 # Repo-relative paths (this script lives at eval_3/scripts/).
 REPO_ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)
 AUTO_HOME="$REPO_ROOT/eval_1/scripts/auto_home.py"
 ROLLOUT_DIR="$REPO_ROOT/eval_3/rollouts"
-CACHE="$HOME/.cache/eval3_rollout/smolvla_eval3"
+CACHE="$HOME/.cache/eval3_rollout/so101_smolvla_eval3_broad"
 HOME_POSE=/tmp/run_rollout_smolvla_eval3_home.json
 HOME_DRIVE_S=2.0
 
@@ -59,7 +59,7 @@ if [ ! -f "$POLICY_PATH/model.safetensors" ]; then
 fi
 
 mkdir -p "$ROLLOUT_DIR"
-echo "Eval 3 — smolvla_eval3 (192-celebrity model) — interactive rollout"
+echo "Eval 3 — so101_smolvla_eval3_broad (192-celebrity model) — interactive rollout"
 echo "Policy : $POLICY_PATH"
 echo "Saving : $ROLLOUT_DIR"
 echo "Schema : camera1 (live); camera2/3 + empty_camera_0 auto-padded (empty_cameras=1)"

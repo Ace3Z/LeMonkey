@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # One-shot snapshot of training status (eval3 default). Run: ~/training_status.sh
-LOG="${1:-$HOME/outputs/train/smolvla_eval3.log}"
+LOG="${1:-$HOME/outputs/train/so101_smolvla_eval3_broad.log}"
 
 echo "=== systemd service ==="
 systemctl --user is-active lerobot-train-eval3.service 2>&1 | head -1
@@ -27,4 +27,4 @@ tr '\r' '\n' < "$LOG" | grep -E "INFO|\[WARN\]|ERROR|Traceback|saved|complete|Fi
 
 echo
 echo "=== checkpoints saved ==="
-ls -d ~/outputs/train/smolvla_eval3/checkpoints/*/ 2>/dev/null | head -10 || echo "  no checkpoints yet"
+ls -d ~/outputs/train/so101_smolvla_eval3_broad/checkpoints/*/ 2>/dev/null | head -10 || echo "  no checkpoints yet"

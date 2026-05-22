@@ -18,7 +18,7 @@ Usage:
     train_residual.py --dataset-root /path/to/eval1_dagger/blue \\
                        --dataset-root /path/to/eval1_dagger/red \\
                        --dataset-root /path/to/eval1_dagger/green \\
-                       --policy-path /path/to/smolvla_eval1/.../pretrained_model \\
+                       --policy-path /path/to/so101_smolvla_eval1/.../pretrained_model \\
                        --out /path/to/save \\
                        --steps 5000 --batch-size 32 --lr 3e-4
 """

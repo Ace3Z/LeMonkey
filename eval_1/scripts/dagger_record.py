@@ -23,7 +23,7 @@ Why not just use lerobot-record:
 
 Usage:
     dagger_record.py \\
-      --policy-path /home/lemonkey/LeMonkey/eval_1/train/smolvla_eval1/checkpoints/020000/pretrained_model \\
+      --policy-path /home/lemonkey/LeMonkey/eval_1/train/so101_smolvla_eval1/checkpoints/020000/pretrained_model \\
       --dataset-root /home/lemonkey/LeMonkey/datasets/eval1_dagger/blue \\
       --dataset-repo-id HBOrtiz/so101_eval1_dagger_blue \\
       --task "Put the banana in the blue colored bowl." \\
@@ -70,7 +70,7 @@ from lerobot.utils.control_utils import predict_action
 
 # ─── Args ────────────────────────────────────────────────────────────────────
 
-DEFAULT_POLICY = "/home/lemonkey/LeMonkey/eval_1/train/smolvla_eval1/checkpoints/020000/pretrained_model"
+DEFAULT_POLICY = "/home/lemonkey/LeMonkey/eval_1/train/so101_smolvla_eval1/checkpoints/020000/pretrained_model"
 
 p = argparse.ArgumentParser()
 p.add_argument("--policy-path", default=DEFAULT_POLICY)

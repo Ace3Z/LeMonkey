@@ -51,7 +51,7 @@ if ps -ef | grep "lerobot-train" | grep -v grep >/dev/null; then
 fi
 
 # Wipe stale log so fresh run starts clean.
-rm -f ~/outputs/train/smolvla_eval2.log
+rm -f ~/outputs/train/so101_smolvla_eval2.log
 
 # 4. Launch as a transient user service inside user-1001.slice.
 echo "==> launching $UNIT as a transient user service"

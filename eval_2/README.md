@@ -55,13 +55,13 @@ carries a position-to-colour bias and phrasing overfit that this task is
 specifically trying to avoid. Image augmentation is colour jitter only: a
 horizontal flip would invert left and right and break the spatial prompts.
 
-The result is **`HBOrtiz/smolvla_eval2`**, SmolVLA-450M trained for 25k steps.
+The result is **`HBOrtiz/so101_smolvla_eval2`**, SmolVLA-450M trained for 25k steps.
 
 ## What is on the Hugging Face Hub
 
 | Repo | Type | Contents |
 |---|---|---|
-| [`HBOrtiz/smolvla_eval2`](https://huggingface.co/HBOrtiz/smolvla_eval2) | model | Deployed Eval 2 policy: SmolVLA-450M, 25k steps from `lerobot/smolvla_base`, image augmentation. Final checkpoint at the repo root, intermediates under `checkpoints/`. |
+| [`HBOrtiz/so101_smolvla_eval2`](https://huggingface.co/HBOrtiz/so101_smolvla_eval2) | model | Deployed Eval 2 policy: SmolVLA-450M, 25k steps from `lerobot/smolvla_base`, image augmentation. Final checkpoint at the repo root, intermediates under `checkpoints/`. |
 | [`HBOrtiz/so101_eval2`](https://huggingface.co/datasets/HBOrtiz/so101_eval2) | dataset | 180 teleop episodes, 107,820 frames, 123 distinct compositional prompts, balanced over 6 arrangements and 6 prompt families. |
 
 ## Running a rollout

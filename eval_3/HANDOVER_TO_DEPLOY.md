@@ -14,7 +14,7 @@ We're at the point where Eval 3's **dataset is locked, the policy is trained, an
 |---|---|---|
 | Augmentation pipeline | `eval_3/aug/` | Done, ran 2026-05-14/15, produced 4017 inpainted variants. Don't re-run. |
 | Augmented + base merged dataset | [`HBOrtiz/so101_eval3`](https://huggingface.co/datasets/HBOrtiz/so101_eval3) (public) | 4195 episodes, 933 unique prompts, 2.26M frames, 7.5 GB. Schema: `observation.images.camera1` (480×640 wrist) + `observation.images.reference` (480×480 constant-frame ref photo). |
-| Trained SmolVLA policy | [`HBOrtiz/smolvla_eval3`](https://huggingface.co/HBOrtiz/smolvla_eval3) | 450M params, 30k steps, 6 checkpoints (5k–25k under `checkpoints/`, 30k at root for `from_pretrained()`). Final loss 0.018. |
+| Trained SmolVLA policy | [`HBOrtiz/so101_smolvla_eval3_broad`](https://huggingface.co/HBOrtiz/so101_smolvla_eval3_broad) | 450M params, 30k steps, 6 checkpoints (5k–25k under `checkpoints/`, 30k at root for `from_pretrained()`). Final loss 0.018. |
 | Training recipe + brev scripts | `eval_3/scripts/brev/` | Locked. Includes `TORCHCODEC_OOM_REPORT.md` capturing the only major incident we hit. |
 | 50-celebrity sample PDF + zip | `Eval_3_Sample_Celebrity_Images.{pdf,zip,index.txt}` | A5 portraits, includes the 3 IID OOD photos. Can be printed to physically extend the eval set. |
 
@@ -26,7 +26,7 @@ We're at the point where Eval 3's **dataset is locked, the policy is trained, an
 - `observation.images.camera2` ← **constant-frame reference photo of the target celebrity** (this is the new thing)
 - `observation.images.camera3` ← empty (`--policy.empty_cameras=1` fills it at train time; at inference the policy expects 3 image slots and a zero-tensor for camera3 is fine)
 
-The `rename_map` we used at training time was `{"observation.images.reference": "observation.images.camera2"}`. The policy's saved config in `HBOrtiz/smolvla_eval3` reflects this - it expects keys named `camera1`, `camera2`, `camera3` (the latter empty).
+The `rename_map` we used at training time was `{"observation.images.reference": "observation.images.camera2"}`. The policy's saved config in `HBOrtiz/so101_smolvla_eval3_broad` reflects this - it expects keys named `camera1`, `camera2`, `camera3` (the latter empty).
 
 Per-rollout flow:
 1. Operator picks a target celebrity (CLI arg / prompt input).
@@ -51,14 +51,14 @@ source ~/miniconda3/etc/profile.d/conda.sh && conda activate lemonkey
 
 # 2. Pull the trained policy from HF. Use whatever HF token you already have
 #    set up - the policy repo is public, so even an anonymous pull works.
-hf download HBOrtiz/smolvla_eval3 --local-dir ~/LeMonkey/eval_3/train/smolvla_eval3
-# Final checkpoint will be at ~/LeMonkey/eval_3/train/smolvla_eval3/ (root files)
+hf download HBOrtiz/so101_smolvla_eval3_broad --local-dir ~/LeMonkey/eval_3/train/so101_smolvla_eval3_broad
+# Final checkpoint will be at ~/LeMonkey/eval_3/train/so101_smolvla_eval3_broad/ (root files)
 # Intermediates under checkpoints/{005000..025000}/
 
 # 3. Sanity-load the policy (no robot, no camera):
 python -c "
 from lerobot.policies.smolvla.modeling_smolvla import SmolVLAPolicy
-p = SmolVLAPolicy.from_pretrained('~/LeMonkey/eval_3/train/smolvla_eval3')
+p = SmolVLAPolicy.from_pretrained('~/LeMonkey/eval_3/train/so101_smolvla_eval3_broad')
 print('image_features:', list(p.config.image_features))
 print('empty_cameras :', p.config.empty_cameras)
 print('expects keys  :', p.config.image_features)

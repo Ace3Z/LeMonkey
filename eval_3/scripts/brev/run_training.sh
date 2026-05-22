@@ -67,7 +67,7 @@ export PYTORCH_ALLOC_CONF=expandable_segments:True
 
 mkdir -p ~/outputs/train
 
-LOG=~/outputs/train/smolvla_eval3.log
+LOG=~/outputs/train/so101_smolvla_eval3_broad.log
 echo "==> training log: $LOG"
 echo "==> started at: $(date)"
 echo
@@ -92,8 +92,8 @@ python -u "$(which lerobot-train)" \
   --steps=30000 \
   --save_freq=5000 \
   --num_workers=8 \
-  --output_dir=/home/shadeform/outputs/train/smolvla_eval3 \
-  --job_name=smolvla_eval3 \
+  --output_dir=/home/shadeform/outputs/train/so101_smolvla_eval3_broad \
+  --job_name=so101_smolvla_eval3_broad \
   --wandb.enable=false \
   2>&1 | tee "$LOG"
 

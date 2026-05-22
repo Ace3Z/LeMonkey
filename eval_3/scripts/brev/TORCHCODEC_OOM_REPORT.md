@@ -103,7 +103,7 @@ Why we suspect torchcodec and not LeRobot:
 + --dataset.video_backend=pyav
 ```
 
-With pyav, the same 30 k-step run completed cleanly in ~8 h. Final loss 0.018, checkpoints at 5 k / 10 k / 15 k / 20 k / 25 k / 30 k pushed to `HBOrtiz/smolvla_eval3` on HF.
+With pyav, the same 30 k-step run completed cleanly in ~8 h. Final loss 0.018, checkpoints at 5 k / 10 k / 15 k / 20 k / 25 k / 30 k pushed to `HBOrtiz/so101_smolvla_eval3_broad` on HF.
 
 We also kept `--num_workers=8` (was dropped to 4 with torchcodec in a previous attempt to slow the bleed); with pyav, 8 workers was stable. We also added `--property=LimitNOFILE=524288` to the systemd-run launcher because pt_data_workers + mmapped parquet/video shards hit the 1024 default FD limit at step ~40 (separate issue, not torchcodec-related).
 
@@ -154,4 +154,4 @@ Run with:
 
 - The script that actually triggered this: [`eval_3/scripts/brev/run_training.sh`](../scripts/brev/run_training.sh) - see the long header comment for the live diagnostic notes captured during the incident.
 - The dataset: [`HBOrtiz/so101_eval3`](https://huggingface.co/datasets/HBOrtiz/so101_eval3) - pulling and iterating this exact dataset will reproduce the workload.
-- The successful (post-fix) training log: [`smolvla_eval3.log`](smolvla_eval3.log) in this same dir - for "this is what a healthy 30 k-step run looks like" reference.
+- The successful (post-fix) training log: [`so101_smolvla_eval3_broad.log`](so101_smolvla_eval3_broad.log) in this same dir - for "this is what a healthy 30 k-step run looks like" reference.
