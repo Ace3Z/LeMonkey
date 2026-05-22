@@ -51,8 +51,6 @@ means the policy is genuinely listening to the prompt.
 |---|---|---|
 | [`smolvla_eval1_v2`](https://huggingface.co/HBOrtiz/smolvla_eval1_v2) | model | Deployed policy: 450M parameters, 25k steps, image augmentation, 5 intermediate checkpoints |
 | [`so101_eval1_all_v2`](https://huggingface.co/datasets/HBOrtiz/so101_eval1_all_v2) | dataset | Merged behaviour-cloning plus DAgger training data: 153 episodes, 44.6k frames |
-| [`so101_eval1_blue`](https://huggingface.co/datasets/HBOrtiz/so101_eval1_blue) · [`_red`](https://huggingface.co/datasets/HBOrtiz/so101_eval1_red) · [`_green`](https://huggingface.co/datasets/HBOrtiz/so101_eval1_green) | datasets | Per-colour behaviour-cloning demos (39 / 39 / 40 episodes) |
-| [`so101_eval1_dagger_blue`](https://huggingface.co/datasets/HBOrtiz/so101_eval1_dagger_blue) · [`_red`](https://huggingface.co/datasets/HBOrtiz/so101_eval1_dagger_red) · [`_green`](https://huggingface.co/datasets/HBOrtiz/so101_eval1_dagger_green) | datasets | Per-colour HG-DAgger correction demos |
 
 ## Running a rollout
 

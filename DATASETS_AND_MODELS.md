@@ -26,8 +26,6 @@ is trained on per-eval data. Datasets use the
 | Repo | Type | Contents |
 |---|---|---|
 | [`so101_eval1_all_v2`](https://huggingface.co/datasets/HBOrtiz/so101_eval1_all_v2) | training set | Merged 153 episodes / 44.6k frames: 118 behavior-cloning demos plus 35 HG-DAgger correction demos. |
-| [`so101_eval1_blue`](https://huggingface.co/datasets/HBOrtiz/so101_eval1_blue) · [`_red`](https://huggingface.co/datasets/HBOrtiz/so101_eval1_red) · [`_green`](https://huggingface.co/datasets/HBOrtiz/so101_eval1_green) | source (BC) | Per-color behavior-cloning demos: 39 / 39 / 40 episodes. |
-| [`so101_eval1_dagger_blue`](https://huggingface.co/datasets/HBOrtiz/so101_eval1_dagger_blue) · [`_red`](https://huggingface.co/datasets/HBOrtiz/so101_eval1_dagger_red) · [`_green`](https://huggingface.co/datasets/HBOrtiz/so101_eval1_dagger_green) | source (DAgger) | Per-color HG-DAgger correction demos, recorded against the behavior-cloning policy's failure positions. |
 
 ---
 
