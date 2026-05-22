@@ -1,0 +1,5 @@
+# Local secrets and run artifacts — never commit these.
+.hf_token
+m2_klal_data/
+outputs/
+*.log
