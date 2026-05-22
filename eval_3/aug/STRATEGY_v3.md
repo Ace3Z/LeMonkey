@@ -1,11 +1,11 @@
-# Eval 3 — Augmentation Strategy v3 (Path A, 200-celeb bank)
+# Eval 3 - Augmentation Strategy v3 (Path A, 200-celeb bank)
 
 > **Status:** Locked 2026-05-14 after 4-agent literature synthesis.
-> **Supersedes:** `STRATEGY.md` (May 10 — pre-Path-A pipeline).
-> **Companion:** `RESEARCH_v2.md` (May 10 — older research review of inpaint
+> **Supersedes:** `STRATEGY.md` (May 10 - pre-Path-A pipeline).
+> **Companion:** `RESEARCH_v2.md` (May 10 - older research review of inpaint
 > primitives; algorithmic choices there are still current, but the slot
 > strategy and prompt mixture below override anything inconsistent).
-> **Quality bar:** CLAUDE.md §7 — every numerical default is triple-sourced;
+> **Quality bar:** CLAUDE.md §7 - every numerical default is triple-sourced;
 > §11 "Cross-check" appendix shows the verification.
 
 ---
@@ -39,18 +39,18 @@ matching printed paper.
 
 The TA's evaluation sample is **9 rollouts** drawn from:
 
-- 3 IID-known (printed photos seen at training) — 3 celebs from
+- 3 IID-known (printed photos seen at training) - 3 celebs from
   `eval3_celebs/heldout/`, namely Swift/Obama/LeCun;
 - 3 IID-held-out (different photos of same 3 celebs);
 - 3 OOD (top-50 famous people, never trained on).
 
-The architecture decision **Path A — image as prompt** was locked
+The architecture decision **Path A - image as prompt** was locked
 2026-05-09 after a [PaliGemma](https://huggingface.co/google/paligemma-3b-pt-224)
-probe scored **0/14** on TOY names and **0/6** on OOD names — VLMs do not
+probe scored **0/14** on TOY names and **0/6** on OOD names - VLMs do not
 reliably know celebrity faces from name alone. Path A side-steps this
 by passing a clean reference photo of the target as a second image input
 (`observation.images.reference`), turning the task into **face
-verification** — a well-validated transfer problem ([Schroff et al.,
+verification** - a well-validated transfer problem ([Schroff et al.,
 FaceNet, CVPR 2015](https://arxiv.org/abs/1503.03832); [Deng et al.,
 ArcFace, CVPR 2019](https://arxiv.org/abs/1801.07698); [Cao et al.,
 VGGFace2, 2017](https://arxiv.org/abs/1710.08092)).
@@ -59,11 +59,11 @@ The model therefore needs to learn a single skill: **match the
 reference embedding to one of the 3 visible portrait embeddings, then
 direct the can to that paper.** It does NOT need to memorise 200 celebs
 by name. This is the single most important framing of the project, and
-it's what makes M = 25 sufficient — see §5.
+it's what makes M = 25 sufficient - see §5.
 
 ---
 
-## §2 · Slot strategy — ALL 3 portraits replaced
+## §2 · Slot strategy - ALL 3 portraits replaced
 
 For each augmented variant, all 3 visible portraits are inpainted with
 new celebs drawn from the bank. **No celeb is held fixed across
@@ -101,19 +101,19 @@ loss:
 
 Under Path A (image-as-prompt), the action depends only on the
 **match relation** `argmax_i sim(reference_embed, portrait_i_embed)`.
-Identity per se is causally irrelevant — only the match matters. Under
+Identity per se is causally irrelevant - only the match matters. Under
 RoCoDA's causal decomposition ([Doshi et al., Nov 2024,
 arXiv:2411.16959](https://arxiv.org/abs/2411.16959)) all 3 portraits and
 both distractor identities are causally-irrelevant scene state `s_I`.
 The correct augmentation policy is to **resample `s_I` uniformly while
-preserving the causal relation** — which means swapping all 3 slots
+preserving the causal relation** - which means swapping all 3 slots
 per variant, with the reference image updated in lock-step with whatever
 slot is designated target.
 
 This is the structural insight that **no published VLA inpainting paper
 exploits** because they bind the target via *language* (ROSIE / CACTI /
 NICE / GenAug all keep the target fixed because changing it would
-violate the language label —
+violate the language label -
 [ROSIE, arXiv:2302.11550](https://arxiv.org/abs/2302.11550);
 [GenAug, arXiv:2302.06671](https://arxiv.org/abs/2302.06671);
 [CACTI, arXiv:2212.05711](https://arxiv.org/abs/2212.05711);
@@ -140,7 +140,7 @@ the other 2 slots in random order.
 - Each celeb appears as distractor with equal marginal frequency
   (~45 / 4 500).
 - Each celeb appears in each slot position (left / middle / right) with
-  uniform marginal — mitigates the positional bias documented in
+  uniform marginal - mitigates the positional bias documented in
   [LIBERO-Plus, arXiv:2510.13626](https://arxiv.org/abs/2510.13626).
 - Within the per-celeb photo pool (5–10 photos each from the multi-
   source scrape, see `scrape_headshots.py`), photos are rotated across
@@ -162,13 +162,13 @@ different photo for both the printed and reference channels, so a
 pixel-identity-trained model fails by construction.
 
 Sources:
-- [Schroff et al., FaceNet, CVPR 2015](https://arxiv.org/abs/1503.03832) —
+- [Schroff et al., FaceNet, CVPR 2015](https://arxiv.org/abs/1503.03832) -
   triplet anchor and positive must be DIFFERENT images of the same
   identity; this is the canonical face-verification training pattern.
-- [Cao et al., VGGFace2, 2017 (arXiv:1710.08092)](https://arxiv.org/abs/1710.08092) —
+- [Cao et al., VGGFace2, 2017 (arXiv:1710.08092)](https://arxiv.org/abs/1710.08092) -
   intra-class variance (many different photos per ID, 80–843) is *more*
   important than per-image quality for OOD face recognition.
-- [Ruiz et al., DreamBooth, CVPR 2023 (arXiv:2208.12242)](https://arxiv.org/abs/2208.12242) —
+- [Ruiz et al., DreamBooth, CVPR 2023 (arXiv:2208.12242)](https://arxiv.org/abs/2208.12242) -
   3–5 different photos per subject is the empirical minimum for identity
   learning; 10–20 for faces specifically.
 
@@ -180,7 +180,7 @@ already targets 10/celeb and we currently have:
 
 - 166 celebs with full 10/10 bank;
 - 39 celebs with 1–9 photos (the long tail);
-- 12 celebs with < 5 photos — flagged by §7 audit, supplemented or dropped.
+- 12 celebs with < 5 photos - flagged by §7 audit, supplemented or dropped.
 
 For the 3 IID celebs (Swift, Obama, LeCun), the bank includes the
 photos previously in `eval3_celebs/web/<short>/` folded into
@@ -192,7 +192,7 @@ Under the same RoCoDA framing as §2.2, the reference photo is `s_I` from
 the model's view: only its *identity* matters, the specific pixels
 don't. Rotating through multiple photos per celeb across variants
 forces identity-invariant features rather than photo-specific
-memorisation — verified in [Kortylewski et al., 2018
+memorisation - verified in [Kortylewski et al., 2018
 "Empirically Analyzing the Effect of Dataset Biases on DCNNs"](https://openaccess.thecvf.com/content_cvpr_2018_workshops/papers/w41/Kortylewski_Empirically_Analyzing_the_CVPR_2018_paper.pdf)
 which shows DCNNs fail to generalise pose when training pose is
 restricted.
@@ -232,10 +232,10 @@ policy:
 
 The SmolVLM-2 backbone (SmolVLA's VLM, [Shukor et al., 2025,
 arXiv:2506.01844](https://arxiv.org/abs/2506.01844)) is natively
-multi-image — its [SigLIP](https://arxiv.org/abs/2303.15343) vision
+multi-image - its [SigLIP](https://arxiv.org/abs/2303.15343) vision
 encoder produces image tokens for each frame independently, and the
 SmolLM2 decoder interleaves them with text tokens. The reference image
-is just additional image tokens in the input sequence — no architecture
+is just additional image tokens in the input sequence - no architecture
 change.
 
 This pattern is precedented in
@@ -255,19 +255,19 @@ slot-occurrences, distributed over a 203-celeb bank:
 
 | M | Variants total | Target / celeb | Distractor / celeb | Status |
 |---|---|---|---|---|
-| 5  | 900     | 4   | 9   | **Below floor** — DreamBooth minimum is 3–5, 10+ for faces; risky for tail celebs |
-| 10 | 1 800   | 9   | 18  | Marginal — at the floor; tail celebs (< 5 photos) under-cover |
-| 20 | 3 600   | 18  | 36  | Solid — above DreamBooth ideal (10–20 for faces) |
-| **25** | **4 500** | **22** | **45** | **Sweet spot** — comfortably above DreamBooth face minimum, well below Lin et al. plateau |
-| 30 | 5 400   | 27  | 54  | OK — approaching Lin et al. K = 50 plateau region |
-| 50 | 9 000   | 45  | 90  | Wasteful — beyond [Lin et al. ICLR 2025 (arXiv:2410.18647)](https://arxiv.org/abs/2410.18647) K = 50 plateau for per-pair imitation-learning data |
+| 5  | 900     | 4   | 9   | **Below floor** - DreamBooth minimum is 3–5, 10+ for faces; risky for tail celebs |
+| 10 | 1 800   | 9   | 18  | Marginal - at the floor; tail celebs (< 5 photos) under-cover |
+| 20 | 3 600   | 18  | 36  | Solid - above DreamBooth ideal (10–20 for faces) |
+| **25** | **4 500** | **22** | **45** | **Sweet spot** - comfortably above DreamBooth face minimum, well below Lin et al. plateau |
+| 30 | 5 400   | 27  | 54  | OK - approaching Lin et al. K = 50 plateau region |
+| 50 | 9 000   | 45  | 90  | Wasteful - beyond [Lin et al. ICLR 2025 (arXiv:2410.18647)](https://arxiv.org/abs/2410.18647) K = 50 plateau for per-pair imitation-learning data |
 | 100 | 18 000 | 90  | 180 | Strongly diminishing returns; compute is better spent on more layouts |
 
 ### §5.1 Why face-matching plateaus near M = 25 for us
 
 Three independent saturation signals converge:
 
-1. **Personalisation literature** — DreamBooth recommends 3–5 photos for
+1. **Personalisation literature** - DreamBooth recommends 3–5 photos for
    general objects, 10–20 for faces ([Ruiz et al., 2023,
    arXiv:2208.12242](https://arxiv.org/abs/2208.12242);
    [Kumari et al., Custom Diffusion, CVPR 2023](https://www.cs.cmu.edu/~custom-diffusion/)
@@ -275,12 +275,12 @@ Three independent saturation signals converge:
    [Gal et al., Textual Inversion, ICLR 2023, arXiv:2208.01618](https://arxiv.org/abs/2208.01618)
    uses 3–5). 22 target appearances × multiple photos per appearance is
    comfortably above all three thresholds.
-2. **Self-supervised retrieval saturation** — DINOv2 k-NN classification
+2. **Self-supervised retrieval saturation** - DINOv2 k-NN classification
    reaches usable accuracy with as few as 5–32 examples per class
    ([Oquab et al., 2023, arXiv:2304.07193](https://arxiv.org/abs/2304.07193)).
    Our 22 target + 45 distractor appearances per celeb sit firmly in this
    band.
-3. **Imitation-learning scaling** — [Lin et al., ICLR 2025
+3. **Imitation-learning scaling** - [Lin et al., ICLR 2025
    (arXiv:2410.18647)](https://arxiv.org/abs/2410.18647) shows
    per-(environment × object) imitation data plateaus around K = 50
    demonstrations, with the steep part of the power-law curve in K =
@@ -327,11 +327,11 @@ The 3 IID celebs already have folders in `scraped/` from the bank build
 - Move `web/swift/*` → `scraped/taylor_swift/web_*.jpg` (prefix avoids
   collision with the scraped photos already there).
 - Same for obama → `barack_obama/`, lecun → `yann_lecun/`.
-- `heldout/` stays separate — it is the "training-set physical photos"
+- `heldout/` stays separate - it is the "training-set physical photos"
   reference and must NOT be used for augmentation (eval hygiene; see
   §6.2).
 
-### §6.2 Eval hygiene — what we exclude
+### §6.2 Eval hygiene - what we exclude
 
 `heldout/` contains the exact photos that were physically printed and
 photographed during the 180 teleop recordings. If we re-used those
@@ -342,7 +342,7 @@ exclusively from the `scraped/` (now-merged) pool**, never from
 `heldout/`.
 
 Mention in the implementation: `4_inpaint_video.py` accepts
-`--photo-bank` — point it at `eval3_celebs/scraped/` for all
+`--photo-bank` - point it at `eval3_celebs/scraped/` for all
 production augmentation runs.
 
 ---
@@ -400,14 +400,14 @@ buckets:
 
 ### §8.1 Why this exact mixture
 
-- **75 % default** preserves the standard supervised channel — the
+- **75 % default** preserves the standard supervised channel - the
   vast majority of training looks like canonical teleop.
 - **15 % reference-only** forces the policy to actually attend to the
   reference image instead of taking the easier name-lookup path. This is
   necessary because, by [LIBERO-Plus and shortcut-learning analyses
   (arXiv:2510.13626, 2508.06426)](https://arxiv.org/abs/2510.13626),
   VLAs default to the easier modality when both are redundant. At eval,
-  the OOD celebs have names the model has never seen — so the
+  the OOD celebs have names the model has never seen - so the
   *only* reliable signal is the reference image. We must train for that
   case explicitly.
 - **10 % counterfactual** is the [CAST recipe
@@ -420,7 +420,7 @@ buckets:
   for our task at OOD eval.
 
 The 5 % "wrong reference" bucket the prompt-strategy agent suggested
-(prompt correct, reference unrelated) is **omitted in v1** — it asks
+(prompt correct, reference unrelated) is **omitted in v1** - it asks
 the model to fall back to a name → face lookup that we don't have
 training signal for (because we never trained name→face except as a
 redundant signal). Adding it would inject noise. Revisit only if the
@@ -429,7 +429,7 @@ matching probe (§9.5) plateaus.
 ### §8.2 Optional VQA co-training
 
 The forgetting agent recommended skipping VQA co-training since
-SmolVLA's VLM is frozen — VLM features can't be "blinded" if they're
+SmolVLA's VLM is frozen - VLM features can't be "blinded" if they're
 not training. We follow that recommendation. Revisit only if we observe
 unexpected matching plateaus.
 
@@ -459,7 +459,7 @@ Before launching the full 4 500-variant run we generate **20 sample
 variants** with the full debug bundle (compare frames, stage-2 panels,
 refit traces) so the visual quality + slot assignment + prompt mix can
 be eyeballed end-to-end. Stratified across the 9 layout cells
-(3 celebs × 3 layouts) — 2 from each cell + 2 extras = 20.
+(3 celebs × 3 layouts) - 2 from each cell + 2 extras = 20.
 
 For the production run after the user signs off on the 20-example
 output, **debug mode is OFF** to save ~70 % of pipeline time and
@@ -476,11 +476,11 @@ Each load-bearing decision verified against ≥ 3 independent sources.
 
 | Source | Evidence |
 |---|---|
-| [LIBERO-Plus, arXiv:2510.13626](https://arxiv.org/abs/2510.13626) | "Current VLAs exhibit positional bias rather than genuine semantic understanding of objects" — the exact failure mode predicted by target-only |
+| [LIBERO-Plus, arXiv:2510.13626](https://arxiv.org/abs/2510.13626) | "Current VLAs exhibit positional bias rather than genuine semantic understanding of objects" - the exact failure mode predicted by target-only |
 | [Shortcut Learning in Generalist Robot Policies, arXiv:2508.06426](https://arxiv.org/abs/2508.06426) | "Increased diversity moves models from zero success to shortcut-free performance" |
-| [RoCoDA, arXiv:2411.16959](https://arxiv.org/abs/2411.16959) | Causal-invariance framework — under Path A the action depends only on the match relation; all 3 slots are causally-irrelevant `s_I` |
+| [RoCoDA, arXiv:2411.16959](https://arxiv.org/abs/2411.16959) | Causal-invariance framework - under Path A the action depends only on the match relation; all 3 slots are causally-irrelevant `s_I` |
 | [COLOSSEUM, arXiv:2402.08191](https://arxiv.org/abs/2402.08191) | Distractor identity is a 30–50 % vulnerability axis for VLAs |
-| Convergent — all four point the same way | |
+| Convergent - all four point the same way | |
 
 ### §10.2 "Reference photo ≠ printed photo"
 
@@ -490,7 +490,7 @@ Each load-bearing decision verified against ≥ 3 independent sources.
 | [VGGFace2, arXiv:1710.08092](https://arxiv.org/abs/1710.08092) | High intra-class variance > per-image quality for OOD generalisation |
 | [DreamBooth, arXiv:2208.12242](https://arxiv.org/abs/2208.12242) | 3–5 different photos per subject is the minimum for identity learning |
 | [Open-Set Face Recognition, arXiv:1705.01567](https://arxiv.org/abs/1705.01567) | OOD identity protocol requires non-trivial pos-pair structure at train time |
-| Convergent — all four point the same way | |
+| Convergent - all four point the same way | |
 
 ### §10.3 "M = 25"
 
@@ -500,7 +500,7 @@ Each load-bearing decision verified against ≥ 3 independent sources.
 | [DINOv2, arXiv:2304.07193](https://arxiv.org/abs/2304.07193) | k-NN saturation at 5–32 examples/class |
 | [Lin et al. ICLR 2025, arXiv:2410.18647](https://arxiv.org/abs/2410.18647) | Per-pair plateau K = 50 ⇒ M = 25 sits on steep part of curve |
 | [SmolVLA paper, arXiv:2506.01844](https://arxiv.org/abs/2506.01844) | "Comparable performance with 31 demonstrations" on new SO-101 task |
-| Convergent — M = 25 in the steep-gain region for all four | |
+| Convergent - M = 25 in the steep-gain region for all four | |
 
 ### §10.4 "Prompt mix 75/15/10"
 
@@ -510,7 +510,7 @@ Each load-bearing decision verified against ≥ 3 independent sources.
 | [π0.5 KI, arXiv:2505.23705](https://arxiv.org/html/2505.23705v1) | Modality-mismatch co-training prevents VLM collapse to dominant modality |
 | [Mees et al., CALVIN paraphrase, arXiv:2204.06252](https://arxiv.org/pdf/2204.06252) | Paraphrase-augmented language is consistently beneficial |
 | Linguistic-blindness (multiple, [arXiv:2602.17659](https://arxiv.org/html/2602.17659), [2603.06001](https://arxiv.org/html/2603.06001v1)) | VLAs default to dominant modality unless explicitly forced; we need the 15 % no-name stress to ground in reference |
-| Convergent — 75/15/10 sits at the lower bound of all four sources' "needed counterfactual" range, conservatively | |
+| Convergent - 75/15/10 sits at the lower bound of all four sources' "needed counterfactual" range, conservatively | |
 
 ### §10.5 Convergent rejection of "VQA co-training"
 
@@ -519,7 +519,7 @@ Each load-bearing decision verified against ≥ 3 independent sources.
 | [SmolVLA paper](https://arxiv.org/abs/2506.01844) | VLM frozen by default; no mechanism for VLM forgetting |
 | [VLM2VLA, arXiv:2509.22195](https://arxiv.org/html/2509.22195) | LoRA + frozen-backbone preserves ≥ 85 % of base VQA |
 | [Princeton "Without Forgetting" blog, Apr 2026](https://blog.ai.princeton.edu/2026/04/23/from-vision-language-models-to-robot-control-without-forgetting/) | LoRA / frozen is preferred over VQA-cofine-tune when compute is tight |
-| Convergent — VQA co-train unnecessary for frozen-VLM Eval 3 | |
+| Convergent - VQA co-train unnecessary for frozen-VLM Eval 3 | |
 
 ---
 
@@ -578,12 +578,12 @@ Each load-bearing decision verified against ≥ 3 independent sources.
 - [Linguistic-blindness papers, 2025-26: arXiv:2602.17659, 2603.06001, 2604.05595](https://arxiv.org/html/2602.17659)
 
 ### Project-internal
-- `eval_3/aug/STRATEGY.md` — superseded by this doc
-- `eval_3/aug/RESEARCH_v2.md` — older research notes; inpaint primitives still current
-- `eval_3/aug/VALIDATION.md` — triple-source audit of v1 numerical defaults; still applies to MTF blur σ, Reinhard, etc.
-- `eval_3/scripts/scrape_headshots.py` — multi-source bank builder
-- `eval_3/scripts/record_eval3_guided.sh` — 180-ep recording structure
-- `docs/PROJECT.md` — Eval 3 task brief
+- `eval_3/aug/STRATEGY.md` - superseded by this doc
+- `eval_3/aug/RESEARCH_v2.md` - older research notes; inpaint primitives still current
+- `eval_3/aug/VALIDATION.md` - triple-source audit of v1 numerical defaults; still applies to MTF blur σ, Reinhard, etc.
+- `eval_3/scripts/scrape_headshots.py` - multi-source bank builder
+- `eval_3/scripts/record_eval3_guided.sh` - 180-ep recording structure
+- `docs/PROJECT.md` - Eval 3 task brief
 
 ---
 

@@ -16,17 +16,17 @@ the 30 k step production launch.
 | Darius's Strix VRAM probe | Darius | Pi0.5 fits 16 GB, latency < 20 s on cold `pi05_base`. If RED → abort Track 2 entirely, pivot to SmolVLA. |
 | Darius's VL pairs manifest | Darius | `HBOrtiz/eval3_objectvla_vl_pairs` on HF, parquet schema matches `lerobot_train_with_vl_cotrain.py` `VLPairsDataset.__init__` required cols (`image_path`, `prompt`, `target`) |
 | Roham's robot-frame bboxes | Roham | parquet with `episode_idx`, `frame_idx`, `bbox_xyxy`, `target_celeb` columns for 200-celeb dataset |
-| brev_instance2 access | — | SSH works; conda `lemonkey` env activates; `python -c "import lerobot, peft, transformers, torch; print(...)"` reports versions |
+| brev_instance2 access | - | SSH works; conda `lemonkey` env activates; `python -c "import lerobot, peft, transformers, torch; print(...)"` reports versions |
 | warm-PG checkpoint accessible | Roham | `hf download HBOrtiz/pi05_paligemma_celeb_warm_v2` succeeds (or local cache present) |
 
 ---
 
 ## 1 · Data prep verification (run on dev box BEFORE Brev)
 
-Run the ArcFace audit pipeline locally — if it doesn't smoke clean here, it
+Run the ArcFace audit pipeline locally - if it doesn't smoke clean here, it
 won't on Brev either.
 
-### 1.1 — Pull Roham's bboxes (~30 s)
+### 1.1 - Pull Roham's bboxes (~30 s)
 
 ```bash
 hf download HBOrtiz/<roham-bbox-repo> --repo-type dataset \
@@ -35,7 +35,7 @@ hf download HBOrtiz/<roham-bbox-repo> --repo-type dataset \
 
 Verify column schema matches the audit script's expected input.
 
-### 1.2 — Run audit (~1 h)
+### 1.2 - Run audit (~1 h)
 
 ```bash
 python eval_3/scripts/track_2/arcface_audit_200celeb.py \
@@ -55,7 +55,7 @@ python eval_3/scripts/track_2/arcface_audit_200celeb.py \
   investigate (`[WARN]` lines list which celebs are failing).
 - > 50% marked hard → centroid noise; either skip B-3 or raise gap threshold.
 
-### 1.3 — Build keep_list + sample_weights (~5 min)
+### 1.3 - Build keep_list + sample_weights (~5 min)
 
 ```bash
 python eval_3/scripts/track_2/build_keep_list_and_weights.py \
@@ -76,7 +76,7 @@ python eval_3/scripts/track_2/build_keep_list_and_weights.py \
 These checks confirm the Python wrapper imports and parses arguments correctly
 WITHOUT touching the GPU.
 
-### 2.1 — Argparser smoke (~30 s)
+### 2.1 - Argparser smoke (~30 s)
 
 ```bash
 python eval_3/scripts/track_2/lerobot_train_with_vl_cotrain.py --help
@@ -85,7 +85,7 @@ python eval_3/scripts/track_2/lerobot_train_with_vl_cotrain.py --help
 **PASS criteria:** all Track 2 extra flags (`--vl_dataset.manifest`,
 `--vl_ratio`, `--dataset.episodes_file`, etc.) appear in the help output.
 
-### 2.2 — Component imports (~10 s)
+### 2.2 - Component imports (~10 s)
 
 ```bash
 python -c "
@@ -98,7 +98,7 @@ print('OK all components importable')
 "
 ```
 
-### 2.3 — Curriculum sampler smoke (~5 s)
+### 2.3 - Curriculum sampler smoke (~5 s)
 
 ```bash
 python -c "
@@ -124,7 +124,7 @@ unique indices (only easy episodes); phase 2 should be broader.
 
 ## 3 · The 200-step smoke run (on brev_instance2)
 
-### 3.1 — Launch with reduced steps (~20 min on RTX PRO 6000)
+### 3.1 - Launch with reduced steps (~20 min on RTX PRO 6000)
 
 ```bash
 # On brev_instance2 after env + dataset sync:
@@ -133,7 +133,7 @@ STEPS=200 BATCH_SIZE=8 bash eval_3/scripts/brev/run_training_track_2.sh
 
 Watch the first 50 steps closely.
 
-### 3.2 — Gates during the smoke run
+### 3.2 - Gates during the smoke run
 
 | Step | Check | PASS criterion |
 |---|---|---|
@@ -145,7 +145,7 @@ Watch the first 50 steps closely.
 | 100 | Curriculum sampler hint | phase 1 active (step < 5000 default); log line `[curriculum] phase 1` printed |
 | 200 | EMA shadow weights tracked | `[ema] tracking N tensors` printed at startup; periodic `[ema]` updates OK |
 
-### 3.3 — Fallback: dict-attention-mask crash
+### 3.3 - Fallback: dict-attention-mask crash
 
 If step ~10 raises a TypeError about `create_causal_mask` and a dict-typed
 `attention_mask`:
@@ -161,7 +161,7 @@ If step ~10 raises a TypeError about `create_causal_mask` and a dict-typed
    - Use the returned `.loss`
 
    **The exact attribute path verified on brev_instance2** is the integration
-   work — see Roham's `train_paligemma_vqa.py` for the analogous offline pattern.
+   work - see Roham's `train_paligemma_vqa.py` for the analogous offline pattern.
 
 4. Verify the splice fallback produces the SAME magnitude `vqa_loss` as the
    primary path would have, on a synthetic 2-sample batch.
@@ -170,7 +170,7 @@ If step ~10 raises a TypeError about `create_causal_mask` and a dict-typed
 
 ## 4 · Pi0.5 inference smoke (Strix-side, BEFORE the 24h training run)
 
-Run this BEFORE committing the 24h Brev launch — Darius's Strix VRAM probe
+Run this BEFORE committing the 24h Brev launch - Darius's Strix VRAM probe
 already covers this, but verify your specific checkpoint loads cleanly:
 
 ```bash
@@ -184,7 +184,7 @@ bash eval_3/scripts/run_rollout_track_2.sh /tmp/pi05_warm
 ```
 
 **PASS:** rollout completes 25 s without crashing. Robot moves (won't pick
-the right celeb — warm-PG isn't action-trained — but the inference loop
+the right celeb - warm-PG isn't action-trained - but the inference loop
 shouldn't crash).
 
 ---
@@ -193,7 +193,7 @@ shouldn't crash).
 
 If ALL of the following are green, launch the 30 k step production run:
 
-- [ ] Data prep (§1) ran successfully — keep_list.txt + hardneg_weights.npy exist
+- [ ] Data prep (§1) ran successfully - keep_list.txt + hardneg_weights.npy exist
 - [ ] Wrapper components import (§2)
 - [ ] 200-step smoke ran with both loss types firing (§3.1, 3.2)
 - [ ] No dict-attention-mask crash OR fallback splice path validated (§3.3)

@@ -1,9 +1,9 @@
-# eval_1 — Direct color-conditioned pick-and-place
+# eval_1 - Direct color-conditioned pick-and-place
 
 Runtime artifacts and scripts for **Eval 1** of the project: SmolVLA picks a
 banana and places it in a colored bowl (`blue` / `red` / `green`) on prompt.
 
-The deployed model is **`HBOrtiz/smolvla_eval1_v2`**, step `025000` — fine-tuned
+The deployed model is **`HBOrtiz/smolvla_eval1_v2`**, step `025000` - fine-tuned
 from `lerobot/smolvla_base` on a merged 153-episode dataset (118 clean BC
 demos + 35 HG-DAgger correction demos) with image augmentation enabled.
 
@@ -11,7 +11,7 @@ demos + 35 HG-DAgger correction demos) with image augmentation enabled.
 
 - [What's on Hugging Face Hub](#whats-on-hugging-face-hub)
 - [Default checkpoint](#default-checkpoint)
-- [Quick reference — which script to use](#quick-reference--which-script-to-use)
+- [Quick reference - which script to use](#quick-reference--which-script-to-use)
 - [Hardware assumptions](#hardware-assumptions)
 - [Inference command pattern](#inference-command-pattern)
 - [Layout](#layout)
@@ -21,14 +21,14 @@ demos + 35 HG-DAgger correction demos) with image augmentation enabled.
 
 | Repo | Type | Contents |
 |---|---|---|
-| [`smolvla_eval1_v2`](https://huggingface.co/HBOrtiz/smolvla_eval1_v2) | model | **Deployed policy** — 450M params, 25k steps, image augmentation, 5 intermediate checkpoints |
+| [`smolvla_eval1_v2`](https://huggingface.co/HBOrtiz/smolvla_eval1_v2) | model | **Deployed policy** - 450M params, 25k steps, image augmentation, 5 intermediate checkpoints |
 | [`so101_eval1_all_v2`](https://huggingface.co/datasets/HBOrtiz/so101_eval1_all_v2) | dataset | Merged BC + DAgger training data, 153 ep, 44.6k frames |
 | [`so101_eval1_blue`](https://huggingface.co/datasets/HBOrtiz/so101_eval1_blue) · [`_red`](https://huggingface.co/datasets/HBOrtiz/so101_eval1_red) · [`_green`](https://huggingface.co/datasets/HBOrtiz/so101_eval1_green) | datasets | Per-color BC demos (39 / 39 / 40 ep) |
 | [`so101_eval1_dagger_blue`](https://huggingface.co/datasets/HBOrtiz/so101_eval1_dagger_blue) · [`_red`](https://huggingface.co/datasets/HBOrtiz/so101_eval1_dagger_red) · [`_green`](https://huggingface.co/datasets/HBOrtiz/so101_eval1_dagger_green) | datasets | Per-color HG-DAgger correction demos |
 
 ## Default checkpoint
 
-All scripts default to **v2 / `025000`** — the most-converged step from the
+All scripts default to **v2 / `025000`** - the most-converged step from the
 final training run.
 
 ```bash
@@ -39,7 +39,7 @@ MODEL=v2 ./scripts/eval_checkpoint.sh 020000      # try a different intermediate
 
 Pass a different step as the first positional argument to override.
 
-## Quick reference — which script to use
+## Quick reference - which script to use
 
 ### Run a single rollout with a typed or spoken prompt
 
@@ -49,7 +49,7 @@ Pass a different step as the first positional argument to override.
 ```
 
 Each rollout captures the arm's starting pose, runs the policy for 40 s
-(press right-arrow to end the episode early — built into `lerobot-record`),
+(press right-arrow to end the episode early - built into `lerobot-record`),
 then drives the arm back to the starting pose for the next take.
 
 ### Run a 30-rollout structured eval
@@ -75,7 +75,7 @@ per color), asks Y/N after each rollout, and writes
   --num-episodes 12 --episode-time-s 30
 ```
 
-Press `SPACE` to toggle teleop ON / OFF (anchored delta — no jerk).
+Press `SPACE` to toggle teleop ON / OFF (anchored delta - no jerk).
 `n` ends an episode early after a successful pick. `d` marks the last-saved
 episode for deletion at end-of-run. `r` releases torques mid-session for
 manual homing.
@@ -83,7 +83,7 @@ manual homing.
 ### Set up a fresh Brev VM
 
 ```bash
-bash ~/LeMonkey/eval_1/scripts/brev_setup.sh   # idempotent — installs miniconda, lerobot, ffmpeg
+bash ~/LeMonkey/eval_1/scripts/brev_setup.sh   # idempotent - installs miniconda, lerobot, ffmpeg
 ```
 
 ### Release torques and manually home both arms
@@ -141,7 +141,7 @@ lerobot-record \
   --policy.path=/home/lemonkey/LeMonkey/eval_1/train/smolvla_eval1_v2/checkpoints/025000/pretrained_model
 ```
 
-The camera key is `camera1` — the policy expects `observation.images.camera1`.
+The camera key is `camera1` - the policy expects `observation.images.camera1`.
 
 ## Layout
 

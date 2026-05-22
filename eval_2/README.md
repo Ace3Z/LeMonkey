@@ -1,4 +1,4 @@
-# eval_2 — SO-101 SmolVLA, Compositional Instruction Following
+# eval_2 - SO-101 SmolVLA, Compositional Instruction Following
 
 Runtime artifacts and scripts for **Eval 2** (50 pts): the policy must
 decide which bowl is the target by *reasoning over a compositional prompt*,
@@ -17,7 +17,7 @@ Per `docs/PROJECT.md` §2:
 
 | Repo | Type | Contents |
 |---|---|---|
-| [`HBOrtiz/smolvla_eval2`](https://huggingface.co/HBOrtiz/smolvla_eval2) | model | **Deployed Eval 2 policy** — 450M params, 25k steps from-scratch from `lerobot/smolvla_base`, image augmentation enabled. Final 25k checkpoint at the repo root for `from_pretrained()`; intermediates under `checkpoints/{005000,010000,015000,020000,025000}/`. |
+| [`HBOrtiz/smolvla_eval2`](https://huggingface.co/HBOrtiz/smolvla_eval2) | model | **Deployed Eval 2 policy** - 450M params, 25k steps from-scratch from `lerobot/smolvla_base`, image augmentation enabled. Final 25k checkpoint at the repo root for `from_pretrained()`; intermediates under `checkpoints/{005000,010000,015000,020000,025000}/`. |
 | [`HBOrtiz/so101_eval2_all`](https://huggingface.co/datasets/HBOrtiz/so101_eval2_all) | dataset | 180 teleop episodes, 107,820 frames, 123 distinct compositional prompts, balanced over 6 bowl arrangements × 6 prompt families |
 
 The Eval 2 model is kept in its own repo (separate from `HBOrtiz/smolvla_eval1*`)
@@ -36,7 +36,7 @@ eval_2/
 │       ├── start_training.sh
 │       ├── follow_training.sh
 │       └── training_status.sh
-├── state/                   plan.json — persistent recording state (gitignored)
+├── state/                   plan.json - persistent recording state (gitignored)
 ├── train/                   model checkpoints (gitignored)
 ├── rollouts/                per-rollout dataset dumps (gitignored)
 └── evals/                   per-session eval CSVs (gitignored)
@@ -57,10 +57,10 @@ independent axes:
 | Per (arr × family) cell | every cell has 5 episodes | 6×6×5 = 180 |
 
 Within each arrangement batch the 30 episodes are family-shuffled, and the
-6 batches themselves are presented in a randomized order — so **arrangement
+6 batches themselves are presented in a randomized order - so **arrangement
 and family-shuffling are decoupled** and neither is biased.
 
-Target colors fall out at roughly 60 ± 10 each (verified empirically — the
+Target colors fall out at roughly 60 ± 10 each (verified empirically - the
 slight green-skew comes from `relational_between` always targeting the middle
 bowl, which is acceptable; PROJECT.md doesn't require perfect color balance).
 
@@ -74,7 +74,7 @@ The probe scripts (`eval_1/scripts/probe_*.py`) showed v2/25k:
 - conditions on language strongly (`wrong_color ≈ 57`)
 - but is overfit to the 13 verbatim Eval 1 phrasings (`paraphrase ≈ 61`)
 - has **no compositional signal** (`spatial_*`, `relational`, `negation` all
-  5–11 pairwise distance — 5–10× weaker than the wrong_color baseline)
+  5–11 pairwise distance - 5–10× weaker than the wrong_color baseline)
 
 So Eval 2 cannot reuse v2 as-is. Strategy: **fine-tune from v2/25k on this
 new 180-episode compositional dataset** with broad phrasing diversity per
@@ -143,7 +143,7 @@ mid-session to confirm the family/color counters are progressing as expected.
 ## Training pipeline
 
 The recipe mirrors Eval 1's v2 successful run, but trains
-**from `lerobot/smolvla_base` from-scratch** (not warm-started from Eval 1) —
+**from `lerobot/smolvla_base` from-scratch** (not warm-started from Eval 1) -
 the Eval 1 base carries position→color and phrasing-overfit biases that this
 training is specifically trying to avoid. `docs/PROJECT.md` §3 explicitly
 allows different models per eval.
@@ -198,8 +198,8 @@ chmod +x ~/run_training.sh ~/start_training.sh ~/follow_training.sh ~/training_s
 | `--policy.path` | `lerobot/smolvla_base` | from-scratch, not v2 (avoid bias) |
 | `--dataset.repo_id` | `local/so101_eval2_all` | local-only (push_to_hub=false) |
 | `--dataset.root` | `~/LeMonkey/datasets/eval2_merged` | the merged 180-ep dataset |
-| `--dataset.image_transforms.enable` | `true` | color jitter only — no horizontal flip (would break spatial language) |
-| `--policy.empty_cameras` | `2` | match v2 — pads two missing cameras with zeros |
+| `--dataset.image_transforms.enable` | `true` | color jitter only - no horizontal flip (would break spatial language) |
+| `--policy.empty_cameras` | `2` | match v2 - pads two missing cameras with zeros |
 | `--batch_size` | 192 | v2 used this on H100 |
 | `--steps` | 25000 | v2 converged at 25k on a smaller dataset |
 | `--save_freq` | 5000 | 5 intermediate checkpoints (5k/10k/15k/20k/25k) |
@@ -207,15 +207,15 @@ chmod +x ~/run_training.sh ~/start_training.sh ~/follow_training.sh ~/training_s
 
 ### After training (completed)
 
-1. Push to HF Hub: done — final at root, intermediates under `checkpoints/<step>/`.
+1. Push to HF Hub: done - final at root, intermediates under `checkpoints/<step>/`.
 2. Pull back locally for inference / probing: `hf download HBOrtiz/smolvla_eval2 --local-dir ~/LeMonkey/eval_2/train/smolvla_eval2`.
 3. Verify language conditioning with `eval_1/scripts/probe_language_conditioning.py`
    (point `--model-path` at the Eval 2 checkpoint) and
-   `probe_compositional.py` — pairwise distances should rise from the 5–11 Eval-1
+   `probe_compositional.py` - pairwise distances should rise from the 5–11 Eval-1
    baseline to ≥ 20–30 if compositional reasoning was learned.
 4. Run real-robot eval on shuffled bowl arrangements with held-out prompts.
 
 ## Hardware
 
-Same as Eval 1 — see `eval_1/README.md`. Leader on `/dev/so101-leader`,
+Same as Eval 1 - see `eval_1/README.md`. Leader on `/dev/so101-leader`,
 follower on `/dev/so101-follower`, camera on `/dev/video0`.

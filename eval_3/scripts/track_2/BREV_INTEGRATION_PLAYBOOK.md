@@ -1,4 +1,4 @@
-# Track 2 — Brev integration playbook
+# Track 2 - Brev integration playbook
 
 **Audience:** Sejohn (or whoever has brev_instance2 SSH), working through the
 4 `[BREV_INTEGRATE]` markers in `lerobot_train_with_vl_cotrain.py`.
@@ -10,9 +10,9 @@ training with mixed 10:1 robot:VL batches on Pi0.5 + warm-PG + 200-celeb."
 
 ---
 
-## Phase A — Setup (~30 min)
+## Phase A - Setup (~30 min)
 
-### A.1 — SSH + sync branch
+### A.1 - SSH + sync branch
 
 ```bash
 ssh <brev_instance2>      # check HANDOVER_BREV_INSTANCE2.md for the host
@@ -22,7 +22,7 @@ git checkout dev/SjohnU/track_2_objectvla
 git pull origin dev/SjohnU/track_2_objectvla
 ```
 
-### A.2 — Activate env + verify versions
+### A.2 - Activate env + verify versions
 
 ```bash
 source ~/miniconda3/etc/profile.d/conda.sh
@@ -43,7 +43,7 @@ EOF
 **Record these numbers.** transformers version determines whether the
 dict-attention-mask fallback in Phase D2 is needed.
 
-### A.3 — Confirm Pi0.5 can load
+### A.3 - Confirm Pi0.5 can load
 
 ```bash
 python <<'EOF'
@@ -58,14 +58,14 @@ EOF
 If the import path is wrong, try `lerobot.common.policies.pi05.modeling_pi05`
 (older lerobot used `common.`).
 
-**Record the exact attribute path** that works — the wrapper uses this to
+**Record the exact attribute path** that works - the wrapper uses this to
 attach hooks.
 
 ---
 
-## Phase B — VL images pre-extraction (~30 min, mostly waiting)
+## Phase B - VL images pre-extraction (~30 min, mostly waiting)
 
-### B.1 — Download Roham's VL dataset
+### B.1 - Download Roham's VL dataset
 
 ```bash
 mkdir -p ~/data/vl_pairs
@@ -84,7 +84,7 @@ EOF
 
 Roughly 1.15 GB. On brev_instance2's pipe, ~3–5 min.
 
-### B.2 — Extract images.tar.zst
+### B.2 - Extract images.tar.zst
 
 ```bash
 cd ~/data/vl_pairs
@@ -94,14 +94,14 @@ ls images/chunk-000/ | head -5
 ls images/chunk-000/ | wc -l   # should be 29,445
 ```
 
-### B.3 — Sanity-check the VL manifest loads + image_root resolution works
+### B.3 - Sanity-check the VL manifest loads + image_root resolution works
 
 ```bash
 cd ~/LeMonkey
 python <<'EOF'
 import sys; sys.path.insert(0, "eval_3/scripts/track_2")
 from lerobot_train_with_vl_cotrain import VLPairsDataset
-# Construct without a processor — just verify schema + image lookup.
+# Construct without a processor - just verify schema + image lookup.
 class DummyProcessor: pass
 ds = VLPairsDataset(
     manifest_path_or_id="HBOrtiz/eval3_objectvla_vl_pairs",
@@ -125,12 +125,12 @@ If you see the gray-blank fallback `[WARN]` → image_root path is wrong, fix it
 
 ---
 
-## Phase C — Wrapper integration: the 4 markers (~3–4 h)
+## Phase C - Wrapper integration: the 4 markers (~3–4 h)
 
 The wrapper currently does steps 1–5 below as scaffolding. You need to flesh
 out steps 6–10 with the actual lerobot training loop integration.
 
-### C.1 — Marker #1: locate the lerobot training entry point
+### C.1 - Marker #1: locate the lerobot training entry point
 
 The wrapper needs to hook into how lerobot starts training. Mahbod's M2 wrapper
 did this via monkey-patching `lerobot.policies.factory.make_policy`. Find the
@@ -149,7 +149,7 @@ or in a `Trainer` class. Look for:
 - Where the per-step `forward()` happens (you'll add the modulo alternation)
 - Where the loss is `.backward()`d (you'll add EMA update after the step)
 
-### C.2 — Marker #2: build the dual-dataloader + step alternation
+### C.2 - Marker #2: build the dual-dataloader + step alternation
 
 This is the core of Track 2. Pseudocode (adapt to your lerobot version):
 
@@ -189,11 +189,11 @@ for step in range(args.steps):
         ema.update(policy.model)
 ```
 
-**Sacred constraint:** `vl_ratio + 1 = 11`. Do NOT change to 10 or 12 — the
+**Sacred constraint:** `vl_ratio + 1 = 11`. Do NOT change to 10 or 12 - the
 modulo arithmetic produces the published 10:1 robot:VL ratio when
 `step % 11 == 0` for VL batches.
 
-### C.3 — Marker #3: layer-wise LoRA rank (B-4)
+### C.3 - Marker #3: layer-wise LoRA rank (B-4)
 
 PEFT's `LoraConfig` supports `rank_pattern` (a `{regex: rank}` dict). The
 wrapper already builds this dict from `layer_rank_track2.json`. To apply it:
@@ -224,12 +224,12 @@ peft_model = get_peft_model(base_model, cfg)
 0.10.0), fall back to uniform `r=32` and skip B-4. Don't block the launch on
 it.
 
-### C.4 — Marker #4: dict-attention-mask fallback (only if smoke crashes)
+### C.4 - Marker #4: dict-attention-mask fallback (only if smoke crashes)
 
 The `pi05_vqa_loss` function tries the primary HF `model.forward()` path
 first. If transformers ≥5.0 builds a dict-typed `attention_mask` that crashes
 `PiGemmaModel.forward`, the function catches the error and sets a flag to
-take the manual-splice fallback path — which is currently
+take the manual-splice fallback path - which is currently
 `raise NotImplementedError`.
 
 If smoke (Phase D) crashes with this error, here's the splice template (from
@@ -266,10 +266,10 @@ def pi05_vqa_loss_manual_splice(model, batch):
 
 Replace the `raise NotImplementedError` in `pi05_vqa_loss` with this. The
 exact attribute path may need tweaking depending on the lerobot version's
-Pi0.5 wrapper — use Roham's `train_paligemma_vqa.py` on
+Pi0.5 wrapper - use Roham's `train_paligemma_vqa.py` on
 `origin/track-b-warmstart-vqa` as the canonical reference.
 
-### C.5 — EMA shadow weights (B-7)
+### C.5 - EMA shadow weights (B-7)
 
 Already implemented as `EMAShadow` class. Just construct it and call `.update()`
 once per step:
@@ -289,9 +289,9 @@ as the deployable checkpoint. Standard practice: use EMA weights at inference.
 
 ---
 
-## Phase D — Smoke test (~30 min, gates Phase E)
+## Phase D - Smoke test (~30 min, gates Phase E)
 
-### D.1 — Launch 200-step smoke
+### D.1 - Launch 200-step smoke
 
 ```bash
 cd ~/LeMonkey
@@ -302,7 +302,7 @@ SMOKE_PID=$!
 tail -f ~/outputs/track_2_smoke.log
 ```
 
-### D.2 — Verify the gates (from SMOKE_TEST.md §3.2)
+### D.2 - Verify the gates (from SMOKE_TEST.md §3.2)
 
 In the live log, watch for:
 
@@ -314,7 +314,7 @@ In the live log, watch for:
 | VRAM peak | `nvidia-smi --query-gpu=memory.used` < 90 GB |
 | EMA active | `[ema] tracking N tensors` at startup |
 
-### D.3 — If dict-mask crashes
+### D.3 - If dict-mask crashes
 
 ```bash
 kill $SMOKE_PID
@@ -322,7 +322,7 @@ kill $SMOKE_PID
 # Re-run smoke.
 ```
 
-### D.4 — If VRAM OOMs at bs=8
+### D.4 - If VRAM OOMs at bs=8
 
 Drop further:
 ```bash
@@ -337,9 +337,9 @@ USE_EMA=false STEPS=200 BATCH_SIZE=8 bash eval_3/scripts/brev/run_training_track
 
 ---
 
-## Phase E — Full 24 h launch (~30 sec to fire, then walk away)
+## Phase E - Full 24 h launch (~30 sec to fire, then walk away)
 
-### E.1 — Launch in tmux/nohup
+### E.1 - Launch in tmux/nohup
 
 ```bash
 nohup bash eval_3/scripts/brev/run_training_track_2.sh \
@@ -348,7 +348,7 @@ echo $! > ~/outputs/track_2.pid
 echo "PID=$(cat ~/outputs/track_2.pid); ETA ~24h"
 ```
 
-### E.2 — Monitoring schedule
+### E.2 - Monitoring schedule
 
 | Hour | Check |
 |---|---|
@@ -357,7 +357,7 @@ echo "PID=$(cat ~/outputs/track_2.pid); ETA ~24h"
 | +12 h | Checkpoint pushed at step 15000 (about midway) |
 | +24 h | Final checkpoint pushed to `HBOrtiz/pi05_eval3_objectvla` |
 
-### E.3 — Abort gates during the run (from SMOKE_TEST.md §6)
+### E.3 - Abort gates during the run (from SMOKE_TEST.md §6)
 
 If at any point:
 - Loss curves flat or rising
@@ -369,7 +369,7 @@ restart with adjusted hyperparams.
 
 ---
 
-## Phase F — Strix deploy (~2 h, after E completes)
+## Phase F - Strix deploy (~2 h, after E completes)
 
 This is Task #20, separate from this playbook. Once `HBOrtiz/pi05_eval3_objectvla`
 is pushed:
@@ -411,7 +411,7 @@ Total wall to demo ready:  ~30h
   the AttributeError.
 - Phase D: any smoke gate failing → paste the relevant log lines.
 
-The wrapper scaffold IS the spec — if you find yourself rewriting beyond
+The wrapper scaffold IS the spec - if you find yourself rewriting beyond
 the markers, you're probably solving the wrong problem. Stick to the
 modulo-alternation structure.
 

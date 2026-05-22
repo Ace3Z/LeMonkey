@@ -1,4 +1,4 @@
-# TODO.md — active work list for LeMonkey Eval 3
+# TODO.md - active work list for LeMonkey Eval 3
 
 **Last updated:** 2026-05-18 23:10 CEST
 **Status:** Post-TA-ruling pivot. 4-day sprint, 5-person team. Tracks A / B / C locked.
@@ -6,10 +6,10 @@
 > **Read this file first** in every new session. It is the operational source of truth
 > for what's being worked on. The deeper "why" lives in:
 >
-> - [`docs/report/EVAL_3_FINAL_PLAN.html`](docs/report/EVAL_3_FINAL_PLAN.html) — the canonical 4-day plan (text-only, 5-person)
-> - [`docs/EVAL_3_DATASETS.md`](docs/EVAL_3_DATASETS.md) — what's on HF and what to use
-> - [`eval_3/STRATEGY.md`](eval_3/STRATEGY.md) — full strategy history
-> - [`docs/report/EVAL_3_RESEARCH_REPORT.md`](docs/report/EVAL_3_RESEARCH_REPORT.md) — M1–M8 mechanism enumeration + audits
+> - [`docs/report/EVAL_3_FINAL_PLAN.html`](docs/report/EVAL_3_FINAL_PLAN.html) - the canonical 4-day plan (text-only, 5-person)
+> - [`docs/EVAL_3_DATASETS.md`](docs/EVAL_3_DATASETS.md) - what's on HF and what to use
+> - [`eval_3/STRATEGY.md`](eval_3/STRATEGY.md) - full strategy history
+> - [`docs/report/EVAL_3_RESEARCH_REPORT.md`](docs/report/EVAL_3_RESEARCH_REPORT.md) - M1–M8 mechanism enumeration + audits
 
 ---
 
@@ -17,11 +17,11 @@
 
 | Track | Owner | Backbone | Mechanism | Bonus | Brev | Risk |
 |---|---|---|---|---|---|---|
-| **A** | **Hans** | SmolVLA-450M | Hans's warm-VLM frozen; action expert trains | **+20** | ~6 h | low — Hans verified warm-VLM works |
-| **B** | **Roham** | Pi0.5-3B | VLM frozen (`train_expert_only=True`); preserves PaliGemma WebLI prior | +16 | ~24 h | medium — PaliGemma celeb prior untested |
-| **C** | **Sejohn** | SmolVLA-450M | Vanilla `lerobot/smolvla_base`, defaults, no warm-VLM | **+20** | ~6 h | low — proven recipe |
-| **D** (opt) | **Mahbod** | tooling | M2 ArcFace cosine distillation toolkit on SmolVLA, drop-in | — | — | n/a — on standby |
-| — | **Darius** | Strix testing | deploys each checkpoint, runs 3-rollout protocol | — | — | — |
+| **A** | **Hans** | SmolVLA-450M | Hans's warm-VLM frozen; action expert trains | **+20** | ~6 h | low - Hans verified warm-VLM works |
+| **B** | **Roham** | Pi0.5-3B | VLM frozen (`train_expert_only=True`); preserves PaliGemma WebLI prior | +16 | ~24 h | medium - PaliGemma celeb prior untested |
+| **C** | **Sejohn** | SmolVLA-450M | Vanilla `lerobot/smolvla_base`, defaults, no warm-VLM | **+20** | ~6 h | low - proven recipe |
+| **D** (opt) | **Mahbod** | tooling | M2 ArcFace cosine distillation toolkit on SmolVLA, drop-in | - | - | n/a - on standby |
+| - | **Darius** | Strix testing | deploys each checkpoint, runs 3-rollout protocol | - | - | - |
 
 All three training tracks load the same input: `HBOrtiz/so101_eval3_track3_v3_baseline`
 (178 base + 9,216 aug = 9,394 episodes, 14.3 GB, text-only prompts). The reference
@@ -29,7 +29,7 @@ camera channel is zero-padded via `--policy.empty_cameras=N`.
 
 ---
 
-## Tonight (Day 1, May 18) — what's already done
+## Tonight (Day 1, May 18) - what's already done
 
 - [x] Track 3 augmentation: 9,216 / 9,216 variants written (`datasets/eval3_track3_aug/`)
 - [x] Prompt re-label: all 9,216 variants converted to default-bucket prompts
@@ -39,11 +39,11 @@ camera channel is zero-padded via `--policy.empty_cameras=N`.
 - [x] Code committed + pushed to `origin/main` (commits `3836e5f .. d1e8fca`)
 - [x] EVAL_3_FINAL_PLAN.html distributed to team
 
-## Tonight — still to do
+## Tonight - still to do
 
 - [ ] **Hans:** push warm-VLM to **`HansOrtiz/smolvlm2_celeb_warm`** (LoRA merged into base SmolVLM2-500M). Sanity-check it names Swift/Obama/LeCun correctly. Slack confirm.
 - [ ] **Hans:** share LoRA training script + VGGFace2 VQA dataset format with Roham (for the Pi0.5 fallback path in Day 3).
-- [ ] **Sejohn:** dev-box sanity loader on the merged HF dataset — 5 random episodes, verify 538 frames + default-bucket prompt + 6-d state + 6-d action. Slack confirm.
+- [ ] **Sejohn:** dev-box sanity loader on the merged HF dataset - 5 random episodes, verify 538 frames + default-bucket prompt + 6-d state + 6-d action. Slack confirm.
 - [ ] **Roham:** compute Pi0.5 quantile state/action stats on the merged dataset:
   ```
   python eval_3/aug/compute_quantile_stats.py \
@@ -54,9 +54,9 @@ camera channel is zero-padded via `--policy.empty_cameras=N`.
 
 ---
 
-## Day 2 (May 19) — 3 training launches + M2 toolkit prep
+## Day 2 (May 19) - 3 training launches + M2 toolkit prep
 
-### Track A (Hans) — SmolVLA + Hans's warm-VLM
+### Track A (Hans) - SmolVLA + Hans's warm-VLM
 
 ```
 lerobot-train \
@@ -78,7 +78,7 @@ lerobot-train \
 - Launch by 07:00. Finishes ~13:00. Push to `HBOrtiz/smolvla_eval3_track_A`.
 - Hand off to **Darius** for Strix deployment.
 
-### Track B (Roham) — Pi0.5
+### Track B (Roham) - Pi0.5
 
 ```
 lerobot-train \
@@ -98,9 +98,9 @@ lerobot-train \
 ```
 
 - Launch by 06:00. Finishes ~Day 3 06:00 (~24 h). Push to `HBOrtiz/pi05_eval3_track_B`.
-- `train_expert_only=True` is CRITICAL — preserves PaliGemma's WebLI celeb prior.
+- `train_expert_only=True` is CRITICAL - preserves PaliGemma's WebLI celeb prior.
 
-### Track C (Sejohn) — SmolVLA safety floor
+### Track C (Sejohn) - SmolVLA safety floor
 
 ```
 lerobot-train \
@@ -120,11 +120,11 @@ lerobot-train \
 - Same as Track A but without Hans's warm-VLM (uses `lerobot/smolvla_base` vanilla).
 - Launch by 07:00. Finishes ~13:00.
 
-### Track D toolkit (Mahbod) — M2 ArcFace cosine distillation, drop-in patch
+### Track D toolkit (Mahbod) - M2 ArcFace cosine distillation, drop-in patch
 
-- [ ] `eval_3/aug/cache_arcface_embeddings.py` — walk every variant, compute `buffalo_l` ArcFace embedding of the target face from `augmentation.json["workspace_photos"][target_pid]`, save as `aug_cache_target_arcface.npy` in each variant dir. ~2 h dev box.
-- [ ] `eval_3/aug/face_align_projector.py` — frozen 3-layer MLP module (LN → Linear(hidden, 2048) → SiLU → Dropout(0.1) → Linear(2048, 2048) → SiLU → Dropout(0.1) → Linear(2048, 512)). All params `requires_grad=False` after init.
-- [ ] Patch `third_party/lerobot/src/lerobot/policies/smolvla/modeling_smolvla.py` at Backbone2Enc — expose hidden state at SmolLM2 layer 8 (of 16), compute `0.2 · L_align` (BlindVLA Eq. 9), add to loss in `forward()`.
+- [ ] `eval_3/aug/cache_arcface_embeddings.py` - walk every variant, compute `buffalo_l` ArcFace embedding of the target face from `augmentation.json["workspace_photos"][target_pid]`, save as `aug_cache_target_arcface.npy` in each variant dir. ~2 h dev box.
+- [ ] `eval_3/aug/face_align_projector.py` - frozen 3-layer MLP module (LN → Linear(hidden, 2048) → SiLU → Dropout(0.1) → Linear(2048, 2048) → SiLU → Dropout(0.1) → Linear(2048, 512)). All params `requires_grad=False` after init.
+- [ ] Patch `third_party/lerobot/src/lerobot/policies/smolvla/modeling_smolvla.py` at Backbone2Enc - expose hidden state at SmolLM2 layer 8 (of 16), compute `0.2 · L_align` (BlindVLA Eq. 9), add to loss in `forward()`.
 
 **Hold for Day 3 decision.** Apply only if Track A or C shows face-discrimination
 weakness on the Day-2 Strix test.
@@ -145,19 +145,19 @@ For every checkpoint that finishes training:
 
 ---
 
-## Day 3 (May 20) — iterate
+## Day 3 (May 20) - iterate
 
-- 06:00 — Track B finishes. **Darius** deploys to Strix.
-- 10:00 — team checkpoint call. Compare Tracks A / B / C. Pick the front-runner.
+- 06:00 - Track B finishes. **Darius** deploys to Strix.
+- 10:00 - team checkpoint call. Compare Tracks A / B / C. Pick the front-runner.
 - If any track has weak face discrimination on OOD: **Mahbod's M2 toolkit** gets applied + the affected track re-trains (~6 h Brev).
 - If Pi0.5 vanilla underperforms broadly: **mirror Hans's LoRA-on-VGGFace2 recipe on PaliGemma** (~10 h Brev) + re-train Track B (~24 h Brev). Tight but doable.
 
 ---
 
-## Day 4 (May 21) — dry-run + ship
+## Day 4 (May 21) - dry-run + ship
 
-- 08:00–12:00 — **Darius** full eval-day dry-run on top 1–2 candidates: 9 rollouts each (3 TOY / 3 held-out IID / 3 OOD).
-- 12:00 — team picks final checkpoint. Lock inference recipe:
+- 08:00–12:00 - **Darius** full eval-day dry-run on top 1–2 candidates: 9 rollouts each (3 TOY / 3 held-out IID / 3 OOD).
+- 12:00 - team picks final checkpoint. Lock inference recipe:
   ```python
   policy = SmolVLAPolicy.from_pretrained("HBOrtiz/<chosen-track>")
   # OR
@@ -169,8 +169,8 @@ For every checkpoint that finishes training:
       "task": f"Place the coke on {target_celeb_name}.",
   }
   ```
-- 12:00–17:00 — final checks: Strix VRAM fits, latency < 20 s, no `observation.images.reference` accessed.
-- Evening — sleep before eval day.
+- 12:00–17:00 - final checks: Strix VRAM fits, latency < 20 s, no `observation.images.reference` accessed.
+- Evening - sleep before eval day.
 
 ---
 

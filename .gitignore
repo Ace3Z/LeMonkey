@@ -34,8 +34,8 @@ third_party/sam2/
 data/
 datasets/
 
-# Local-only setup notes (VM-specific, not for git)
-docs/SETUP.md
+# docs/ — internal only: course brief, experiment logs, reports, setup notes (local-only, not for git)
+docs/
 
 # eval_1/: track the scripts, ignore heavy artifacts
 eval_1/train/

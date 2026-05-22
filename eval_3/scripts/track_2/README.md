@@ -1,4 +1,4 @@
-# Track 2 — ObjectVLA enhanced data prep & training
+# Track 2 - ObjectVLA enhanced data prep & training
 
 Owner: Sejohn · Branch: `dev/SjohnU/track_2_objectvla`
 
@@ -40,8 +40,8 @@ bash eval_3/scripts/track_2/run_audit_pipeline.sh <path-or-HF-repo>
 ```
 
 This does:
-1. Schema verify (~5 sec) — fails loud if column names differ from expected
-2. ArcFace audit (~1 h CPU / ~10 min GPU) — per-frame target_cos + hardneg_gap
+1. Schema verify (~5 sec) - fails loud if column names differ from expected
+2. ArcFace audit (~1 h CPU / ~10 min GPU) - per-frame target_cos + hardneg_gap
 3. Build keep_episodes.txt + hardneg_weights.npy (~5 min)
 
 After this completes, the Brev launch script has all artifacts it needs.

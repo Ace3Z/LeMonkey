@@ -1,8 +1,8 @@
-# SmolVLA + VL co-train — quickstart for a single AWS GPU node
+# SmolVLA + VL co-train - quickstart for a single AWS GPU node
 
 RT-2 §3.2 style co-training: every `vl_ratio+1`-th step is a VQA batch with CE loss on SmolVLM2's LM head; the rest are robot batches with SmolVLA's standard flow-matching action loss. Both gradients flow into the same VLM body, which is what keeps the celeb-name prior alive (the failure mode where sequential VLM→action fine-tunes produce a positional-shortcut policy).
 
-This is the SmolVLA-450M sibling of `eval_3/scripts/track_2/lerobot_train_with_vl_cotrain.py` (Pi0.5-3B). Unlike that one, the script here is **end-to-end integrated** — its training loop runs as-is on a single GPU node.
+This is the SmolVLA-450M sibling of `eval_3/scripts/track_2/lerobot_train_with_vl_cotrain.py` (Pi0.5-3B). Unlike that one, the script here is **end-to-end integrated** - its training loop runs as-is on a single GPU node.
 
 ## TL;DR
 
@@ -65,7 +65,7 @@ VL_RATIO=10 OUT_DIR=outputs/cotrain_10to1 PUSH_REPO=HBOrtiz/smolvla_cotrain_10to
 VL_RATIO=5  OUT_DIR=outputs/cotrain_5to1  PUSH_REPO=HBOrtiz/smolvla_cotrain_5to1  bash launch.sh
 ```
 
-After both finish (~6-8 h each on H100), Strix-test the prompt-sensitivity gate on each — pick the winner.
+After both finish (~6-8 h each on H100), Strix-test the prompt-sensitivity gate on each - pick the winner.
 
 ## Verifying the fix at training time
 
@@ -79,17 +79,17 @@ huggingface-cli download <repo>/<run> --revision step_15000 --local-dir /tmp/ckp
 ```
 
 If still broken at step 15k, the candidate fixes (in order):
-1. Lower `vl_ratio` (more VQA pressure) — relaunch with `VL_RATIO=3`.
-2. Raise `vl_batch_size` (more VQA samples per VQA step) — relaunch with `VL_BATCH_SIZE=16`.
-3. Switch starting point to `HansOrtiz/smolvlm2_celeb_warm` (warm VLM has VGGFace2 LoRA merged) — relaunch with `PRETRAINED=HansOrtiz/smolvlm2_celeb_warm` (note: warm VLM must Strix-probe cleanly first).
+1. Lower `vl_ratio` (more VQA pressure) - relaunch with `VL_RATIO=3`.
+2. Raise `vl_batch_size` (more VQA samples per VQA step) - relaunch with `VL_BATCH_SIZE=16`.
+3. Switch starting point to `HansOrtiz/smolvlm2_celeb_warm` (warm VLM has VGGFace2 LoRA merged) - relaunch with `PRETRAINED=HansOrtiz/smolvlm2_celeb_warm` (note: warm VLM must Strix-probe cleanly first).
 
 ## Known caveats
 
 - The VL collator runs the SmolVLM2 processor twice per batch (prompt-only + prompt+target) to get a correct image-token-aware prompt length for label masking. Slight per-step overhead, but cheap compared to the VLM forward.
-- If `vqa_loss` doesn't drop after step 100, dump 2-3 labels rows and verify the `-100` boundary lands right where the target starts. Edge-case: if the SmolVLM2 tokenizer ever produces a different number of leading specials for the prompt-only call vs the prompt+target call, the boundary shifts by 1-2 tokens — visible as `vqa_loss` plateauing at a slightly elevated floor.
-- `compile_model` is OFF by default. `torch.compile` over SmolVLA's custom forward path has been flaky in some lerobot versions — turn it on only after smoke passes.
+- If `vqa_loss` doesn't drop after step 100, dump 2-3 labels rows and verify the `-100` boundary lands right where the target starts. Edge-case: if the SmolVLM2 tokenizer ever produces a different number of leading specials for the prompt-only call vs the prompt+target call, the boundary shifts by 1-2 tokens - visible as `vqa_loss` plateauing at a slightly elevated floor.
+- `compile_model` is OFF by default. `torch.compile` over SmolVLA's custom forward path has been flaky in some lerobot versions - turn it on only after smoke passes.
 - AMP is bf16 by default (matches SmolVLM2's bf16 weights). fp16 will likely NaN-out the loss; don't switch.
-- The script saves checkpoints every `save_freq` steps in `lerobot` format **plus** the preprocessor/postprocessor JSON (normalization stats + tokenizer config). All three must be pushed together — otherwise Strix-side inference cannot reproduce normalization. The training script does this automatically.
+- The script saves checkpoints every `save_freq` steps in `lerobot` format **plus** the preprocessor/postprocessor JSON (normalization stats + tokenizer config). All three must be pushed together - otherwise Strix-side inference cannot reproduce normalization. The training script does this automatically.
 - This script has been **written and statically reviewed but NOT smoke-tested** on a real GPU. CLAUDE.md §7 rigour bar: someone must run the 200-step smoke before trusting it for a 24h run. The reviewer specifically flagged two crash-by-step-1 bugs in the original draft (preprocessor not applied to robot batches; VL label masking off by ~80-170 image tokens); both are fixed in the current version but verify on smoke.
 - Action-head dim mismatch (low-probability): when loading `lerobot/smolvla_base`, if the checkpoint's `action_in_proj`/`action_out_proj` dimensions disagree with the config's `max_action_dim`, lerobot's `strict=False` silently keeps random-init projections. The first few steps' `flow_loss` will be very large if this happens. Watch step 0-10.
 

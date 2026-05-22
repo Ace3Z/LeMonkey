@@ -1,12 +1,12 @@
-# CLAUDE.md — behavioral guidelines
+# CLAUDE.md - behavioral guidelines
 
 Guidelines to reduce common LLM coding mistakes on this repo.
 
 **Tradeoff:** these bias toward caution over speed. For trivial tasks use judgment.
 
-## Project stakes — the most important project ever
+## Project stakes - the most important project ever
 
-**The lives of many humans rely on this project.** This is not a metaphor — it is the
+**The lives of many humans rely on this project.** This is not a metaphor - it is the
 framing the user has chosen to calibrate the rigor bar. LeMonkey Eval 3 (ETH RC FS26
 Project 1) is the **most important project** this team is working on, and everything
 else right now yields to it.
@@ -26,7 +26,7 @@ Concretely, this means:
 
 ## 0. Always read TODO.md first
 
-`/TODO.md` at the repo root is the **operational source of truth** for what's being worked on right now. Read it at the start of every session. It points to the active tracks, their subtasks, and dependencies. Update it when you complete a subtask. Never start meaningful work without checking it first — duplicate effort and missed dependencies have been the failure mode every time we've skipped this.
+`/TODO.md` at the repo root is the **operational source of truth** for what's being worked on right now. Read it at the start of every session. It points to the active tracks, their subtasks, and dependencies. Update it when you complete a subtask. Never start meaningful work without checking it first - duplicate effort and missed dependencies have been the failure mode every time we've skipped this.
 
 ## 1. Think Before Coding
 
@@ -34,7 +34,7 @@ Concretely, this means:
 
 Before implementing:
 - State your assumptions explicitly. If uncertain, ask.
-- If multiple interpretations exist, present them — don't pick silently.
+- If multiple interpretations exist, present them - don't pick silently.
 - If a simpler approach exists, say so. Push back when warranted.
 - If something is unclear, stop. Name what's confusing. Ask.
 
@@ -58,7 +58,7 @@ When editing existing code:
 - Don't "improve" adjacent code, comments, or formatting.
 - Don't refactor things that aren't broken.
 - Match existing style, even if you'd do it differently.
-- If you notice unrelated dead code, mention it — don't delete it.
+- If you notice unrelated dead code, mention it - don't delete it.
 
 When your changes create orphans:
 - Remove imports/variables/functions that YOUR changes made unused.
@@ -144,7 +144,7 @@ are not certain about:
 - Use WebSearch or WebFetch to consult current docs.
 - Check the version we are actually installing before writing code against it.
 - Read the library source for the function you're about to call. The LeRobot,
-  HuggingFace transformers, peft, and InsightFace ecosystems move fast — a 2024
+  HuggingFace transformers, peft, and InsightFace ecosystems move fast - a 2024
   pattern may not match 2026 reality.
 - Prefer minimal, verified syntax over a clever pattern you half-remember.
 
@@ -156,8 +156,8 @@ ArcFace embedding APIs, and any new VLA paper code we adapt.
 
 *Non-trivial code or load-bearing claims get a second pair of eyes. Always.*
 
-For any non-trivial implementation — model architectures, training loops, dataset
-construction pipelines, eval harnesses, statistical analyses — and for any load-
+For any non-trivial implementation - model architectures, training loops, dataset
+construction pipelines, eval harnesses, statistical analyses - and for any load-
 bearing numerical or methodological claim:
 
 - Spawn a parallel review agent (via the Agent tool) to read the code or audit the
@@ -167,17 +167,17 @@ bearing numerical or methodological claim:
   parallel and reconcile their findings.
 - Do not mark a task complete on "it compiled" or "the unit test passed." Reviewer
   must sign off, or you must explicitly note "no review performed, here's why."
-- Config files, scaffolding, and trivial edits don't require this — use judgment.
+- Config files, scaffolding, and trivial edits don't require this - use judgment.
 
 Precedent: see the 3-agent validation we ran 2026-05-18 on the M2+M3-without-M4
 soundness, the 3-celeb baseline combinatorics, and the M6 SmolVLA implementation
-feasibility — documented inline in [`eval_3/STRATEGY.md` §7c.1](eval_3/STRATEGY.md).
+feasibility - documented inline in [`eval_3/STRATEGY.md` §7c.1](eval_3/STRATEGY.md).
 
 ## 10. Push, experiment logs, periodic status reports
 
 *Commits live on origin, not just locally. Findings persist as dated artifacts.*
 
-- **Push after every commit batch — including to `main`.** This repo is a small-team
+- **Push after every commit batch - including to `main`.** This repo is a small-team
   project; no PR review required. `git push origin main` after committing is
   authorized as a standing instruction. Never force-push. Never push to a branch
   someone else is actively working on without coordinating.

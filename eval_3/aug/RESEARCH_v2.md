@@ -1,4 +1,4 @@
-# Research v2 — fixing detection + temporal stability (2026-05-10)
+# Research v2 - fixing detection + temporal stability (2026-05-10)
 
 After running stages 2–4 end-to-end on ep01 and observing **jittery / blinking
 masks** that occasionally vanish during gripper crossings, we re-evaluated:
@@ -11,7 +11,7 @@ records the decision and the evidence.
 
 ---
 
-## 1. Detection — automate the frame-0 seeding
+## 1. Detection - automate the frame-0 seeding
 
 **Decision: HuggingFace transformers `GroundingDinoForObjectDetection` with `disable_custom_kernels=True`.**
 
@@ -76,13 +76,13 @@ extreme lighting, etc.):
 | Model | Rejection reason |
 |---|---|
 | **YOLO-World** (Ultralytics) | Backup option (Ultralytics has confirmed Thor + JetPack 7.0 support). No mask output, would still need SAM 2 chain. Slightly faster than GroundingDINO but adds another dep. |
-| **OWLv2** (HF transformers) | ViT-L/14 backbone, 2–5 fps at 640×480 on Thor — too slow. |
+| **OWLv2** (HF transformers) | ViT-L/14 backbone, 2–5 fps at 640×480 on Thor - too slow. |
 | **Florence-2** (Microsoft) | Generative decode adds latency (3–8 fps). Versatile but heavy. |
-| **SAM 3 native text prompts** | See §2 below — SAM 3 is rejected for stability + speed reasons. |
+| **SAM 3 native text prompts** | See §2 below - SAM 3 is rejected for stability + speed reasons. |
 
 ---
 
-## 2. Temporal stability — replace per-frame SAM with track-once-then-interpolate
+## 2. Temporal stability - replace per-frame SAM with track-once-then-interpolate
 
 **Decision: SAM 2.1 once on frame 0 → Lucas-Kanade optical-flow track the 4 corners across all remaining frames. Re-anchor via a fresh detection if LK confidence drops.**
 
@@ -90,7 +90,7 @@ extreme lighting, etc.):
 
 SAM 2's memory bank propagation **re-derives the mask each frame** from
 learned features attending into the recent-frame memory. Even for a
-physically static object, the re-derivation is noisy — the contours shift
+physically static object, the re-derivation is noisy - the contours shift
 by 1–3 px per frame, masks occasionally shrink during partial gripper
 occlusion, and recover differently. The visible result: portraits that
 "blink" or "shrink and grow" when the inpaint pastes a photo at the
@@ -100,9 +100,9 @@ shifting mask boundary.
 
 The user's setup has three properties that classical tracking exploits:
 
-1. **The portraits are physically static** — they sit on the table and do not move.
-2. **The portraits are planar** — printed paper is approximately flat.
-3. **The camera motion is smooth** — robot arm at 30 fps produces smooth inter-frame motion.
+1. **The portraits are physically static** - they sit on the table and do not move.
+2. **The portraits are planar** - printed paper is approximately flat.
+3. **The camera motion is smooth** - robot arm at 30 fps produces smooth inter-frame motion.
 
 For this regime, the **homography between any two frames is a single 3×3
 matrix** that maps every point on a portrait from frame i to frame j.
@@ -111,7 +111,7 @@ The 4 corners specifically obey this homography exactly. So:
 - Estimating the homography between frame 0 and frame N gives **exact**
   4-corner positions in frame N (modulo measurement noise on the
   feature matches).
-- This is **deterministic** — no neural-net per-frame variance.
+- This is **deterministic** - no neural-net per-frame variance.
 - Per-frame cost is dominated by feature matching: ~1 ms with sparse ORB,
   ~5–10 ms with SuperPoint + LightGlue.
 
@@ -140,7 +140,7 @@ import cv2
 import numpy as np
 
 # Frame 0: get the 4 corners per portrait (from SAM 2.1 image predictor +
-# minAreaRect — same as current stage 3, just done ONCE per video).
+# minAreaRect - same as current stage 3, just done ONCE per video).
 corners_0: dict[int, np.ndarray] = {0: (4, 2), 1: (4, 2), 2: (4, 2)}
 
 # Build an LK pyramid tracker on the corner points.
@@ -165,7 +165,7 @@ for fi in range(1, n_frames):
     confidence = float(status_r.sum() / 12)   # fraction of points kept by LK
 
     if confidence < 0.5:
-        # Gripper occluded too many corners — re-anchor.
+        # Gripper occluded too many corners - re-anchor.
         # Cheap option: SuperPoint+LightGlue homography from frame 0 to current.
         # Cheaper option: hold last known corners until LK recovers.
         ...
@@ -182,7 +182,7 @@ Sub-ms per frame (LK on 12 points is essentially free).
 | Gripper covers 1–2 corners | LK status flags those corners as lost; the remaining corners suffice to estimate the rigid update (we only need 3 to recover a homography). Hold the lost corners at their previous position. |
 | Gripper covers all 4 corners of one portrait | Hold the portrait's last known corner positions until LK recovers. ≤30-frame holds are within homography tolerance for ~150 × 200 px portraits. |
 | Long camera move + LK drift over time | Periodic re-anchor via planar homography from frame 0's reference patch (ORB or SuperPoint feature matching). Trigger when LK confidence drops below 0.5 OR every 60 frames. |
-| Portrait actually moves (sliding on table) | Doesn't happen in our setup — but if it did, LK would smoothly track the slide. |
+| Portrait actually moves (sliding on table) | Doesn't happen in our setup - but if it did, LK would smoothly track the slide. |
 
 ### What replaces what in the pipeline
 
@@ -190,19 +190,19 @@ Sub-ms per frame (LK on 12 points is essentially free).
 |---|---|
 | `2_segment_video.py` → SAM 2 video predictor produces 600 masks/portrait | `2_detect_track.py` → GroundingDINO + SAM 2 image predictor on frame 0; LK tracks the 4 corners across all 599 subsequent frames |
 | `3_extract_corners.py` → mask → 4 corners per frame, with occlusion interp | folded into stage 2 (corners are directly produced by the tracker) |
-| `portrait_masks.pkl` cache (~900 KB) | replaced by `portrait_track.json` (~50 KB) — just 4 corners per frame |
+| `portrait_masks.pkl` cache (~900 KB) | replaced by `portrait_track.json` (~50 KB) - just 4 corners per frame |
 | `portrait_corners.json` (~840 KB) | same role; produced directly by stage 2 |
 
 The `4_inpaint_video.py` and `5_verify_identity.py` stages are unchanged
-— they consume `portrait_corners.json`.
+- they consume `portrait_corners.json`.
 
 ### Expected improvement
 
-- **No jitter** — corners come from a deterministic LK tracker, not a stochastic neural net
-- **No blinking** — even during gripper occlusion, corners are held at their last known position rather than vanishing
-- **Faster** — LK is ~1 ms / frame vs SAM 2's ~37 ms / frame propagation. Whole 600-frame video processes in ~1 second instead of ~22 seconds
-- **Smaller cache** — corners are 4×2 floats vs a 480×640 RLE mask
-- **No decord dep** — we no longer need SAM 2's video predictor (only the image predictor on frame 0)
+- **No jitter** - corners come from a deterministic LK tracker, not a stochastic neural net
+- **No blinking** - even during gripper occlusion, corners are held at their last known position rather than vanishing
+- **Faster** - LK is ~1 ms / frame vs SAM 2's ~37 ms / frame propagation. Whole 600-frame video processes in ~1 second instead of ~22 seconds
+- **Smaller cache** - corners are 4×2 floats vs a 480×640 RLE mask
+- **No decord dep** - we no longer need SAM 2's video predictor (only the image predictor on frame 0)
 
 ---
 
@@ -210,10 +210,10 @@ The `4_inpaint_video.py` and `5_verify_identity.py` stages are unchanged
 
 1. Install HF transformers GroundingDINO support: `pip install "transformers>=4.40"` (already at 5.3.0)
 2. Verify GroundingDINO works on Thor: load `IDEA-Research/grounding-dino-tiny` with `disable_custom_kernels=True`, test on ep02 frame 0
-3. Write `eval_3/aug/2_detect_track.py` — new combined detect-and-track stage
+3. Write `eval_3/aug/2_detect_track.py` - new combined detect-and-track stage
 4. Keep `eval_3/aug/2_segment_video.py` as legacy for one release; add deprecation comment
 5. Update `pipeline.py` to use `2_detect_track.py` by default
-6. Re-run on ep02-ep05 (skip ep01 — was the "test" episode per user instruction)
+6. Re-run on ep02-ep05 (skip ep01 - was the "test" episode per user instruction)
 7. Generate new dbg_segmentation_videos for visual verification of stability
 8. If stability looks good, also re-render augmented variants and compare
 

@@ -8,7 +8,7 @@
 
 Training SmolVLA on a 4,195-episode LeRobot v3 dataset (8,390 unique mp4 files, 2.26 M frames total) caused the host RAM to climb monotonically until the OOM killer fired on a DataLoader worker. The leak was **per-worker** and grew proportional to the number of distinct mp4s opened over time. **Swapping `--dataset.video_backend=pyav` (libav-based Python bindings, the older default) for the lerobot 0.5.1 default `torchcodec` completely resolved the issue**: the 8.3 h, 30 k-step training then ran to completion with stable per-worker RSS.
 
-We did not file the bug upstream yet — this report is the seed for that filing.
+We did not file the bug upstream yet - this report is the seed for that filing.
 
 ## Environment
 
@@ -18,9 +18,9 @@ We did not file the bug upstream yet — this report is the seed for that filing
 | OS | Ubuntu 22.04 (Linux 6.8) |
 | Python | 3.12 (miniconda env `lemonkey`) |
 | Driver | NVIDIA 580.126.09 |
-| PyTorch | whatever `lerobot[smolvla]==0.5.1` pulled — likely 2.5.x |
+| PyTorch | whatever `lerobot[smolvla]==0.5.1` pulled - likely 2.5.x |
 | LeRobot | 0.5.1 (PyPI) |
-| torchcodec | bundled with LeRobot 0.5.1 — exact version not captured (TODO before filing) |
+| torchcodec | bundled with LeRobot 0.5.1 - exact version not captured (TODO before filing) |
 | ffmpeg | system, 4.4.2-0ubuntu0.22.04.1 |
 
 ## What we were running
@@ -40,9 +40,9 @@ python -u lerobot-train \
   --rename_map='{"observation.images.reference": "observation.images.camera2"}' \
   --batch_size=64 \
   --steps=30000 \
-  --num_workers=<4 or 8 — see below> \
+  --num_workers=<4 or 8 - see below> \
   --wandb.enable=false
-  # NOTE: torchcodec is the default — no --dataset.video_backend flag
+  # NOTE: torchcodec is the default - no --dataset.video_backend flag
 ```
 
 Dataset characteristics that may be relevant:
@@ -50,7 +50,7 @@ Dataset characteristics that may be relevant:
 - **8,390 unique mp4 files** (4,195 episodes × 2 cameras, one mp4 per camera per episode)
 - Each mp4 is H.264, ~530 frames, 480×640 (camera1) or 480×480 (camera2/reference)
 - Set deliberately to "one mp4 per episode per camera" via `video_files_size_in_mb=0.01` to avoid PyAV bitstream-concat issues at merge time (see `eval_3/aug/STRATEGY_v3.md`).
-- Iteration order during training is shuffled across all 4,195 episodes — so every worker opens many distinct files quickly.
+- Iteration order during training is shuffled across all 4,195 episodes - so every worker opens many distinct files quickly.
 
 Of note: the reference camera mp4 is a **constant-frame** video (the same celebrity photo repeated 530× per episode). That's an unusual stream but should be a benign edge case for any decoder.
 
@@ -60,7 +60,7 @@ Of note: the reference camera mp4 is a **constant-frame** video (the same celebr
 - Host RAM starts climbing within the first ~10 minutes. Climb is monotonic and roughly linear.
 - Around minute ~30, the kernel's OOM killer fires on a single `pt_data_worker` process.
 - After the worker dies, the DataLoader either hangs or PyTorch raises `RuntimeError: DataLoader worker (pid <N>) is killed by signal: Killed.`
-- No CUDA error, no `MemoryError` from Python — kill comes from the host kernel.
+- No CUDA error, no `MemoryError` from Python - kill comes from the host kernel.
 
 ## Forensic evidence
 
@@ -69,11 +69,11 @@ From `dmesg` immediately before/after the kill (logged at the time, since lost t
 | Run | `--num_workers` | Peak `anon-rss` on a single `pt_data_worker` | Time-to-OOM |
 |---|---|---|---|
 | 1 | 4 | **34.9 GB** | ~30 min |
-| 2 | 8 | **17.9 GB** (per worker) — still climbing when killed | ~30 min |
+| 2 | 8 | **17.9 GB** (per worker) - still climbing when killed | ~30 min |
 
-Critical observation: **with 4 workers the per-worker RSS reached ~35 GB; with 8 workers it was ~18 GB at the same wall-clock point. The leak rate per worker scales inversely with worker count.** That is exactly what you'd expect if (a) the leak is per-decode (or per-file-open), and (b) total decode load is split across workers — so each worker individually leaks at half the rate when there are twice as many.
+Critical observation: **with 4 workers the per-worker RSS reached ~35 GB; with 8 workers it was ~18 GB at the same wall-clock point. The leak rate per worker scales inversely with worker count.** That is exactly what you'd expect if (a) the leak is per-decode (or per-file-open), and (b) total decode load is split across workers - so each worker individually leaks at half the rate when there are twice as many.
 
-The aggregate "leak rate" (sum across workers) is comparable in both runs — the kernel just killed whichever single worker breached its slice of host RAM first.
+The aggregate "leak rate" (sum across workers) is comparable in both runs - the kernel just killed whichever single worker breached its slice of host RAM first.
 
 ## Root-cause hypothesis (unverified)
 
@@ -86,14 +86,14 @@ Concretely the chain is something like:
 1. LeRobotDataset reads a row → resolves `videos/observation.images.camera1/chunk-NNN/file-MMM.mp4` and a `from_timestamp`.
 2. Internally instantiates (or fetches from a per-worker cache) a `VideoDecoder` for that mp4.
 3. Reads frames.
-4. **Doesn't explicitly close** the decoder — relies on Python `__del__` / GC.
-5. The decoder's underlying libav context (a C struct allocated via `avcodec_alloc_context3`) doesn't get freed promptly — possibly held by a Python-side cache, possibly retained because of FFI ref-counts.
+4. **Doesn't explicitly close** the decoder - relies on Python `__del__` / GC.
+5. The decoder's underlying libav context (a C struct allocated via `avcodec_alloc_context3`) doesn't get freed promptly - possibly held by a Python-side cache, possibly retained because of FFI ref-counts.
 
 The "doesn't get freed" step is what would need to be confirmed by reading torchcodec's source.
 
 Why we suspect torchcodec and not LeRobot:
 
-- The fix that worked is a *single flag* (`--dataset.video_backend=pyav`) that switches the same lerobot code path to use the older `pyav` (Python bindings for libav) decoder library. Same LeRobot iterator, same code paths, same dataset, same dataloader, same workers — only the decoder library changes. So whatever is leaking lives in the decoder library.
+- The fix that worked is a *single flag* (`--dataset.video_backend=pyav`) that switches the same lerobot code path to use the older `pyav` (Python bindings for libav) decoder library. Same LeRobot iterator, same code paths, same dataset, same dataloader, same workers - only the decoder library changes. So whatever is leaking lives in the decoder library.
 - `pyav` is a long-established, well-tested wrapper that has been used in dozens of video-ML projects without leaks of this magnitude.
 
 ## Workaround that fixed it
@@ -109,7 +109,7 @@ We also kept `--num_workers=8` (was dropped to 4 with torchcodec in a previous a
 
 ## Minimal reproducer (to build before filing)
 
-This is the next step — none has been built yet. Sketch:
+This is the next step - none has been built yet. Sketch:
 
 ```python
 # repro_torchcodec_leak.py
@@ -139,7 +139,7 @@ Run with:
 - Many distinct files (≥ 1000) to defeat any per-path cache.
 - `gc.collect()` after each `del` to rule out gc latency.
 - Try with `tracemalloc` to confirm Python-side allocation is not the culprit.
-- Then compare with the same loop using `av.open(p)` (pyav) — should be flat.
+- Then compare with the same loop using `av.open(p)` (pyav) - should be flat.
 
 ## To do before filing the upstream issue
 
@@ -152,6 +152,6 @@ Run with:
 
 ## Pointers
 
-- The script that actually triggered this: [`eval_3/scripts/brev/run_training.sh`](../scripts/brev/run_training.sh) — see the long header comment for the live diagnostic notes captured during the incident.
-- The dataset: [`HBOrtiz/so101_eval3_all`](https://huggingface.co/datasets/HBOrtiz/so101_eval3_all) — pulling and iterating this exact dataset will reproduce the workload.
-- The successful (post-fix) training log: [`smolvla_eval3.log`](smolvla_eval3.log) in this same dir — for "this is what a healthy 30 k-step run looks like" reference.
+- The script that actually triggered this: [`eval_3/scripts/brev/run_training.sh`](../scripts/brev/run_training.sh) - see the long header comment for the live diagnostic notes captured during the incident.
+- The dataset: [`HBOrtiz/so101_eval3_all`](https://huggingface.co/datasets/HBOrtiz/so101_eval3_all) - pulling and iterating this exact dataset will reproduce the workload.
+- The successful (post-fix) training log: [`smolvla_eval3.log`](smolvla_eval3.log) in this same dir - for "this is what a healthy 30 k-step run looks like" reference.
