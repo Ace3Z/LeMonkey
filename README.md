@@ -1,202 +1,263 @@
-The branch that was tested for **eval 3** is https://github.com/Ace3Z/LeMonkey/tree/feat/cotrain-smolvla-darius and trained on these datasets:   
-https://huggingface.co/datasets/HBOrtiz/so101_eval3_track3_v3_baseline   
-https://huggingface.co/datasets/HBOrtiz/eval3_track3_vl_pairs
+<div align="center">
 
-The Trained model for **eval 3** is sitting at:
-https://huggingface.co/HBOrtiz/smolvla_eval3_cotrain_track3_5to1_cam1
+<div align="center">
+<table>
+  <tr>
+    <td align="center" valign="middle">
+      <img src="media/figures/cvg_logo_colour-white.png" height="40"/>
+    </td>
+    <td align="center" valign="middle">
+      <img src="media/figures/eth_logo_kurz_neg.png" height="80"/>
+    </td>
+    <td align="center" valign="middle">
+      <img src="media/figures/Microsoft-logo_rgb_c-gray.png" height="100"/>
+    </td>
+  </tr>
+</table>
+</div>
 
-The branch that was tested and trained for eval 1 and 2 are sitting at the **main branch**
 
-# LeMonkey
+# LeMonkey — Language-Conditioned Robot Manipulation
 
-> Vision-Language-Action manipulation policy for the ETH Robot Learning FS26
-> course (Project 1). Banana → bowl pick-and-place on a SO-101 6-DOF arm,
-> driven by a natural-language prompt and a pretrained vision-language backbone.
+**A vision-language-action (VLA) manipulation policy for the SO-101 arm that picks up an object and places it where a natural-language prompt tells it to — across three increasingly hard reasoning tasks.**
 
-[![Eval 1](https://img.shields.io/badge/Eval_1-deployed-success)](eval_1/)
-[![Eval 2](https://img.shields.io/badge/Eval_2-deployed-success)](eval_2/)
-[![Robot](https://img.shields.io/badge/robot-SO--101-blue)](https://huggingface.co/docs/lerobot/so101)
-[![Backbone](https://img.shields.io/badge/backbone-SmolVLA_450M-orange)](https://huggingface.co/lerobot/smolvla_base)
+[Overview](#-overview) •
+[The Three Evals](#-the-three-evals) •
+[Installation](#-installation) •
+[Running a Policy](#-running-a-policy) •
+[Datasets & Models](#-datasets--models) •
+[Team](#-team)
 
-## Table of contents
+</div>
 
-- [What's deployed](#whats-deployed)
-- [The three evals](#the-three-evals)
-- [Repository layout](#repository-layout)
-- [How to use](#how-to-use)
-- [Architecture](#architecture)
-- [Hardware](#hardware)
-- [Documentation index](#documentation-index)
-- [Quick links](#quick-links)
-- [Team & license](#team--license)
+---
 
-## What's deployed
+## 📖 Overview
 
-All artifacts live under [`HBOrtiz/`](https://huggingface.co/HBOrtiz) on the Hugging Face Hub
-(private — request access via Slack).
+**LeMonkey** is Team 7's project for the **Robot Learning course (ETH Zurich, FS26) — Project 1**. The goal: a single class of policy — a **VLA built on a pretrained vision-language backbone** — that observes a scene through the robot's camera, reads a natural-language prompt, and manipulates the right object accordingly. The grading rewards a policy that *reasons* about the prompt, not one that memorizes fixed positions.
 
-| Model | Eval | Recipe | Steps | Dataset |
-|---|---|---|---|---|
-| [`smolvla_eval1_v2`](https://huggingface.co/HBOrtiz/smolvla_eval1_v2) | Eval 1 | from `smolvla_base`, image augmentation | 25 000 | [`so101_eval1_all_v2`](https://huggingface.co/datasets/HBOrtiz/so101_eval1_all_v2) — 153 ep |
-| [`smolvla_eval2`](https://huggingface.co/HBOrtiz/smolvla_eval2) | Eval 2 | from `smolvla_base`, image augmentation | 25 000 | [`so101_eval2_all`](https://huggingface.co/datasets/HBOrtiz/so101_eval2_all) — 180 ep |
+We deploy **SmolVLA-450M** (the smallest off-the-shelf VLA), fine-tuned per task from `lerobot/smolvla_base`. The same 450M policy is used everywhere — keeping us competitive on the **smallest-model bonus**.
 
-Both models share the same `lerobot/smolvla_base` starting point and recipe,
-but are trained on disjoint datasets and live in separate repos so the two
-tasks never bleed into each other.
+The project is split into **three evaluations**, each a harder reasoning problem on the same robot:
 
-<details>
-<summary>Source datasets (per-color BC + DAgger)</summary>
+| Eval | Task | Prompt style | Status |
+|---|---|---|---|
+| **Eval 1** | Banana → colored bowl | Direct: *"Put the banana in the blue bowl."* | ✅ deployed |
+| **Eval 2** | Banana → bowl, bowls reshuffled | Compositional: *"…the 2nd bowl from the left."* | ✅ deployed |
+| **Eval 3** | Coke can → celebrity portrait | Identity: *"Put the coke on Barack Obama."* | ✅ deployed |
 
-| Dataset | Type | Contents |
-|---|---|---|
-| [`so101_eval1_blue`](https://huggingface.co/datasets/HBOrtiz/so101_eval1_blue) | BC | 39 ep, banana → blue bowl |
-| [`so101_eval1_red`](https://huggingface.co/datasets/HBOrtiz/so101_eval1_red) | BC | 39 ep, banana → red bowl |
-| [`so101_eval1_green`](https://huggingface.co/datasets/HBOrtiz/so101_eval1_green) | BC | 40 ep, banana → green bowl |
-| [`so101_eval1_dagger_blue`](https://huggingface.co/datasets/HBOrtiz/so101_eval1_dagger_blue) | DAgger | HG-DAgger corrections, blue corner positions |
-| [`so101_eval1_dagger_red`](https://huggingface.co/datasets/HBOrtiz/so101_eval1_dagger_red) | DAgger | red corner positions |
-| [`so101_eval1_dagger_green`](https://huggingface.co/datasets/HBOrtiz/so101_eval1_dagger_green) | DAgger | green corner positions |
+Each eval has its own runtime folder, README, deployed model, and dataset. This root README is the map; each `eval_N/README.md` is the detailed runbook.
 
-</details>
+---
 
-## The three evals
+## 🎬 Eval-Day Demos
 
-<details open>
-<summary><b>Eval 1 — Direct color-conditioned pick-and-place (50 pts)</b></summary>
+Rollout recordings from the actual evaluation day are in
+[`media/videos/videos_team7/`](media/videos/videos_team7/) — one folder per eval,
+with a `script_of_prompts.md` listing the prompt used in each clip.
 
-Banana in a fixed position. Three colored bowls in fixed positions. The
-policy must place the banana in the bowl named by the prompt:
+- [`eval1/`](media/videos/videos_team7/eval1/) — direct color-conditioned pick-and-place
+- [`eval2/`](media/videos/videos_team7/eval2/) — compositional instruction following
+- [`eval3/`](media/videos/videos_team7/eval3/) — coke can on the named celebrity (incl. an out-of-distribution celebrity)
+
+---
+
+## 🧩 The Three Evals
+
+### Eval 1 — Direct color-conditioned pick-and-place
+
+A banana sits in a fixed position; three colored bowls (blue / red / green) sit in fixed positions. The policy places the banana in the bowl named by the prompt.
 
 > *"Put the banana in the blue colored bowl."*
 
-Deployed: **[`HBOrtiz/smolvla_eval1_v2`](https://huggingface.co/HBOrtiz/smolvla_eval1_v2)**.
-See [`eval_1/README.md`](eval_1/README.md) for run instructions.
+- **Deployed:** [`HBOrtiz/smolvla_eval1_v2`](https://huggingface.co/HBOrtiz/smolvla_eval1_v2)
+- **Trained on:** [`HBOrtiz/so101_eval1_all_v2`](https://huggingface.co/datasets/HBOrtiz/so101_eval1_all_v2) — 153 teleop episodes (behavior-cloning demos + HG-DAgger corrections)
+- **Runbook:** [`eval_1/README.md`](eval_1/README.md)
 
-</details>
+### Eval 2 — Compositional instruction following
 
-<details open>
-<summary><b>Eval 2 — Compositional instruction following (50 pts)</b></summary>
+The banana stays put, but the bowls are **reshuffled** across positions and the prompt no longer names a color directly — the policy must *work out* which bowl is meant.
 
-Banana in the **same** position as Eval 1, but the bowls are reshuffled across
-positions and the prompts are compositional rather than direct:
+> *"Put the banana into the 2nd bowl from the left."*
+> *"…into the bowl on the right of the red bowl."*
+> *"…into the bowl that is not green and not blue."*
 
-> *"Put the banana into the 2nd bowl from the left."*<br>
-> *"Put the banana into the bowl on the right of the red bowl."*<br>
-> *"Put the banana into the bowl that is not green and not blue."*
+- **Deployed:** [`HBOrtiz/smolvla_eval2`](https://huggingface.co/HBOrtiz/smolvla_eval2)
+- **Trained on:** [`HBOrtiz/so101_eval2_all`](https://huggingface.co/datasets/HBOrtiz/so101_eval2_all) — 180 teleop episodes, balanced over 6 bowl arrangements × 6 compositional prompt families
+- **Runbook:** [`eval_2/README.md`](eval_2/README.md)
 
-Deployed: **[`HBOrtiz/smolvla_eval2`](https://huggingface.co/HBOrtiz/smolvla_eval2)**.
-See [`eval_2/README.md`](eval_2/README.md) for the data-collection plan,
-prompt families, and training pipeline.
+### Eval 3 — Coke can on a celebrity portrait
 
-</details>
+Three printed celebrity portraits are laid out on the workspace. The policy places a Coke can on the portrait of the **person named in the prompt** — including, in the hardest tier, celebrities never seen in training.
 
-<details>
-<summary><b>Eval 3 — Coke can on celebrity image (50 pts)</b></summary>
+> *"Put the coke on Barack Obama."*
 
-A celebrity headshot is placed on the workspace. The policy must place a Coke
-can in front of the matching face. Constraint: VLA-only — no separate face-ID
-or VLM grounder is allowed in the inference pipeline. Not yet implemented.
+The catch (course rule): **no separate face-recognition model or external VLM may run at inference** — the deployed VLA must do the identity reasoning itself. We solve this by **co-training**: the SmolVLA policy is trained jointly on robot manipulation episodes *and* on a vision-language grounding dataset (portrait location + celebrity name), so celebrity knowledge ends up *inside the policy weights*.
 
-</details>
+- **Deployed (in-distribution celebrities):** [`HBOrtiz/smolvla_eval3_cotrain_track3_5to1_cam1`](https://huggingface.co/HBOrtiz/smolvla_eval3_cotrain_track3_5to1_cam1) — SmolVLA co-trained at a 5:1 robot-to-grounding ratio
+- **Deployed (broad / out-of-distribution celebrities):** [`HBOrtiz/smolvla_eval3`](https://huggingface.co/HBOrtiz/smolvla_eval3) — SmolVLA trained on a 192-celebrity dataset
+- **Trained on:** [`HBOrtiz/so101_eval3_track3_v3_baseline`](https://huggingface.co/datasets/HBOrtiz/so101_eval3_track3_v3_baseline) (robot episodes) + [`HBOrtiz/eval3_track3_vl_pairs`](https://huggingface.co/datasets/HBOrtiz/eval3_track3_vl_pairs) (vision-language grounding pairs)
+- **Runbook:** [`eval_3/README.md`](eval_3/README.md)
 
-<details>
-<summary><b>Bonus — Smallest model (up to 50 pts)</b></summary>
+> Full dataset and model inventory: [`docs/DATASETS_AND_MODELS.md`](docs/DATASETS_AND_MODELS.md).
 
-Awarded to the team with the smallest VLA that still passes the evals. We
-deploy SmolVLA-450M (the smallest off-the-shelf option), so we are competitive
-on this dimension by default.
+---
 
-</details>
+## 🔧 Installation
 
-## Repository layout
+Everything runs in one conda environment, `lemonkey` (Python 3.12, PyTorch CUDA 12.8, `lerobot==0.5.1[smolvla]`).
+
+### 1. Clone and create the environment
+
+```bash
+git clone https://github.com/Ace3Z/LeMonkey.git
+cd LeMonkey
+bash eval_1/scripts/brev_setup.sh      # canonical env recipe: miniconda + lerobot 0.5.1 + ffmpeg
+conda activate lemonkey
+```
+
+`brev_setup.sh` is written for a fresh NVIDIA Brev training VM but the package set is the same on a laptop. On a consumer GPU also install: `feetech-servo-sdk`, `rerun-sdk==0.26.2`, `peft==0.19.1`, and `opencv-python` (not the `-headless` build).
+
+### 2. Authenticate with Hugging Face
+
+All models and datasets live under the private [`HBOrtiz/`](https://huggingface.co/HBOrtiz) org.
+
+```bash
+hf auth login          # paste a read token (write token if you will push)
+```
+
+### 3. Robot setup (only needed to run on real hardware)
+
+- **SO-101 arm** — create a udev rule so the follower is stable at `/dev/so101-follower`
+  (and `/dev/so101-leader` for the teleop arm). See [`strix_rollouts/MANIFEST.md`](strix_rollouts/MANIFEST.md) §2.
+- **Camera** — a USB wrist camera at `/dev/video0`, 640×480 @ 30 fps.
+- **Calibration** — per-arm calibration JSONs are checked in under [`calibration/`](calibration/);
+  symlink them into LeRobot's cache:
+  ```bash
+  mkdir -p ~/.cache/huggingface/lerobot
+  ln -s "$PWD/calibration" ~/.cache/huggingface/lerobot/calibration
+  ```
+
+Full machine-specific notes (offline-mode env vars, group permissions, the laptop `rerun` viewer) are in [`strix_rollouts/MANIFEST.md`](strix_rollouts/MANIFEST.md).
+
+---
+
+## ▶️ Running a Policy
+
+Each eval ships interactive rollout scripts. They download the deployed checkpoint from the Hub on first use, capture the arm's home pose, run the policy for one episode against a typed prompt, and drive the arm home for the next take.
+
+```bash
+conda activate lemonkey
+
+# Eval 1 — direct color pick-and-place
+cd eval_1 && ./scripts/run_rollout.sh
+
+# Eval 2 — compositional instruction following
+cd eval_2 && ./scripts/run_rollout.sh
+
+# Eval 3 — coke can on a celebrity portrait
+#   in-distribution celebrities (Swift / Obama / LeCun):
+./strix_rollouts/eval_3/scripts/run_rollout_cotrain_track3_5to1_strix.sh
+#   broad / out-of-distribution celebrities:
+./strix_rollouts/eval_3/scripts/run_rollout_smolvla_eval3_strix.sh
+```
+
+Type the prompt at the menu (e.g. `Put the coke on Barack Obama.`), watch the rollout, then type the next one or `q` to quit. Each `eval_N/README.md` documents the per-eval scripts, checkpoints, and structured-evaluation tooling.
+
+> The `strix_rollouts/*_strix.sh` wrappers hard-code laptop-specific paths — see [`strix_rollouts/MANIFEST.md`](strix_rollouts/MANIFEST.md) for what to search-and-replace on a new machine.
+
+---
+
+## 💾 Datasets & Models
+
+Every trained policy and every teleop/augmentation dataset is published under
+[`HBOrtiz/`](https://huggingface.co/HBOrtiz) on the Hugging Face Hub. The complete
+inventory — what each artifact is, how it was built, and which to use — is in:
+
+### → [`docs/DATASETS_AND_MODELS.md`](docs/DATASETS_AND_MODELS.md)
+
+**Deployed models at a glance:**
+
+| Eval | Model | Backbone | Trained on |
+|---|---|---|---|
+| 1 | [`smolvla_eval1_v2`](https://huggingface.co/HBOrtiz/smolvla_eval1_v2) | SmolVLA-450M | `so101_eval1_all_v2` (153 ep) |
+| 2 | [`smolvla_eval2`](https://huggingface.co/HBOrtiz/smolvla_eval2) | SmolVLA-450M | `so101_eval2_all` (180 ep) |
+| 3 | [`smolvla_eval3_cotrain_track3_5to1_cam1`](https://huggingface.co/HBOrtiz/smolvla_eval3_cotrain_track3_5to1_cam1) | SmolVLA-450M | `so101_eval3_track3_v3_baseline` + `eval3_track3_vl_pairs` |
+| 3 | [`smolvla_eval3`](https://huggingface.co/HBOrtiz/smolvla_eval3) | SmolVLA-450M | `so101_eval3_all` (192 celebs) |
+
+---
+
+## 🗂️ Repository Layout
 
 ```
-.
-├── README.md                                       ← this file
-├── CLAUDE.md                                       behavioral guidelines for AI-pair coding
-├── eval_1/                                         per-eval runtime (scripts + readme)
-│   ├── README.md                                   eval 1 run instructions
+LeMonkey/
+├── README.md                  ← this file (the map)
+├── eval_1/                    Eval 1 — runtime, scripts, README
+│   ├── README.md
 │   └── scripts/
-├── eval_2/                                         per-eval runtime (scripts + readme)
-│   ├── README.md                                   eval 2 run instructions
-│   ├── scripts/
-│   └── scripts/brev/                               Brev VM training scripts
-└── docs/
-    ├── PROJECT.md                                  full course brief: eval spec, constraints, workflow, refs
-    ├── RELATED_WORK.md                             prior work ranked per eval (repos, datasets, checkpoints)
-    └── VLA_ARCHITECTURES.md                        VLA / VLM lit review, per-eval recommendation
+├── eval_2/                    Eval 2 — runtime, scripts, README
+│   ├── README.md
+│   └── scripts/
+├── eval_3/                    Eval 3 — runtime, scripts, README
+│   ├── README.md
+│   ├── aug/                   data-augmentation pipeline (celebrity portraits)
+│   ├── scripts/               training, dataset-build, recording scripts
+│   │   └── smolvla_cotrain/   the SmolVLA co-training trainer
+│   └── tools/                 dataset verification tooling
+├── strix_rollouts/            laptop rollout wrappers used on eval day
+├── calibration/               per-arm SO-101 calibration JSONs
+├── media/                     logos, figures, eval-day videos
+└── docs/                      project brief, datasets/models, experiment logs
+    ├── DATASETS_AND_MODELS.md  full HF artifact inventory
+    ├── PROJECT.md              the course brief
+    └── experiments/            dated experiment logs
 ```
 
-`eval_X/{train,rollouts,evals,state}/` are gitignored — model checkpoints,
-recordings, and per-session state stay local.
+`eval_N/{train,rollouts,evals,state}/` are gitignored — checkpoints, recordings,
+and per-session state stay local.
 
-## How to use
+---
 
-### To deploy a model on the robot
+## 🖥️ Hardware
 
-1. Plug in the SO-101 (`/dev/so101-follower`, `/dev/so101-leader`) and camera (`/dev/video0`).
-2. Either:
-   - **Eval 1**: `cd eval_1 && ./scripts/run_rollout.sh` — see [`eval_1/README.md`](eval_1/README.md).
-   - **Eval 2**: scripts mirror Eval 1's pattern; see [`eval_2/README.md`](eval_2/README.md).
-3. Type or speak the prompt at the menu, then watch the rollout.
+- **Robot** — SO-101 6-DOF arm (follower + leader for teleop), USB wrist camera, 640×480 @ 30 fps.
+- **Inference** — any NVIDIA GPU with ≥ 6 GB VRAM (a laptop GPU is enough; SmolVLA-450M is small).
+- **Training** — an NVIDIA Brev H100 / RTX PRO 6000, or a local RTX 5090. A 25–45k-step run is a few hours.
 
-### To train from scratch on a fresh Brev VM
+---
 
-1. `bash ~/LeMonkey/eval_1/scripts/brev_setup.sh` — installs miniconda, lerobot 0.5.1, ffmpeg.
-2. `hf auth login` with a write token.
-3. `sudo loginctl enable-linger $USER` so training survives SSH disconnect.
-4. Run the eval-specific training script (e.g. `~/start_training.sh` after
-   copying it over per `eval_2/README.md`'s "On Brev" section).
+## 📚 Documentation Index
 
-### To collect more data
-
-- **Eval 1**: `eval_1/scripts/dagger_record.py` for HG-DAgger corrections.
-- **Eval 2**: `eval_2/scripts/record_eval2.py` runs a balanced 180-episode plan with persistent state.
-
-## Architecture
-
-```
-        ┌──────────────────────┐
-prompt  │  SmolVLA (450M)      │
-  ┐     │  ─ frozen VLM        │ →  6-DOF action chunk
-  ┘     │  ─ trainable expert  │    (50 steps × 6 joints)
-image   └──────────────────────┘
-```
-
-Both deployed models are SmolVLA fine-tuned from `lerobot/smolvla_base`. The
-SmolVLM2 vision-language backbone is frozen and the action expert is trained
-on per-eval data (153 ep for Eval 1 v2, 180 ep for Eval 2). The action head
-emits 50-step chunks; we execute the first action and replan every 50 frames.
-
-## Hardware
-
-- **Robot**: SO-101 6-DOF arm, follower at `/dev/so101-follower`, leader at `/dev/so101-leader` (udev-stable).
-- **Camera**: USB camera at `/dev/video0`, 640×480 @ 30 fps, wrist-mounted.
-- **GPU (inference)**: any NVIDIA GPU with ≥ 6 GB VRAM. GTX 1660 SUPER tested.
-- **GPU (training)**: Brev H100 (80 GB) or RTX Pro 6000 (96 GB). ~10 hours per 25k-step run.
-
-## Documentation index
-
-| File | What it covers |
+| Document | What it covers |
 |---|---|
-| [`docs/PROJECT.md`](docs/PROJECT.md) | The full course brief — read first |
-| [`docs/RELATED_WORK.md`](docs/RELATED_WORK.md) | Prior work ranked per eval |
-| [`docs/VLA_ARCHITECTURES.md`](docs/VLA_ARCHITECTURES.md) | VLA / VLM choice, parameter counts, fine-tuning knobs |
-| [`eval_1/README.md`](eval_1/README.md) | Eval 1 run instructions |
-| [`eval_2/README.md`](eval_2/README.md) | Eval 2 plan, prompts, training pipeline |
-| [`CLAUDE.md`](CLAUDE.md) | Behavioral guidelines for AI-pair coding on this repo |
+| [`docs/DATASETS_AND_MODELS.md`](docs/DATASETS_AND_MODELS.md) | Every dataset and model on the Hub — what, how built, which to use |
+| [`docs/PROJECT.md`](docs/PROJECT.md) | The full course brief — task specs, constraints, grading |
+| [`eval_1/README.md`](eval_1/README.md) · [`eval_2/README.md`](eval_2/README.md) · [`eval_3/README.md`](eval_3/README.md) | Per-eval runbooks |
+| [`docs/VLA_ARCHITECTURES.md`](docs/VLA_ARCHITECTURES.md) | VLA / VLM background and the SmolVLA choice |
+| [`docs/experiments/`](docs/experiments/) | Dated experiment logs |
+| [`strix_rollouts/MANIFEST.md`](strix_rollouts/MANIFEST.md) | Laptop deployment notes |
 
-## Quick links
+---
 
-| | |
-|---|---|
-| Slack — course channel | [`project-1-vla`](https://robot-course-ethz.slack.com/archives/C0AULTPSDHS) ([join workspace](https://join.slack.com/t/robotlearning-wht4341/shared_invite/zt-3vjghtb1w-K3k7b7amUr37y39IF9dL3g)) |
-| GPU compute | [NVIDIA Brev](https://brev.nvidia.com) · [docs](https://docs.nvidia.com/brev/latest) |
-| Robot | [SO-101 build & calibration](https://huggingface.co/docs/lerobot/so101) |
-| Data format | [LeRobot dataset v3](https://huggingface.co/docs/lerobot/lerobot-dataset-v3) |
-| Reference code | [huggingface/lerobot](https://github.com/huggingface/lerobot) |
-| Course doc | [Google Docs](https://docs.google.com/document/d/1YsQ_Qe4vEwDp1dJdqn3l9vSt7oJBkc6JazjbmWLxAXg/edit?tab=t.0) |
+## 👥 Team
 
-## Team & license
+**Team 7 — ETH Robot Learning FS26, Project 1**
 
-See [`docs/PROJECT.md` §11](docs/PROJECT.md#11-team) for the team list.
-Course coursework — internal use by the team only. Not for redistribution.
+Mahbod · Roham Zendehdel Nobari · Hans Baumann Ortiz · Sejohn · Darius Foodeei
+
+---
+
+## 🙏 Acknowledgments
+
+- [LeRobot](https://github.com/huggingface/lerobot) — robot-learning framework, datasets, and `lerobot-record`
+- [SmolVLA](https://huggingface.co/lerobot/smolvla_base) — the 450M VLA backbone we fine-tune
+- [NVIDIA Brev](https://brev.nvidia.com) — GPU compute for training
+- The ETH Robot Learning FS26 course staff
+
+---
+
+<div align="center">
+
+**[⬆ Back to Top](#lemonkey--language-conditioned-robot-manipulation)**
+
+</div>
