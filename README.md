@@ -4,16 +4,16 @@
 <table>
   <tr>
     <td align="center" valign="middle">
-      <img src="media/figures/cvg_logo_colour-white.png" height="40"/>
+      <a href="https://cvg.ethz.ch/"><img src="media/figures/cvg_logo_colour-white.png" height="40"/></a>
     </td>
     <td align="center" valign="middle">
-      <img src="media/figures/eth_logo_kurz_neg.png" height="100"/>
+      <a href="https://ethz.ch/"><img src="media/figures/eth_logo_kurz_neg.png" height="100"/></a>
     </td>
     <td align="center" valign="middle">
-      <img src="media/figures/ETHRC_primarywhite.svg" height="35"/>
+      <a href="https://www.ethrobotics.ch/"><img src="media/figures/ETHRC_primarywhite.svg" height="35"/></a>
     </td>
     <td align="center" valign="middle">
-      <img src="media/figures/Microsoft-logo_rgb_c-gray.png" height="120"/>
+      <a href="https://www.microsoft.com/en-us/research/lab/spatial-ai/"><img src="media/figures/Microsoft-logo_rgb_c-gray.png" height="120"/></a>
     </td>
   </tr>
 </table>
