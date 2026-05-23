@@ -11,7 +11,7 @@ Integration point: drop-in replacement for the lerobot dataloader's sampler.
 The training loop calls `set_step(step)` once per step; the sampler internally
 flips its weight tensor at the switch point.
 
-Per CLAUDE.md §5: no silent fallbacks — emit [WARN] if config is inconsistent.
+Per no silent fallbacks — emit [WARN] if config is inconsistent.
 """
 from __future__ import annotations
 

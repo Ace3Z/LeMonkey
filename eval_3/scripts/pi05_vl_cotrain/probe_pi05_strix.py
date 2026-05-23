@@ -18,7 +18,7 @@ If both pass → green light for the Pi0.5 path.
 If VRAM peaks above 14 GB → Pi0.5 will OOM at deploy; pivot to SmolVLA.
 If latency > 20 s → demo-day rollouts will be disqualified.
 
-Per CLAUDE.md §5: emit [WARN] on any fallback / unexpected condition.
+Per: emit [WARN] on any fallback / unexpected condition.
 
 USAGE on Strix
 ==============

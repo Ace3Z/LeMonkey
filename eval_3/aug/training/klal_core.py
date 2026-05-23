@@ -143,7 +143,7 @@ class KLALHookSet:
             raise RuntimeError(
                 "KLAL: rotary_emb hook captured no (cos, sin) — the RoPE hook "
                 "did not fire. Aborting rather than silently supervising a "
-                "no-RoPE proxy (CLAUDE.md §5: no silent fallbacks)."
+                "no-RoPE proxy (no silent fallbacks)."
             )
         # cos/sin cover the fused prefix+suffix sequence; q/k here are
         # prefix-only. compute_layer_complete concatenates the prefix FIRST,

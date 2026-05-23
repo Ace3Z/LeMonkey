@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """ArcFace audit of the 200-celeb training dataset for Pi0.5 VL cotrain.
 
-For each (episode_idx, frame_idx) in Darius's bbox annotations, compute:
+For each (episode_idx, frame_idx) in the bbox annotations, compute:
 - target_cos: ArcFace cosine between the painted face and target celeb's centroid
 - max_distractor_cos: highest cosine to any non-target celeb centroid
 - hardneg_score: target_cos minus max_distractor_cos
@@ -12,10 +12,10 @@ This feeds two downstream artifacts:
 2. sample_weights.npy — oversample variants with low hardneg_score (force fine-grained
    discrimination during training)
 
-Per CLAUDE.md §5: no silent fallbacks. Any failure path emits a [WARN] with what
+Per no silent fallbacks. Any failure path emits a [WARN] with what
 was expected, what happened, and what fallback was chosen.
 
-Per CLAUDE.md §7 / §8: numerical defaults are triple-sourced inline.
+Per / §8: numerical defaults are triple-sourced inline.
 
 Input contract (Darius will deliver, format TBD — script accepts either):
 
@@ -41,7 +41,7 @@ Usage:
 
 If --dataset-root is omitted, the script requires Schema B (pre-computed embeddings).
 If --dataset-root is provided, the script decodes camera1 mp4s and runs ArcFace on
-the bbox crops — slower (~6h on single GPU, ~1h on edna 128-core CPU).
+the bbox crops — slower (~6h on single GPU, ~1h on a CPU host 128-core CPU).
 """
 from __future__ import annotations
 
@@ -58,7 +58,7 @@ import numpy as np
 # Standard ArcFace verification cosine thresholds (buffalo_l on LFW):
 #   FAR=1e-4 → 0.42, FAR=1e-3 → 0.36 (InsightFace docs)
 #   For OUR inpainted-painted-photo distribution (NOT clean web headshots),
-#   empirical scatter is ~10-15% looser (per Mahbod's M2 data audit
+#   empirical scatter is ~10-15% looser (per the M2 data audit
 #   2026-05-19_m2_data_audit.md: same-celeb cos ~0.5-0.8,
 #   cross-celeb cos ~0.0-0.2).
 #   → 0.5 keep threshold = "well above noise floor, below clean-face mean"
@@ -73,7 +73,7 @@ DEFAULT_HARD_WEIGHT = 2.0
 
 
 def load_celeb_centroids(manifest_path: Path) -> dict[str, np.ndarray]:
-    """Load Mahbod's celeb_embeddings.json → {slug: 512-d L2-normalized centroid}."""
+    """Load the celeb_embeddings.json → {slug: 512-d L2-normalized centroid}."""
     if not manifest_path.is_file():
         print(f"[ERR] celeb manifest not found: {manifest_path}", file=sys.stderr)
         sys.exit(2)
@@ -249,9 +249,9 @@ def _decode_frame(dataset_root: Path, episode_idx: int, frame_idx: int):
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--bbox-parquet", type=Path, required=True,
-                        help="Darius's per-frame bbox annotations for 200-celeb")
+                        help="the per-frame bbox annotations for 200-celeb")
     parser.add_argument("--celeb-manifest", type=Path, required=True,
-                        help="Mahbod's celeb_embeddings.json")
+                        help="the celeb_embeddings.json")
     parser.add_argument("--dataset-root", type=Path, default=None,
                         help="Local lerobot dataset root (only needed if bbox-parquet "
                              "doesn't include target_face_embedding column)")

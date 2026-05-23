@@ -11,7 +11,7 @@ Why this module exists:
   true paper edge.
 
 Algorithm overview (canonical "neural seed → classical refine" recipe;
-sources cross-checked per CLAUDE.md §7):
+sources cross-checked per the triple-source-defaults rule):
 
   1. Build an "edge band" around the coarse quad: dilate(mask, +20 px)
      AND NOT erode(mask, +20 px). The true edge lies in this band
@@ -43,7 +43,7 @@ sources cross-checked per CLAUDE.md §7):
   8. Sanity check the refined quad: must be convex, must overlap the
      coarse quad with IoU ≥ 0.5, must fit inside the frame. On any
      failure, return None (caller falls back to coarse quad) and log
-     a [WARN] per CLAUDE.md §5.
+     a [WARN] per the no-silent-fallbacks rule.
 
 Result: corners typically ≤ 0.5 px off the true paper edge — two
 orders of magnitude tighter than SAM's raw mask boundary.
@@ -262,7 +262,7 @@ def refine_paper_quad_to_edges(
     refinement fails any sanity gate (in which case caller should keep
     the coarse corners).
 
-    Logs [WARN] on every failure (CLAUDE.md §5)."""
+    Logs [WARN] on every failure."""
     H, W = frame_bgr.shape[:2]
     coarse_corners = np.asarray(coarse_corners, dtype=np.float32)
     if coarse_corners.shape != (4, 2):

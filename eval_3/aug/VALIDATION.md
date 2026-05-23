@@ -1,6 +1,6 @@
 # VALIDATION - triple-source check on the recipe defaults (2026-05-10)
 
-> Per project CLAUDE.md §7: every numerical default in the inpainting
+> Per project per the triple-source-defaults rule: every numerical default in the inpainting
 > pipeline must be cross-checked against ≥ 3 independent sources. This
 > document is the audit trail.
 
@@ -25,7 +25,7 @@
 
 **Verdict:** 0.4 is in band, slightly stricter than DeepFace, lighter than the very-strict end of the InsightFace range. Right balance: high recall during photo mining, low false-positives at variant verification.
 
-**Note** (CLAUDE.md §7 "surface unknowns"): if false-positives are observed at stage 5, tighten the verifier to 0.45 while keeping the miner at 0.4 (recall vs precision split).
+**Note** (the project quality bar "surface unknowns"): if false-positives are observed at stage 5, tighten the verifier to 0.45 while keeping the miner at 0.4 (recall vs precision split).
 
 ## §2 - Reinhard sample ring (`dilate 11×11 ⇒ ~5-px ring`) - EMPIRICAL ONLY
 
@@ -45,7 +45,7 @@
 
 **Verdict:** 0.8 is squarely in the 0.5-1.0 webcam-PSF range. Defensible as a default.
 
-**Probe TODO (per CLAUDE.md §7):** add `eval_3/aug/dbg/probe_mtf.py` that fits a Gaussian to a real edge-spread function from one of our recorded frames, refines σ. If empirical σ comes out > 1.0, raise.
+**Probe TODO (per the triple-source-defaults rule):** add `eval_3/aug/dbg/probe_mtf.py` that fits a Gaussian to a real edge-spread function from one of our recorded frames, refines σ. If empirical σ comes out > 1.0, raise.
 
 ## §4 - Mask erosion 3 px → NEEDS CHANGE → applied: 1 px
 
@@ -91,7 +91,7 @@ Pérez/Poisson alone can introduce subtle DC colour shifts ("Laplacian-Membrane 
 
 ### 8c. Per-frame ArcFace gate during inpainting - DEFERRED
 
-CLAUDE.md §7 calls out "frame-by-frame ArcFace verification" as the right path. Currently stage 5 samples 5 frames per variant and checks min cosine. A per-frame fast gate that aborts a variant the moment one frame drops below threshold would be more rigorous. **Defer:** evaluate after running the current pipeline on the 5 quick episodes; if the 5-sample QA misses bad frames, upgrade to per-frame.
+the project quality bar calls out "frame-by-frame ArcFace verification" as the right path. Currently stage 5 samples 5 frames per variant and checks min cosine. A per-frame fast gate that aborts a variant the moment one frame drops below threshold would be more rigorous. **Defer:** evaluate after running the current pipeline on the 5 quick episodes; if the 5-sample QA misses bad frames, upgrade to per-frame.
 
 ### 8d. Don't double-erode - DONE (see §4 above)
 

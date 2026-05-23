@@ -16,8 +16,8 @@ recognition, in our case). Diagnosed need: sequential VLM-then-action
 fine-tuning produces a positional-shortcut policy that ignores the prompt
 celeb name.
 
-Per CLAUDE.md §5: every fallback emits [WARN] with context.
-Per CLAUDE.md §7: written but UNSMOKED locally — must be smoke-tested on
+Per: every fallback emits [WARN] with context.
+Per the triple-source-defaults rule: written but UNSMOKED locally — must be smoke-tested on
 the user's AWS node before being trusted for a 24h run.
 
 Usage

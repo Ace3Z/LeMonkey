@@ -274,7 +274,7 @@ def replace_portrait(
         mask_for_blend = mask
     if mask_for_blend.sum() == 0:
         # Erosion vanished the mask. Skip composite for this portrait this
-        # frame — but log so flickering artifacts don't go unnoticed (CLAUDE.md §5).
+        # frame — but log so flickering artifacts don't go unnoticed.
         print(
             f"[WARN] mask_eroded_to_zero: expected=mask_for_blend.sum()>0, "
             f"got=0 (raw_mask_sum={int(mask.sum())}, erode_px={erode_px}), "
@@ -612,7 +612,7 @@ def render_variant(
                 # No stage-2 per-frame mask available. Fall back to the
                 # corners-rectangle which means we LOSE per-frame occlusion
                 # handling for this portrait this frame. Log so it surfaces
-                # (CLAUDE.md §5) — usually means stage 2 wasn't re-run after
+                # — usually means stage 2 wasn't re-run after
                 # a code change.
                 print(
                     f"[WARN] per_frame_mask_missing: expected=portrait_masks.pkl["

@@ -70,7 +70,7 @@ import numpy as np
 import requests
 from PIL import Image
 
-# ─── Tuning (every threshold cited inline; CLAUDE.md §7) ──────────────────
+# ─── Tuning (every threshold cited inline;) ──────────────────
 TARGET_N           = 10        # kept images per celeb
 CANDIDATE_CAP      = 60        # at most this many per celeb before filter
 MIN_SHORT_SIDE_PX  = 512       # min(w, h) — covers any reasonable headshot

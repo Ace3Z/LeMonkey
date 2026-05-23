@@ -6,7 +6,7 @@
     "  - BlindVLA Table 12: optimal face-discrim supervision at ~57% LM depth.",
     "  - Voita et al. 2019: ~5-8 of 48 transformer heads carry most function;",
     "    concentrate capacity in face-relevant layers.",
-    "  - Roham TRACK_B_WARMSTART.md: lm_head LoRA explicitly rejected (cost).",
+    "  - TRACK_B_WARMSTART (internal): lm_head LoRA explicitly rejected (cost).",
     "Total trainable params ~= uniform r=32, redistributed by relevance.",
     "Loader is expected to map layer_index -> r for the language_model.layers[i].",
     "If the lerobot+PEFT version does not support per-layer rank, fall back to",

@@ -12,7 +12,7 @@ Two artifacts for the Pi0.5 VL cotrain enhanced training run:
 
 Run AFTER `arcface_audit_200celeb.py` has produced the audit parquet.
 
-Per CLAUDE.md §5: no silent fallbacks. Per CLAUDE.md §7: triple-source defaults.
+Per no silent fallbacks. Per the triple-source-defaults rule: triple-source defaults.
 
 Usage:
 

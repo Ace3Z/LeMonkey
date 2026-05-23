@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Generate Pi0.5 VL cotrain's bbox-grounded face VQA pairs from the 193-celeb scraped bank.
 
-This is Darius's deliverable per the ObjectVLA spec , but written so Sejohn
-can run it on edna directly when Darius is unavailable.
+This is the deliverable per the ObjectVLA spec , but written so a teammate
+can run it on a CPU host directly when Darius is unavailable.
 
 For each photo in `eval3_celebs/scraped/<slug>/<photo>`:
   1. Run InsightFace RetinaFace → bbox of largest face.
@@ -31,9 +31,9 @@ Per the ObjectVLA spec: ObjectVLA's +45pp OOD lift depends on the BBOX
 GROUNDING being present in the supervision. The 50/30/10/10 mix is from the
 canonical spec — do not improvise.
 
-Per CLAUDE.md §5: photos without a detected face are skipped with [WARN].
-Per CLAUDE.md §6: no Claude attribution anywhere in output.
-Per CLAUDE.md §7: numerical defaults inline-cited.
+Per: photos without a detected face are skipped with [WARN].
+Per: no Claude attribution anywhere in output.
+Per the triple-source-defaults rule: numerical defaults inline-cited.
 
 USAGE
 =====

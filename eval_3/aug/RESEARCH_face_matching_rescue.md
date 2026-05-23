@@ -2,7 +2,7 @@
 
 **Status:** active. Supersedes the v2 architecture decision in [`eval_3/README.md` §Architecture decision](../README.md) only with respect to the *post-v1-training rescue plan* - the underlying architecture pick (SmolVLA + image-as-prompt + inpaint augmentation) is unchanged.
 
-**Authors:** Roham + the LeMonkey claude session, 7 parallel research agents (4 first-wave decision agents + 3 second-wave deep-dive agents), cross-checked per CLAUDE.md §7.
+**Authors:** LeMonkey team (4 first-wave decision agents + 3 second-wave deep-dive agents), cross-checked per the triple-source-defaults rule.
 
 **Purpose.** SmolVLA-450M was trained for the Eval 3 image-as-prompt face-matching task (place coke on the celebrity whose photo is in `observation.images.camera2`). Smoke-tested on Strix on 2026-05-17: the pipeline works end-to-end but the policy puts the can on the *wrong* portrait. Four hypotheses were tested:
 
@@ -148,7 +148,7 @@ def print_simulate(bgr, rng):
 
 The operator order is principled (ink → paper → post per [Augraphy docs](https://augraphy.readthedocs.io/en/latest/doc/source/how_augraphy_works.html)). No published paper validates this exact recipe for *photo-print emulation in a VLA training stream* - we are first-movers here. **Flagged risk.**
 
-### 3.6 Validation gates (CLAUDE.md §7)
+### 3.6 Validation gates
 
 Before greenlighting a re-fine-tune on this aug recipe:
 

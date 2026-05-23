@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# Pi0.5 VL cotrain - ObjectVLA bbox-grounded VQA co-train on Pi0.5 (brev_instance2).
+# Pi0.5 VL cotrain - ObjectVLA bbox-grounded VQA co-train on Pi0.5 (the training VM).
 #
 # Mirrors train_pi05.sh + adds:
-#   - --vl_dataset.manifest  (Darius's VL pairs, HBOrtiz/so101_eval3_broad_grounding)
+#   - --vl_dataset.manifest  (the VL pairs, HBOrtiz/so101_eval3_broad_grounding)
 #   - --vl_ratio=10          (10 robot batches : 1 VL batch - ObjectVLA published)
 #   - --policy.pretrained_path=HBOrtiz/pi05_paligemma_celeb_warm_v2  (Enhancement B-1)
 #   - --dataset.episodes_file (Enhancement B-2 keep_list - when ready)
@@ -14,7 +14,7 @@
 #
 # PRE-FLIGHT (must be true before running this):
 #   1. Darius has pushed the VL pairs manifest HBOrtiz/so101_eval3_broad_grounding.
-#   2. Roham has delivered per-frame bboxes for 200-celeb dataset.
+#   2. the team has produced per-frame bboxes for 200-celeb dataset.
 #   3. ArcFace audit pipeline has run:
 #        python eval_3/scripts/pi05_vl_cotrain/arcface_audit_200celeb.py
 #        python eval_3/scripts/pi05_vl_cotrain/build_keep_list_and_weights.py

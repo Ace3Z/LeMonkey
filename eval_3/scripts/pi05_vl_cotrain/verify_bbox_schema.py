@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""Validate Roham's bbox parquet schema before running the audit.
+"""Validate the bbox parquet schema before running the audit.
 
-Roham will push a parquet of per-frame face bboxes for the 200-celeb dataset.
+A parquet of per-frame face bboxes for the 200-celeb dataset.
 The exact column names may vary slightly from our assumed schema; this script
 checks BEFORE we burn 1 h on the ArcFace audit only to find the columns
 weren't what we expected.
@@ -20,7 +20,7 @@ Acceptable alternate column naming (we'll auto-adapt):
     frame_idx   OR frame_index   OR frame
     bbox_x1/y1/x2/y2 OR x1/y1/x2/y2 OR bbox (list[4])
 
-Per CLAUDE.md §5: emit [WARN] with what we expected vs what we got; never
+Per: emit [WARN] with what we expected vs what we got; never
 silently rename / drop.
 """
 from __future__ import annotations
@@ -30,7 +30,7 @@ import sys
 from pathlib import Path
 
 
-# Aliases for flexible schema matching (Roham may use different conventions).
+# Aliases for flexible schema matching (the upstream source may use different conventions).
 EPISODE_COL_ALIASES = {"episode_idx", "episode_index", "ep_idx", "ep"}
 FRAME_COL_ALIASES = {"frame_idx", "frame_index", "frame"}
 BBOX_X1_ALIASES = {"bbox_x1", "x1", "xmin"}
@@ -52,7 +52,7 @@ def find_col(cols, aliases: set[str]) -> str | None:
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--bbox-parquet", type=Path, required=True,
-                        help="Roham's per-frame bbox annotations")
+                        help="the per-frame bbox annotations")
     parser.add_argument("--dataset-info", type=Path,
                         default=Path("data/200celebs/meta/info.json"),
                         help="200-celeb info.json for episode range validation")
@@ -104,7 +104,7 @@ def main() -> int:
         for i in issues:
             print(f"  - {i}")
         print(f"\n[WARN] expected schema documented in arcface_audit_200celeb.py "
-              f"docstring. Roham may need to rename columns or extend the audit "
+              f"docstring. the upstream source may need column renames or extend the audit "
               f"script's column resolution.")
         return 1
 
@@ -152,7 +152,7 @@ def main() -> int:
         print(f"    {celeb}: {count}")
 
     # Optionally write normalized-schema parquet so the audit script can be called
-    # with consistent column names regardless of Roham's choices.
+    # with consistent column names regardless of the choices.
     if args.write_normalized:
         rename_map = {}
         if ep_col != "episode_idx":

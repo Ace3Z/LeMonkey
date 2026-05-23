@@ -3,7 +3,7 @@
 
 Walks `data/200celebs/meta/tasks.parquet` (960 unique task strings indexed 0..959),
 extracts the celeb name from each task string, normalizes to a slug, and looks
-up the 512-d centroid from Mahbod's celeb_embeddings.json.
+up the 512-d centroid from the celeb_embeddings.json.
 
 Output: `task_index_to_centroid.json` keyed by task_index:
   {
@@ -16,9 +16,9 @@ Output: `task_index_to_centroid.json` keyed by task_index:
 
 This decouples the audit script from re-parsing tasks per frame.
 
-Per CLAUDE.md §5: no silent fallbacks — every parse failure or missing-centroid
+Per no silent fallbacks — every parse failure or missing-centroid
 case emits a [WARN] with context.
-Per CLAUDE.md §7: triple-source defaults inline.
+Per the triple-source-defaults rule: triple-source defaults inline.
 """
 from __future__ import annotations
 
@@ -106,7 +106,7 @@ def main() -> int:
                         help="200-celeb dataset's meta/tasks.parquet")
     parser.add_argument("--celeb-manifest", type=Path,
                         default=Path("data/arcface_toolkit/celeb_embeddings.json"),
-                        help="Mahbod's celeb_embeddings.json")
+                        help="the celeb_embeddings.json")
     parser.add_argument("--output", type=Path,
                         default=Path("eval_3/scripts/pi05_vl_cotrain/task_index_to_centroid.json"))
     args = parser.parse_args()
@@ -155,7 +155,7 @@ def main() -> int:
     n_broken_centroid = 0
     unique_slugs_seen: set[str] = set()
 
-    # Known broken centroid from Mahbod's audit (oier_mees own-photo cosines too low).
+    # Known broken centroid from the audit (oier_mees own-photo cosines too low).
     BROKEN_SLUGS = {"oier_mees"}
 
     for _, row in df.iterrows():

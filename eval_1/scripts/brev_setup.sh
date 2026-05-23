@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Bootstrap script for a fresh Brev H100 instance.
-# Idempotent - safe to re-run. Logs every fallback per CLAUDE.md §5.
+# Idempotent - safe to re-run. Logs every fallback per the no-silent-fallbacks rule.
 #
 # What it does:
 #   1. Install Miniconda if missing

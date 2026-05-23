@@ -262,7 +262,7 @@ def render_one(variant_dir: Path) -> dict:
 
         # v10: surface every pipeline-trace debug PNG from the source episode
         # into the variant dir so each augmentation output is a self-contained
-        # debugging bundle. CLAUDE.md §7 quality bar — every step visible.
+        # debugging bundle. quality bar — every step visible.
         copied = mirror_pipeline_debug(ep_dir, variant_dir)
         return {"variant": variant_dir.name,
                 "portraits": str(out_p),

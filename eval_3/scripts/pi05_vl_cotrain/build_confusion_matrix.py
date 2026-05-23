@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Pre-compute celeb-vs-celeb ArcFace cosine confusion matrix.
 
-For each pair (a, b) of celebs in Mahbod's manifest, compute the cosine
+For each pair (a, b) of celebs in the manifest, compute the cosine
 between their centroids. Output a dense 192×192 matrix + a per-celeb
 "top-K most confusable" list.
 
@@ -16,8 +16,8 @@ Why we need this (face-binding focus):
 Run ONCE after pulling celeb_embeddings.json — output is static and
 reusable across all data audits.
 
-Per CLAUDE.md §5: no silent fallbacks (broken centroids logged).
-Per CLAUDE.md §7: triple-source defaults.
+Per no silent fallbacks (broken centroids logged).
+Per the triple-source-defaults rule: triple-source defaults.
 """
 from __future__ import annotations
 
@@ -41,7 +41,7 @@ DEFAULT_CONFUSABLE_THRESHOLD = 0.30
 # Top-K most confusable celebs per target (for hard-neg mining lookup).
 DEFAULT_TOP_K = 5
 
-# Known broken centroid (from Mahbod's M2 audit) — flag but don't drop here.
+# Known broken centroid (from the M2 audit) — flag but don't drop here.
 BROKEN_SLUGS = {"oier_mees"}
 
 

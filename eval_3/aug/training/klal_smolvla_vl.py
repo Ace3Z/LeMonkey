@@ -112,7 +112,7 @@ class KLALHookSetSmolVLMVL:
         if cos is None or sin is None:
             raise RuntimeError(
                 "KLAL-VL: rotary_emb hook captured no (cos, sin) — aborting "
-                "rather than supervising a no-RoPE proxy (CLAUDE.md §5).")
+                "rather than supervising a no-RoPE proxy.")
 
         B, L, _ = q.shape
         q = q.float().view(B, L, self.n_heads, self.head_dim).transpose(1, 2)
@@ -215,7 +215,7 @@ def compute_klal_loss_vl(hookset: KLALHookSetSmolVLMVL, cfg, name_ids: dict,
     Reads the q/k/(cos,sin) the `hookset` captured during the VL forward,
     builds the per-sample portrait-quad target, and returns the scaled loss
     (`cfg.lam` applied inside `klal_loss`). Returns a 0-d tensor with no grad
-    — logged once, CLAUDE.md §5 — if the image span or name tokens could not
+    — logged once, — if the image span or name tokens could not
     be resolved.
 
     Required `batch` keys: `input_ids`, `attention_mask`, `celeb_slug`

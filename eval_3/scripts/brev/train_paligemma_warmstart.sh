@@ -8,7 +8,7 @@
 # PRE-FLIGHT (on the Brev VM):
 #   1. Conda env `lemonkey` with lerobot + peft + datasets installed
 #   2. VGGFace2 manifest at $MANIFEST_PATH (build via prepare_vggface2_vqa.py
-#      using Hans's VGGFace2 raw dir).
+#      using the VGGFace2 raw dir).
 #   3. HF token at secrets/huggingface/token_hbortiz.
 
 set -euo pipefail

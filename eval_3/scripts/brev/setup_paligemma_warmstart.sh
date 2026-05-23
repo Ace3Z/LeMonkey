@@ -126,7 +126,7 @@ else
 fi
 
 echo
-echo "=== brev_instance2 (VQA warm-start) setup complete ==="
+echo "=== the training VM (VQA warm-start) setup complete ==="
 echo "Next:"
 echo "  1. Get VGGFace2 raw images from Hans (or use CASIA-WebFace from HF)."
 echo "  2. Build manifest via eval_3/scripts/warmstart/prepare_vggface2_vqa.py"

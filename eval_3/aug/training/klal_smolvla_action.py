@@ -143,7 +143,7 @@ class KLALHookSetSmolVLA:
         if self._position_ids is None:
             raise RuntimeError(
                 "KLAL-SmolVLA: position_ids hook captured nothing — aborting "
-                "rather than supervising a wrong-RoPE proxy (CLAUDE.md §5)."
+                "rather than supervising a wrong-RoPE proxy."
             )
 
         B, L, _ = q.shape

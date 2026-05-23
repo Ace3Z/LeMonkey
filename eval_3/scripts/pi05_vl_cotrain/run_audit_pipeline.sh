@@ -1,16 +1,16 @@
 #!/usr/bin/env bash
-# Run the full Pi0.5 VL cotrain data-side pipeline when Roham's bboxes arrive.
+# Run the full Pi0.5 VL cotrain data-side pipeline when the bboxes arrive.
 #
 # Sequence: schema verify → audit (~1h) → keep_list+weights (~5min)
 #
 # Usage:
-#   ./run_audit_pipeline.sh <path-or-hf-repo of Roham's bbox parquet>
+#   ./run_audit_pipeline.sh <path-or-hf-repo of the bbox parquet>
 #
 # Examples:
 #   ./run_audit_pipeline.sh /path/to/roham_bboxes.parquet
 #   ./run_audit_pipeline.sh HBOrtiz/eval3_200celeb_bboxes        # HF dataset
 #
-# Per CLAUDE.md §5: bail on errors; no silent fallback.
+# Per: bail on errors; no silent fallback.
 
 set -euo pipefail
 
@@ -88,5 +88,5 @@ echo "    - eval_3/scripts/pi05_vl_cotrain/keep_episodes.txt"
 echo "    - eval_3/scripts/pi05_vl_cotrain/hardneg_weights.npy"
 echo "    - eval_3/scripts/pi05_vl_cotrain/build_keep_list_summary.json"
 echo
-echo "==> Next: launch Pi0.5 VL cotrain smoke test on brev_instance2:"
+echo "==> Next: launch Pi0.5 VL cotrain smoke test on the training VM:"
 echo "    STEPS=200 bash eval_3/scripts/brev/train_pi05_vl_cotrain.sh"

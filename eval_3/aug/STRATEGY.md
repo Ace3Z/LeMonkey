@@ -5,7 +5,7 @@
 > **Companion:** `RESEARCH_v2.md` (May 10 - older research review of inpaint
 > primitives; algorithmic choices there are still current, but the slot
 > strategy and prompt mixture below override anything inconsistent).
-> **Quality bar:** CLAUDE.md §7 - every numerical default is triple-sourced;
+> **Quality bar:** - every numerical default is triple-sourced;
 > §11 "Cross-check" appendix shows the verification.
 
 ---
@@ -350,7 +350,7 @@ production augmentation runs.
 ## §7 · Pre-training probes (run BEFORE generating augmentations)
 
 Two probes catch silent data failures. Both are < 30 min runs and
-required by CLAUDE.md §7.
+required by.
 
 ### §7.1 ArcFace inter-celeb similarity probe
 
@@ -468,7 +468,7 @@ output, **debug mode is OFF** to save ~70 % of pipeline time and
 
 ---
 
-## §10 · Cross-check appendix (CLAUDE.md §7)
+## §10 · Cross-check appendix
 
 Each load-bearing decision verified against ≥ 3 independent sources.
 

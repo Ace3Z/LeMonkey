@@ -7,14 +7,14 @@ Extends lerobot-train with:
   - curriculum sampler switch at step N (Enhancement B-5)
   - EMA shadow weights (Enhancement B-7)
 
-VQA forward path reuses Roham's pattern from
+VQA forward path reuses the pattern from
 `eval_3/scripts/warmstart/train_paligemma_vqa.py` —
 PaliGemmaProcessor with suffix masking, standard HF model.forward()
 internal loss. Falls back to manual image-feature splicing if
 transformers ≥5.0 dict-attention-mask hits.
 
-Per CLAUDE.md §5: every fallback emits [WARN] with context.
-Per CLAUDE.md §6: no Claude attribution in any artifact this script produces.
+Per: every fallback emits [WARN] with context.
+Per: no Claude attribution in any artifact this script produces.
 
 USAGE
 =====
@@ -35,9 +35,9 @@ STATUS
 
 Scaffolded 2026-05-20. Brev-side integration testing pending.
 INTEGRATION POINTS marked with [BREV_INTEGRATE] need:
-  - Roham's VL manifest schema (to lock the collator's column reads)
+  - the VL manifest schema (to lock the collator's column reads)
   - lerobot version-specific API (training loop hook points may differ)
-  - transformers version on brev_instance2 (dict-mask risk gate)
+  - transformers version on the training VM (dict-mask risk gate)
 """
 from __future__ import annotations
 
@@ -104,13 +104,13 @@ def build_argparser() -> argparse.ArgumentParser:
 
 
 # -----------------------------------------------------------------------------
-# VL pairs dataloader (mirrors Roham's collator pattern from train_paligemma_vqa.py)
+# VL pairs dataloader (mirrors the collator pattern from train_paligemma_vqa.py)
 # -----------------------------------------------------------------------------
 
 class VLPairsDataset(torch.utils.data.Dataset):
     """Loads bbox-grounded face VQA pairs from `HBOrtiz/so101_eval3_broad_grounding`.
 
-    Verified manifest schema (Roham's actual push, 2026-05-20):
+    Verified manifest schema (the actual push, 2026-05-20):
         image_path        (str)   relative path inside the HF dataset
                                    e.g. "images/chunk-000/quick_lecun_LSO_ep02_..__f0107.jpg"
         prompt            (str)   "What is in this image?" / "Who is in the printed photo at [...]?"
@@ -247,7 +247,7 @@ class VLPairsDataset(torch.utils.data.Dataset):
 
 
 def make_vl_collator(processor, max_text_len: int = 384):
-    """Reuses Roham's PaliGemmaProcessor pattern with suffix masking.
+    """Reuses the PaliGemmaProcessor pattern with suffix masking.
 
     See eval_3/scripts/warmstart/train_paligemma_vqa.py for the canonical
     version. Key: pass `suffix=target` so prompt tokens are masked in labels
@@ -442,8 +442,8 @@ def main(argv: list[str]) -> int:
     print("\n[pi05_vl_cotrain] ---- INTEGRATION POINTS PENDING BREV SMOKE TEST ----")
     print("[pi05_vl_cotrain] This wrapper is scaffolded but the lerobot-train hook")
     print("[pi05_vl_cotrain] integration is BLOCKED on:")
-    print("[pi05_vl_cotrain]   1. Darius's VL manifest schema (locks VLPairsDataset columns)")
-    print("[pi05_vl_cotrain]   2. brev_instance2 lerobot+peft+transformers version check")
+    print("[pi05_vl_cotrain]   1. the VL manifest schema (locks VLPairsDataset columns)")
+    print("[pi05_vl_cotrain]   2. the training VM lerobot+peft+transformers version check")
     print("[pi05_vl_cotrain]   3. 200-step smoke test (Task #13) to verify VQA forward")
     pass
     print("[pi05_vl_cotrain] for the order of integration work.")
@@ -456,7 +456,7 @@ def main(argv: list[str]) -> int:
     print(f"[pi05_vl_cotrain]   - EMAShadow class")
     print()
     print("[pi05_vl_cotrain] To complete: import lerobot.scripts.train, wrap its train()")
-    print("[pi05_vl_cotrain] function with our hooks, run smoke on brev_instance2.")
+    print("[pi05_vl_cotrain] function with our hooks, run smoke on the training VM.")
     return 0
 
 

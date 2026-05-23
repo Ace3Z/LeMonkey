@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Interactive Eval 1 rollout runner - adapted from run_rollout.sh for the
-# Strix laptop (rohamzn@rohamzn-ROG-Strix-G533ZX-G533ZX).
+# Strix laptop (rohamzn@the laptop).
 #
 # Differences vs the Thor original (eval_1/scripts/run_rollout.sh):
 #   - paths: /home/lemonkey/... -> /home/rohamzn/ETH_Uni/...
