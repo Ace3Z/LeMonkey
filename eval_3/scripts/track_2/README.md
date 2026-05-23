@@ -50,7 +50,7 @@ After this completes, the Brev launch script has all artifacts it needs.
 
 ## When Darius's VL manifest lands
 
-The launch script picks up `HBOrtiz/eval3_vl_pairs_broad` automatically
+The launch script picks up `HBOrtiz/so101_eval3_broad_grounding` automatically
 via the `VL_MANIFEST` env var (default).
 
 Schema expected by `VLPairsDataset` (in `lerobot_train_with_vl_cotrain.py`):

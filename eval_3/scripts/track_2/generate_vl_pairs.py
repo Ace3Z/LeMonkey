@@ -42,9 +42,9 @@ On edna (or anywhere with `lemonkey-arcface` conda env / InsightFace + buffalo_l
 
     python eval_3/scripts/track_2/generate_vl_pairs.py \\
         --scraped-root ~/LeMonkey/datasets/eval3_celebs/scraped \\
-        --out manifests/eval3_vl_pairs_broad.parquet \\
+        --out manifests/so101_eval3_broad_grounding.parquet \\
         --captions-per-photo 10 \\
-        --push-repo HBOrtiz/eval3_vl_pairs_broad
+        --push-repo HBOrtiz/so101_eval3_broad_grounding
 
 Expected output: ~193 celebs × ~7-10 photos × 10 captions = ~15,000 rows.
 ~5-10 min on edna's 128-core CPU box (RetinaFace is the bottleneck).

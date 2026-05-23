@@ -19,7 +19,7 @@ set -euo pipefail
 # ---- Defaults (override via env) ----------------------------------------------
 
 ROBOT_DATASET="${ROBOT_DATASET:-HBOrtiz/so101_eval3_cotrain}"
-VL_MANIFEST="${VL_MANIFEST:-HBOrtiz/eval3_vl_pairs_broad}"
+VL_MANIFEST="${VL_MANIFEST:-HBOrtiz/so101_eval3_broad_grounding}"
 VL_IMAGE_ROOT="${VL_IMAGE_ROOT:-}"          # leave empty to auto-download
 PRETRAINED="${PRETRAINED:-lerobot/smolvla_base}"   # or HansOrtiz/smolvlm2_celeb_warm
 VLM_OVERRIDE="${VLM_OVERRIDE:-}"            # set to a warm VLM repo to swap inner VLM

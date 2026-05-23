@@ -1,7 +1,7 @@
 # eval_3/tools
 
 Visual-verification tooling for the Track-3 co-training datasets. These scripts
-were used to audit and validate the `eval3_vl_pairs` (VL grounding) and
+were used to audit and validate the `so101_eval3_cotrain_grounding` (VL grounding) and
 `so101_eval3_cotrain` (robot action) datasets before training.
 
 | script | what it does |
@@ -22,5 +22,5 @@ re-render anytime via the scripts). Current contents:
 ## Provenance
 
 These came out of the 2026-05-21 dataset audit that found and fixed two bugs in
-`eval3_vl_pairs`: image-to-label mispairing, and degenerate bounding-box
+`so101_eval3_cotrain_grounding`: image-to-label mispairing, and degenerate bounding-box
 quads.

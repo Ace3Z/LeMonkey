@@ -50,7 +50,7 @@ VL_RATIO="${VL_RATIO:-5}"             # 5:1 robot:VL — 2x ObjectVLA's VL for t
 LR="${LR:-5e-5}"
 NUM_WORKERS="${NUM_WORKERS:-16}"      # dataloader workers per GPU process
 ROBOT_DATASET="${ROBOT_DATASET:-HBOrtiz/so101_eval3_cotrain}"
-VL_MANIFEST="${VL_MANIFEST:-HBOrtiz/eval3_vl_pairs}"
+VL_MANIFEST="${VL_MANIFEST:-HBOrtiz/so101_eval3_cotrain_grounding}"
 PRETRAINED="${PRETRAINED:-lerobot/smolvla_base}"
 OUT_DIR="${OUT_DIR:-outputs/smolvla_klal_lora_25k}"
 # KLAL + LoRA

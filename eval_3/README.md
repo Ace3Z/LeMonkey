@@ -74,9 +74,9 @@ uses a single live camera; the unused camera slots are zero-padded by SmolVLA's
 | Dataset | Role |
 |---|---|
 | [`HBOrtiz/so101_eval3_cotrain`](https://huggingface.co/datasets/HBOrtiz/so101_eval3_cotrain) | Robot stream: 9,394 episodes (real base teleops plus augmented variants) of the can placed on Swift, Obama, and LeCun portraits. |
-| [`HBOrtiz/eval3_vl_pairs`](https://huggingface.co/datasets/HBOrtiz/eval3_vl_pairs) | Vision-language stream: 56k grounding pairs linking a portrait bounding box to a celebrity name. |
+| [`HBOrtiz/so101_eval3_cotrain_grounding`](https://huggingface.co/datasets/HBOrtiz/so101_eval3_cotrain_grounding) | Vision-language stream: 56k grounding pairs linking a portrait bounding box to a celebrity name. |
 | [`HBOrtiz/so101_eval3_broad`](https://huggingface.co/datasets/HBOrtiz/so101_eval3_broad) | Broad robot stream: 9,842 episodes covering 192 celebrities. Robot half of the broad cotrain. |
-| [`HBOrtiz/eval3_vl_pairs_broad`](https://huggingface.co/datasets/HBOrtiz/eval3_vl_pairs_broad) | Broad vision-language stream: 176,670 grounding pairs over 192 celebrities. Grounding half of the broad cotrain. |
+| [`HBOrtiz/so101_eval3_broad_grounding`](https://huggingface.co/datasets/HBOrtiz/so101_eval3_broad_grounding) | Broad vision-language stream: 176,670 grounding pairs over 192 celebrities. Grounding half of the broad cotrain. |
 
 Full provenance and build details: [`DATASETS_AND_MODELS.md`](../DATASETS_AND_MODELS.md).
 

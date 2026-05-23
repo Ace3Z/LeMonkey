@@ -110,8 +110,8 @@ Three printed celebrity portraits are laid out on the workspace. The policy plac
 
 The course rule: no separate face-recognition model or external VLM may run at inference, so the deployed VLA has to do the identity reasoning itself. We solve this with **co-training**, training the policy jointly on robot manipulation episodes and on a vision-language grounding dataset, so celebrity knowledge ends up inside the policy weights.
 
-- **Deployed model (in-distribution celebrities):** [`HBOrtiz/so101_smolvla_eval3_cotrain`](https://huggingface.co/HBOrtiz/so101_smolvla_eval3_cotrain), trained on [`HBOrtiz/so101_eval3_cotrain`](https://huggingface.co/datasets/HBOrtiz/so101_eval3_cotrain) (robot episodes) plus [`HBOrtiz/eval3_vl_pairs`](https://huggingface.co/datasets/HBOrtiz/eval3_vl_pairs) (grounding pairs)
-- **Deployed model (broad celebrities):** [`HBOrtiz/so101_smolvla_eval3_broad`](https://huggingface.co/HBOrtiz/so101_smolvla_eval3_broad), co-trained on [`HBOrtiz/so101_eval3_broad`](https://huggingface.co/datasets/HBOrtiz/so101_eval3_broad) (192-celebrity robot data) plus [`HBOrtiz/eval3_vl_pairs_broad`](https://huggingface.co/datasets/HBOrtiz/eval3_vl_pairs_broad) (192-celebrity grounding pairs)
+- **Deployed model (in-distribution celebrities):** [`HBOrtiz/so101_smolvla_eval3_cotrain`](https://huggingface.co/HBOrtiz/so101_smolvla_eval3_cotrain), trained on [`HBOrtiz/so101_eval3_cotrain`](https://huggingface.co/datasets/HBOrtiz/so101_eval3_cotrain) (robot episodes) plus [`HBOrtiz/so101_eval3_cotrain_grounding`](https://huggingface.co/datasets/HBOrtiz/so101_eval3_cotrain_grounding) (grounding pairs)
+- **Deployed model (broad celebrities):** [`HBOrtiz/so101_smolvla_eval3_broad`](https://huggingface.co/HBOrtiz/so101_smolvla_eval3_broad), co-trained on [`HBOrtiz/so101_eval3_broad`](https://huggingface.co/datasets/HBOrtiz/so101_eval3_broad) (192-celebrity robot data) plus [`HBOrtiz/so101_eval3_broad_grounding`](https://huggingface.co/datasets/HBOrtiz/so101_eval3_broad_grounding) (192-celebrity grounding pairs)
 - **Runbook:** [`eval_3/README.md`](eval_3/README.md)
 
 ---
@@ -180,7 +180,7 @@ Deployed models at a glance:
 |---|---|---|---|
 | 1 | [`so101_smolvla_eval1`](https://huggingface.co/HBOrtiz/so101_smolvla_eval1) | SmolVLA-450M | `so101_eval1` (153 ep) |
 | 2 | [`so101_smolvla_eval2`](https://huggingface.co/HBOrtiz/so101_smolvla_eval2) | SmolVLA-450M | `so101_eval2` (180 ep) |
-| 3 | [`so101_smolvla_eval3_cotrain`](https://huggingface.co/HBOrtiz/so101_smolvla_eval3_cotrain) | SmolVLA-450M | `so101_eval3_cotrain` plus `eval3_vl_pairs` |
+| 3 | [`so101_smolvla_eval3_cotrain`](https://huggingface.co/HBOrtiz/so101_smolvla_eval3_cotrain) | SmolVLA-450M | `so101_eval3_cotrain` plus `so101_eval3_cotrain_grounding` |
 | 3 | [`so101_smolvla_eval3_broad`](https://huggingface.co/HBOrtiz/so101_smolvla_eval3_broad) | SmolVLA-450M | `so101_eval3_broad` (192 celebrities) |
 
 ---

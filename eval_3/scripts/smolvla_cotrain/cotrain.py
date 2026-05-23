@@ -25,7 +25,7 @@ Usage
 
     python eval_3/scripts/smolvla_cotrain/cotrain.py \\
         --robot_dataset=HBOrtiz/so101_eval3_cotrain \\
-        --vl_manifest=HBOrtiz/eval3_vl_pairs \\
+        --vl_manifest=HBOrtiz/so101_eval3_cotrain_grounding \\
         --vl_ratio=10 \\
         --output_dir=outputs/smolvla_cotrain_10to1 \\
         --steps=30000 \\
@@ -91,7 +91,7 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--robot_dataset", required=True,
                    help="LeRobotDataset HF repo id (e.g. HBOrtiz/so101_eval3_cotrain)")
     p.add_argument("--vl_manifest", required=True,
-                   help="VL pairs HF repo id (e.g. HBOrtiz/eval3_vl_pairs_broad) "
+                   help="VL pairs HF repo id (e.g. HBOrtiz/so101_eval3_broad_grounding) "
                         "OR local parquet path")
     p.add_argument("--vl_image_root", default=None,
                    help="Override path to pre-extracted VL images dir. "
@@ -162,7 +162,7 @@ def parse_args() -> argparse.Namespace:
 
 # -----------------------------------------------------------------------------
 # VL dataset — reads the `eval3_*_vl_pairs` parquet schema (e.g.
-# eval3_vl_pairs). Required columns: image_path, prompt, target,
+# so101_eval3_cotrain_grounding). Required columns: image_path, prompt, target,
 # celeb_slug, caption_type (plus bbox_xyxy_norm, celeb_name, frame_idx, … ).
 # -----------------------------------------------------------------------------
 
@@ -206,7 +206,7 @@ class VLPairsDataset(Dataset):
                     image_root = Path(full)
                     # The images ship as a packed archive — named data.tar.zst
                     # or images.tar.zst depending on how the dataset was pushed
-                    # (eval3_vl_pairs_broad uses data.tar.zst). Extract
+                    # (so101_eval3_broad_grounding uses data.tar.zst). Extract
                     # whichever *.tar.zst exists; it unpacks to images/chunk-*/.
                     if not (image_root / "images").is_dir():
                         archives = sorted(image_root.glob("*.tar.zst"))
@@ -779,7 +779,7 @@ def main() -> int:
 
     # 1b. KLAL attention supervision (VL steps). On each VL batch, after the
     # VQA loss, KLAL supervises the celeb-name token's attention toward the
-    # prompted portrait's quad (eval3_vl_pairs.quad_corners_norm),
+    # prompted portrait's quad (so101_eval3_cotrain_grounding.quad_corners_norm),
     # recomputed faithfully from the SmolVLM2 text model's q/k + rotary_emb.
     klal_hookset = None
     klal_cfg = None

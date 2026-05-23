@@ -2,7 +2,7 @@
 # Track 2 — ObjectVLA bbox-grounded VQA co-train on Pi0.5 (brev_instance2).
 #
 # Mirrors run_training_track_B.sh + adds:
-#   - --vl_dataset.manifest  (Darius's VL pairs, HBOrtiz/eval3_vl_pairs_broad)
+#   - --vl_dataset.manifest  (Darius's VL pairs, HBOrtiz/so101_eval3_broad_grounding)
 #   - --vl_ratio=10          (10 robot batches : 1 VL batch — ObjectVLA published)
 #   - --policy.pretrained_path=HBOrtiz/pi05_paligemma_celeb_warm_v2  (Enhancement B-1)
 #   - --dataset.episodes_file (Enhancement B-2 keep_list — when ready)
@@ -15,7 +15,7 @@
 #     eval_3/tracks/TRACK_OBJECTVLA_ENHANCED.md (this enhanced spec).
 #
 # PRE-FLIGHT (must be true before running this):
-#   1. Darius has pushed the VL pairs manifest HBOrtiz/eval3_vl_pairs_broad.
+#   1. Darius has pushed the VL pairs manifest HBOrtiz/so101_eval3_broad_grounding.
 #   2. Roham has delivered per-frame bboxes for 200-celeb dataset.
 #   3. ArcFace audit pipeline has run:
 #        python eval_3/scripts/track_2/arcface_audit_200celeb.py
@@ -28,7 +28,7 @@ set -euo pipefail
 
 OUT_DIR="${OUT_DIR:-outputs/pi05_track_2_objectvla}"
 DATASET="${DATASET:-HBOrtiz/so101_eval3_aug_v3_200celebs}"
-VL_MANIFEST="${VL_MANIFEST:-HBOrtiz/eval3_vl_pairs_broad}"
+VL_MANIFEST="${VL_MANIFEST:-HBOrtiz/so101_eval3_broad_grounding}"
 VL_RATIO="${VL_RATIO:-10}"
 PUSH_REPO="${PUSH_REPO:-HBOrtiz/pi05_eval3_objectvla}"
 STEPS="${STEPS:-30000}"
