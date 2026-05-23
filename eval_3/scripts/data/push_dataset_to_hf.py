@@ -46,11 +46,15 @@ def main() -> int:
     print(f"    size: {sum(p.stat().st_size for p in args.local.rglob('*') if p.is_file())/2**30:.2f} GB",
           flush=True)
 
+    # num_workers cap: HF rate-limits aggressively when 64 workers slam the
+    # API for many small files (29k JPEGs hit ~143×429 + 49×503 retries with
+    # default 64 workers, stalled for 4+ min). 8 workers stays under the limit.
     api.upload_large_folder(
         repo_id=args.repo,
         repo_type="dataset",
         folder_path=str(args.local),
         ignore_patterns=["*.tmp", "__pycache__", "*.pyc"],
+        num_workers=8,
     )
 
     print(f"\n==> done. dataset at https://huggingface.co/datasets/{args.repo}",
