@@ -687,6 +687,51 @@ def process_episode(
     fps: int,
     force: bool,
 ) -> dict:
+    """Render ``num_variants`` augmented copies of one base teleop episode.
+
+    Reads the per-frame portrait corners (and optional masks) computed by
+    :mod:`eval_3.aug.stages.detect_static`, samples celebrity photos from
+    ``bank``, and writes one variant directory per call to
+    :func:`render_variant`. The action labels and the input state are
+    hardlinked from the base episode unchanged; only the camera video
+    differs.
+
+    Args:
+        ep_dir: Path to the base teleop directory. Must contain
+            ``portrait_corners.json`` (from
+            :mod:`~eval_3.aug.stages.detect_static`),
+            ``reference.json`` (written by the operator-facing recorder),
+            and the LeRobot episode tree
+            (``data/``, ``meta/``, ``videos/observation.images.camera1/...``).
+            ``portrait_masks.pkl`` is optional - if present, it carries
+            per-frame occlusion masks for higher-fidelity seams.
+        out_root: Destination root. One subdirectory per variant is
+            created at ``out_root/<ep_name>__var<NN>/``.
+        bank: Photo bank as returned by :func:`load_photo_bank` -
+            ``{celeb_slug: [Path(jpg), ...]}``.
+        num_variants: Number of variants to render for this episode.
+        seed: Per-episode random seed. Combined with the episode name so
+            variants are reproducible without colliding across episodes.
+        fps: Output mp4 frame rate. Must match the source episode's fps.
+        force: If True, re-render variants whose output dir already exists.
+            If False, skip them (idempotent re-runs).
+
+    Returns:
+        A status dict. On the happy path::
+
+            {
+                "ep":       <ep_dir.name>,
+                "rendered": [
+                    {"variant": int, "frames": int},   # newly rendered
+                    {"variant": int, "skipped": True}, # already on disk, force=False
+                    ...
+                ],
+            }
+
+        On a per-episode pre-flight failure (missing inputs)::
+
+            {"ep": <ep_dir.name>, "error": <reason>}
+    """
     corners_json = ep_dir / "portrait_corners.json"
     masks_pkl: Path | None = ep_dir / "portrait_masks.pkl"
     if masks_pkl is not None and not masks_pkl.is_file():

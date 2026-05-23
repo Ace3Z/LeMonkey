@@ -37,15 +37,33 @@ from run_rollout_structured import GENERATORS, FAMILIES
 from record_episodes import COLOR_NAMES, is_valid_arrangement
 
 
-def random_pick_for(arr: str, ood_prob: float):
-    """Pick a random (source, family, target_idx, prompt) for a fixed arrangement."""
+def random_pick_for(arr: str, ood_prob: float) -> tuple[str, str, int, str]:
+    """Sample a random (source, family, target_idx, prompt) for a fixed arrangement.
+
+    Used by the free-play loop: the operator picks the bowl arrangement once,
+    then this helper samples a fresh (family, target, phrasing) on every
+    iteration. Internally re-samples until a generator returns a non-None
+    prompt, so the return value is always a valid 4-tuple.
+
+    Args:
+        arr: 3-letter bowl arrangement (a permutation of ``BRG``).
+        ood_prob: Probability in ``[0, 1]`` of drawing from the OOD
+            phrasing pool on any given iteration; otherwise the trained
+            pool is used.
+
+    Returns:
+        A tuple ``(source, family, target_idx, prompt)`` where ``source``
+        is ``"trained"`` or ``"ood"``, ``family`` is one of the keys in
+        ``GENERATORS``, ``target_idx`` is the index into ``arr`` of the
+        target bowl, and ``prompt`` is the rendered instruction string.
+    """
     while True:
         src = "ood" if random.random() < ood_prob else "trained"
         fam = random.choice(FAMILIES)
         ti = random.randint(0, 2)
         out_ti, prompt = GENERATORS[fam](arr, ti, src)
         if prompt is None:
-            continue  # invalid combo (e.g. relational_between when target ≠ middle); resample
+            continue  # invalid combo (e.g. relational_between when target != middle); resample
         return src, fam, out_ti, prompt
 
 

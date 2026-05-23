@@ -881,14 +881,88 @@ def detect_shadow_cucchiara(
 # ─── Per-episode driver ──────────────────────────────────────────────────────
 def process_episode(
     ep_dir: Path,
-    gd_proc, gd_model,
-    image_predictor, video_predictor, face_app,
+    gd_proc: "AutoProcessor",
+    gd_model: "AutoModelForZeroShotObjectDetection",
+    image_predictor: "SAM2ImagePredictor",
+    video_predictor,  # sam2.sam2_video_predictor.SAM2VideoPredictor (lazy-imported)
+    face_app: "FaceAnalysis",
     celeb_protos: dict[str, np.ndarray],
     *,
     pre_blur_sigma: float = 1.0,
     morph_radius: int = 2,
     force: bool = False,
 ) -> dict:
+    """Detect the three portrait quads in one teleop episode and persist them.
+
+    Runs the static-camera v6 detection pipeline on the episode's first
+    frame:
+
+    1. GroundingDINO open-vocabulary detection finds candidate portrait
+       boxes.
+    2. SAM 2 (image predictor) tightens each candidate box into a binary
+       mask.
+    3. ``refine_paper_quad`` snaps the SAM-coarse mask to the sub-pixel
+       paper edge via Canny + Hough + ``cornerSubPix``.
+    4. ArcFace embedding for each refined quad is compared against
+       ``celeb_protos`` to assign the celebrity identity.
+    5. The frame-0 corners are persisted; per-frame masks are produced by
+       lightweight change-detection against frame 0 (camera is static).
+
+    Args:
+        ep_dir: Path to the LeRobot v3 episode directory. Must contain
+            ``videos/observation.images.camera1/chunk-*/file-*.mp4`` and
+            ``reference.json`` with the layout sidecar.
+        gd_proc: GroundingDINO processor
+            (``transformers.AutoProcessor``-loaded).
+        gd_model: GroundingDINO model
+            (``AutoModelForZeroShotObjectDetection``).
+        image_predictor: SAM 2 ``SAM2ImagePredictor`` for the frame-0
+            mask refinement.
+        video_predictor: SAM 2 ``SAM2VideoPredictor``. Despite the
+            "static" name on this pipeline, the video predictor IS
+            stepped across the full clip - by ``track_occluders_through_video``
+            to seed SAM 2 with frame-0 (gripper / can) and frame-N-1
+            (hand) boxes and propagate occluder masks. Only the *portrait
+            paper quads* are camera-static; moving foreground objects
+            still need per-frame masks.
+        face_app: InsightFace ``FaceAnalysis`` instance used for ArcFace
+            embedding of each refined portrait crop.
+        celeb_protos: Mapping ``{celeb_slug: centroid_embedding}`` used
+            to assign identity to each portrait by max cosine similarity.
+        pre_blur_sigma: Gaussian sigma applied to frame 0 before the
+            change-detection diff. Default 1.0 px.
+        morph_radius: Half-side of the morphological-close kernel applied
+            to the per-frame occluder mask. Default 2 px.
+        force: If True, re-run even when the output JSON/pickle pair is
+            already on disk. If False, skip and return ``{"skipped": True}``.
+
+    Returns:
+        A status dict. On success::
+
+            {
+                "ep":              <ep_dir.name>,
+                "saved":           <str>,            # path to portrait_corners.json
+                "n_frames":        int,
+                "celebs":          list[str],        # celeb slug per portrait (pid 0/1/2)
+                "id_cosines":      list[float],      # ArcFace cos per portrait, rounded to 3 dp
+                "arcface_trusted": bool,             # min(id_cosines) >= ARCFACE_MIN_COS
+            }
+
+        On skipped re-run: ``{"ep": ..., "skipped": True}``.
+        On any pre-flight failure (missing video, missing reference.json,
+        SAM mask too small, etc.) the dict carries ``"error": <reason>``.
+
+    Side effects:
+        Writes three sibling files under ``ep_dir``:
+
+        * ``portrait_corners.json`` - frame-0 (camera-static) quads.
+        * ``portrait_masks.pkl``    - per-frame occluder masks (RLE).
+        * ``portrait_seeds.json``   - GD/SAM seeds + identity assignment.
+
+        Plus diagnostic images when the corresponding debug branches
+        fire: ``dbg_v7_midframe.png`` (always) and
+        ``dbg_refit/pid*/...`` (when the sub-pixel paper-quad refit runs).
+    """
     out_corners_json = ep_dir / "portrait_corners.json"
     out_masks_pkl = ep_dir / "portrait_masks.pkl"
     out_seeds_json = ep_dir / "portrait_seeds.json"

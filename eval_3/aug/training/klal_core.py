@@ -40,6 +40,7 @@ to create one from scratch.
 """
 from __future__ import annotations
 
+from collections.abc import Iterable
 from dataclasses import dataclass
 
 import torch
@@ -58,11 +59,29 @@ class KLALConfig:
 
 
 class KLALHookSet:
-    """Wraps multi-layer q_proj / k_proj hooks for a model. Use as a context
-    manager so the hooks are removed on exit.
+    """Multi-layer q_proj / k_proj capture hooks for a Pi0.5 / PaliGemma text model.
+
+    Use as a context manager so the hooks are torn down deterministically.
+    The captures populated during the wrapped forward are then read back via
+    :meth:`get_attention` and consumed by :func:`klal_loss` (see that
+    function's docstring for the full argument list).
+
+    Args:
+        text_model: The PaliGemma text-model module to attach hooks to
+            (typically ``policy.model.paligemma_with_expert.paligemma.model.language_model``).
+        layers: Iterable of transformer layer indices to instrument.
+        n_heads: Number of query attention heads in each layer.
+        n_kv_heads: Number of key/value attention heads (GQA: typically ``< n_heads``).
+        head_dim: Per-head hidden size. Used both for the q/k reshape and for
+            reading the layer-specific softmax scale.
     """
 
-    def __init__(self, text_model, layers, n_heads, n_kv_heads, head_dim):
+    def __init__(self,
+                 text_model: "torch.nn.Module",
+                 layers: "Iterable[int]",
+                 n_heads: int,
+                 n_kv_heads: int,
+                 head_dim: int) -> None:
         self.layers = list(layers)
         self.n_heads = n_heads
         self.n_kv_heads = n_kv_heads

@@ -31,6 +31,7 @@ import sys
 import time
 from datetime import datetime
 from pathlib import Path
+from typing import Callable
 
 # Reuse the TRAINED phrasing pools and per-family generators from the recorder.
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -97,20 +98,43 @@ NEG_OOD = [
 
 
 # ─── Generators per (family, source) ─────────────────────────────────────────
+#
+# Each gen_* function builds one prompt of a given family for a given
+# (arrangement, target_idx, source) tuple and returns ``(target_idx, prompt)``.
+# A generator returns ``(None, None)`` when the family is invalid for the
+# given target_idx (e.g. `gen_relational_between` only fires when the target
+# sits in the middle of the layout). Callers MUST handle the sentinel and
+# resample.
+#
+# Parameters shared across every generator:
+#   * arr (str): 3-letter arrangement code, the leftmost-to-rightmost bowl
+#     colours from the operator's standpoint (e.g. ``"BRG"`` = blue / red /
+#     green).
+#   * ti  (int): target slot index in ``arr``: 0 = left, 1 = middle, 2 = right.
+#   * src ("trained" | "ood"): which phrasing pool to draw from - the
+#     trained pool matches the dataset prompts; the OOD pool holds paraphrases
+#     the policy never saw.
+#
+# Return type alias used below.
+PromptGen = Callable[[str, int, str], tuple[int | None, str | None]]
 
-def gen_direct(arr, ti, src):
+
+def gen_direct(arr: str, ti: int, src: str) -> tuple[int, str]:
+    """Direct colour reference (`"Put the banana in the red bowl"`)."""
     color = COLOR_NAMES[arr[ti]]
     pool = DIRECT_OOD if src == "ood" else DIRECT_COLOR_PHR
     return ti, random.choice(pool).format(c=color)
 
 
-def gen_absolute(arr, ti, src):
+def gen_absolute(arr: str, ti: int, src: str) -> tuple[int, str]:
+    """Absolute spatial reference (`"... in the leftmost bowl"`)."""
     pos = ["left", "middle", "right"][ti]
     pool = ABS_OOD[pos] if src == "ood" else ABS_PHR[pos]
     return ti, random.choice(pool)
 
 
-def gen_ordinal(arr, ti, src):
+def gen_ordinal(arr: str, ti: int, src: str) -> tuple[int, str]:
+    """Ordinal spatial reference (`"... in the 2nd bowl from the left"`)."""
     side = random.choice(["left", "right"])
     n = ti + 1 if side == "left" else 3 - ti
     if src == "ood":
@@ -122,7 +146,13 @@ def gen_ordinal(arr, ti, src):
     return ti, prompt
 
 
-def gen_relational_lr(arr, ti, src):
+def gen_relational_lr(arr: str, ti: int, src: str) -> tuple[int | None, str | None]:
+    """Left/right relational reference (`"... the bowl to the right of the red bowl"`).
+
+    Returns ``(None, None)`` if the target has no valid neighbour to anchor
+    against (which never happens for a 3-bowl arrangement, but the guard is
+    kept for symmetry with the other relational generator).
+    """
     options = []
     for side, dx in [("right", -1), ("left", +1)]:
         ref_idx = ti + dx
@@ -135,7 +165,12 @@ def gen_relational_lr(arr, ti, src):
     return ti, random.choice(pool).format(side=side, ref=ref)
 
 
-def gen_relational_between(arr, ti, src):
+def gen_relational_between(arr: str, ti: int, src: str) -> tuple[int | None, str | None]:
+    """Between-relation reference (`"... the bowl between blue and green"`).
+
+    Only valid for ``ti == 1`` (the middle slot). Returns ``(None, None)``
+    for any other target.
+    """
     if ti != 1:
         return None, None
     a = COLOR_NAMES[arr[0]]
@@ -146,7 +181,8 @@ def gen_relational_between(arr, ti, src):
     return ti, random.choice(pool).format(a=a, b=b)
 
 
-def gen_negation(arr, ti, src):
+def gen_negation(arr: str, ti: int, src: str) -> tuple[int, str]:
+    """Negation reference (`"... the bowl that is not blue or green"`)."""
     target = COLOR_NAMES[arr[ti]]
     others = [c for c in ["blue", "red", "green"] if c != target]
     if random.random() < 0.5:
@@ -156,7 +192,7 @@ def gen_negation(arr, ti, src):
     return ti, random.choice(pool).format(a=a, b=b)
 
 
-GENERATORS = {
+GENERATORS: dict[str, PromptGen] = {
     "direct":              gen_direct,
     "spatial_absolute":    gen_absolute,
     "spatial_ordinal":     gen_ordinal,
@@ -164,11 +200,24 @@ GENERATORS = {
     "relational_between":  gen_relational_between,
     "negation":            gen_negation,
 }
-FAMILIES = list(GENERATORS.keys())
+FAMILIES: list[str] = list(GENERATORS.keys())
 
 
-def random_pick(ood_prob: float):
-    """Pick a fully-random (arrangement, source, family, target_idx, prompt) tuple."""
+def random_pick(ood_prob: float) -> tuple[str, str, str, int, str]:
+    """Sample a fully-random rollout tuple.
+
+    Args:
+        ood_prob: Probability in ``[0, 1]`` of drawing from the OOD pool
+            on any given iteration. The rest of the time the trained pool
+            is used.
+
+    Returns:
+        A ``(arrangement, source, family, target_idx, prompt)`` tuple where
+        ``source`` is ``"trained"`` or ``"ood"`` and ``family`` is one of
+        the keys in ``GENERATORS``. The function resamples internally until
+        a generator returns a non-``None`` prompt, so it always returns a
+        valid tuple.
+    """
     while True:
         arr = random.choice(ARRANGEMENTS)
         src = "ood" if random.random() < ood_prob else "trained"
@@ -176,7 +225,7 @@ def random_pick(ood_prob: float):
         ti = random.randint(0, 2)
         out_ti, prompt = GENERATORS[fam](arr, ti, src)
         if prompt is None:
-            continue  # invalid combo (e.g. between when target ≠ middle); resample
+            continue  # invalid combo (e.g. between when target != middle); resample
         return arr, src, fam, out_ti, prompt
 
 

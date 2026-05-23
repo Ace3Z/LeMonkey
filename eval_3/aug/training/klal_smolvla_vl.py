@@ -27,6 +27,8 @@ the config (`KLALConfig`) are model-agnostic and reused from `klal_core.py`.
 """
 from __future__ import annotations
 
+from collections.abc import Iterable
+
 import numpy as np
 import torch
 
@@ -47,14 +49,30 @@ def _celeb_short(slug: str) -> str:
 
 
 class KLALHookSetSmolVLMVL:
-    """q/k + `rotary_emb` hooks on the SmolVLM2 Llama text model (VL forward).
+    """q/k + ``rotary_emb`` hooks on the SmolVLM2 Llama text model (VL forward).
 
-    Use as a context manager so the hooks are removed on exit, or call
-    `remove()`. Call `reset()` and `set_attention_mask(...)` once per forward.
+    Use as a context manager so the hooks are torn down deterministically, or
+    call ``remove()`` explicitly. Call ``reset()`` and ``set_attention_mask(...)``
+    once per forward pass.
+
+    Args:
+        text_model: The SmolVLM2 ``LlamaModel`` text-model module (typically
+            ``vlm.model.text_model``).
+        layers: Iterable of transformer layer indices to instrument.
+        n_heads: Number of query attention heads per layer.
+        n_kv_heads: Number of key/value heads (GQA: typically ``< n_heads``).
+        head_dim: Per-head hidden size.
+        scaling: Softmax pre-scale used by the layer's eager attention; for
+            Llama this is ``head_dim ** -0.5``.
     """
 
-    def __init__(self, text_model, layers, n_heads, n_kv_heads, head_dim,
-                 scaling):
+    def __init__(self,
+                 text_model: "torch.nn.Module",
+                 layers: "Iterable[int]",
+                 n_heads: int,
+                 n_kv_heads: int,
+                 head_dim: int,
+                 scaling: float) -> None:
         self.layers = list(layers)
         self.n_heads = int(n_heads)
         self.n_kv_heads = int(n_kv_heads)

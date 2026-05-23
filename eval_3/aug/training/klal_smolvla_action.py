@@ -36,20 +36,41 @@ Why the recompute is faithful (same argument as the Pi0.5 KLAL):
 """
 from __future__ import annotations
 
+from collections.abc import Iterable
+
 import torch
 
 from lerobot.policies.smolvla.smolvlm_with_expert import apply_rope
 
 
 class KLALHookSetSmolVLA:
-    """Multi-layer q/k hooks + position_ids capture for SmolVLA's VLM.
+    """Multi-layer q/k hooks + position_ids capture for SmolVLA's VLM (action forward).
 
     Use as a context manager so the hooks are removed on exit, or call
-    `remove()` explicitly.
+    ``remove()`` explicitly.
+
+    Args:
+        text_model: The SmolVLM2 text-model module to attach hooks to
+            (typically ``policy.model.vlm_with_expert.vlm.model.text_model``).
+        vlm_with_expert: The full SmolVLM2-with-expert wrapper. Needed
+            so the hookset can reach the connector to measure
+            ``patches_per_image`` at runtime (the image-prefix length
+            depends on ``empty_cameras`` and is not safe to read from
+            config). The position_ids that drive RoPE are captured
+            separately via the module-level ``apply_rope`` monkey-patch.
+        layers: Iterable of transformer layer indices to instrument.
+        n_heads: Number of query attention heads in each layer.
+        n_kv_heads: Number of key/value heads (GQA: typically ``< n_heads``).
+        head_dim: Per-head hidden size.
     """
 
-    def __init__(self, text_model, vlm_with_expert, layers, n_heads,
-                 n_kv_heads, head_dim):
+    def __init__(self,
+                 text_model: "torch.nn.Module",
+                 vlm_with_expert: "torch.nn.Module",
+                 layers: "Iterable[int]",
+                 n_heads: int,
+                 n_kv_heads: int,
+                 head_dim: int) -> None:
         self.layers = list(layers)
         self.n_heads = n_heads
         self.n_kv_heads = n_kv_heads

@@ -140,20 +140,61 @@ def mine_via_bing(name: str, raw_dir: Path, max_n: int) -> int:
 
 # ─── Identity verification ───────────────────────────────────────────────────
 class FaceVerifier:
-    """Wraps InsightFace buffalo_l for face detection + ArcFace embedding."""
+    """InsightFace ``buffalo_l`` wrapper for face detection + ArcFace embedding.
 
-    def __init__(self, det_size: int = 640):
+    The wrapper runs on CUDA when available (``CUDAExecutionProvider``) and
+    falls back to CPU. ArcFace embeddings returned by ``embed_single_face``
+    are L2-normalised, so cosine similarity reduces to a dot product (see
+    :meth:`cosine`).
+
+    Attributes:
+        app: The underlying ``insightface.app.FaceAnalysis`` instance,
+            already ``prepare()``-d with the requested detection size.
+    """
+
+    def __init__(self, det_size: int = 640) -> None:
+        """Load InsightFace ``buffalo_l`` and prepare it for inference.
+
+        Args:
+            det_size: Square detection input size in pixels. 640 is the
+                ``buffalo_l`` default; smaller values trade recall for
+                speed.
+
+        Raises:
+            RuntimeError: if InsightFace is not installed
+                (``pip install insightface onnxruntime-gpu``).
+        """
         if FaceAnalysis is None:
             raise RuntimeError("insightface not installed (pip install insightface onnxruntime-gpu)")
         self.app = FaceAnalysis(name="buffalo_l", providers=["CUDAExecutionProvider", "CPUExecutionProvider"])
         self.app.prepare(ctx_id=0, det_size=(det_size, det_size))
 
     def detect(self, img_pil: Image.Image) -> list:
+        """Detect every face in ``img_pil``.
+
+        Args:
+            img_pil: RGB PIL image.
+
+        Returns:
+            A list of ``insightface.app.Face`` records (one per detected
+            face), each carrying ``bbox``, ``kps``, ``det_score`` and
+            ``normed_embedding`` fields. Empty list when no face is found.
+        """
         # InsightFace expects BGR ndarray
         bgr = np.array(img_pil)[:, :, ::-1].copy()
         return self.app.get(bgr)
 
     def embed_single_face(self, img_pil: Image.Image) -> np.ndarray | None:
+        """Embed the image only if it contains exactly one face.
+
+        Args:
+            img_pil: RGB PIL image.
+
+        Returns:
+            A 512-D L2-normalised ArcFace embedding, or ``None`` if the
+            image contains 0 or 2+ faces. The single-face precondition
+            keeps the celebrity bank free of ambiguous reference photos.
+        """
         faces = self.detect(img_pil)
         if len(faces) != 1:
             return None
@@ -161,7 +202,17 @@ class FaceVerifier:
 
     @staticmethod
     def cosine(a: np.ndarray, b: np.ndarray) -> float:
-        return float(a @ b)  # both L2-normed
+        """Cosine similarity between two **already-L2-normalised** embeddings.
+
+        Args:
+            a, b: 1-D embeddings of equal shape. Both MUST be L2-normalised
+                (the unchecked precondition - this is plain dot-product, not
+                the standard ``a @ b / (|a| * |b|)`` formula).
+
+        Returns:
+            ``a @ b``, a scalar in ``[-1, 1]``.
+        """
+        return float(a @ b)
 
 
 # ─── Per-celeb pipeline ──────────────────────────────────────────────────────

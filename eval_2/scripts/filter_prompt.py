@@ -1,53 +1,64 @@
 #!/usr/bin/env python3
 """Strip the "from the robot perspective" qualifier from Eval 2 prompts.
 
-Eval-day spatial prompts can
-have the qualifier embedded inline, e.g.:
+Eval-day spatial prompts can carry the qualifier embedded inline, e.g.::
 
     "Put the banana into the 2nd bowl from the left from the robot perspective"
     "Put the banana into the bowl on the right of the red bowl from the robot perspective"
 
-The SmolVLA Eval 2 model was NOT trained on that qualifier — the 180-episode
-dataset's prompts never contain "from the robot perspective". Feeding the OOD
-phrase to the policy pushes it off-distribution. Solution: strip the qualifier
-before sending to the model. The trajectory the model produces should be the
-same as if the qualifier were never there.
+The SmolVLA Eval 2 model was not trained on that qualifier: the 180-episode
+dataset's prompts never contain "from the robot perspective". Feeding the
+out-of-distribution phrase to the policy pushes it off-distribution. The
+filter normalises the prompt by stripping the qualifier *before* it reaches
+the model; the trajectory the policy then produces is the same as if the
+qualifier were never present.
 
-Matched phrase (exact, case-insensitive, optional trailing period):
-    "from the robot perspective"
+The filter is intentionally narrow:
 
-Anything else — including "robot's perspective", "camera perspective", etc.
-— is left untouched. The filter is intentionally
-narrow.
+* Matched (case-insensitive, optional trailing period): ``from the robot perspective``.
+* Not matched: ``robot's perspective``, ``camera perspective``, etc.
 
-Usage:
+Usage (library)::
+
     from filter_prompt import filter_prompt
     cleaned = filter_prompt(raw)
 
-CLI:
-    filter_prompt.py "Put the banana in the leftmost bowl from the robot perspective"
-    → Put the banana in the leftmost bowl
+Usage (CLI)::
+
+    $ python filter_prompt.py "Put the banana in the leftmost bowl from the robot perspective"
+    Put the banana in the leftmost bowl
 """
 from __future__ import annotations
 
 import re
 import sys
+from typing import Final
 
-# Match: optional leading whitespace, the literal phrase
-# "from the robot perspective", optional trailing period, trailing whitespace.
-_PERSPECTIVE_RE = re.compile(
+# Matches the literal phrase with surrounding whitespace and an optional
+# trailing period, case-insensitively.
+_PERSPECTIVE_RE: Final[re.Pattern[str]] = re.compile(
     r"\s*from\s+the\s+robot\s+perspective\s*\.?\s*",
     re.IGNORECASE,
 )
-_WHITESPACE_RE = re.compile(r"\s+")
+
+# Collapses runs of whitespace to a single space so the cleaned prompt is
+# tidy regardless of where the qualifier was removed.
+_WHITESPACE_RE: Final[re.Pattern[str]] = re.compile(r"\s+")
 
 
 def filter_prompt(prompt: str) -> str:
-    """Strip the perspective qualifier from a prompt.
+    """Strip the "from the robot perspective" qualifier from ``prompt``.
 
-    Idempotent — calling twice yields the same result.
-    Returns the prompt unchanged (with whitespace normalized) if no
-    qualifier is present.
+    Args:
+        prompt: Raw eval-day instruction string, possibly with the
+            qualifier embedded.
+
+    Returns:
+        The prompt with every occurrence of the qualifier removed and
+        internal whitespace collapsed. Idempotent: ``filter_prompt(s) ==
+        filter_prompt(filter_prompt(s))`` for every ``s``. If the prompt
+        does not contain the qualifier, the only effect is whitespace
+        normalisation.
     """
     cleaned = _PERSPECTIVE_RE.sub(" ", prompt)
     cleaned = _WHITESPACE_RE.sub(" ", cleaned).strip()

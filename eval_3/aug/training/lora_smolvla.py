@@ -35,27 +35,57 @@ import torch.nn as nn
 
 @dataclass
 class LoRAConfig:
+    """Hyperparameters for LoRA injection into SmolVLA's VLM attention.
+
+    Attributes:
+        r: LoRA rank (low-rank-decomposition inner dim). 16 matches the
+            published SmolVLA-450M figure.
+        alpha: LoRA alpha (scale factor); ``alpha / r`` is multiplied into
+            the update path. ``alpha == 2 * r`` is the PEFT-library
+            convention (Hu et al. 2021 treat alpha as task-specific and
+            do not prescribe a default).
+        dropout: Dropout on the LoRA branch. Kept at 0.0 because SmolVLA
+            runs the VLM in ``.eval()`` under ``train_expert_only=True``,
+            so an active dropout would be a no-op anyway.
+        layers: Indices of VLM transformer layers to wrap. When KLAL is
+            enabled, the caller is responsible for ensuring this set is a
+            superset of the KLAL-supervised layers; otherwise KLAL would
+            back-prop into a frozen layer and learn nothing. (Note: the
+            default tuple here and ``KLALConfig.capture_layers`` do not
+            satisfy this on their own - reconcile both at the call site.)
+        target_modules: Attribute names of the linear projections to wrap
+            per layer (``q_proj``, ``k_proj``, ``v_proj``, ``o_proj``).
+    """
     r: int = 16
     alpha: int = 32
-    dropout: float = 0.0  # 0.0: SmolVLA keeps the VLM in .eval() under
-    #                       train_expert_only=True, so an active Dropout would
-    #                       be a no-op anyway -- keep it off and explicit.
-    # LoRA layer range = the M2-trainable range (capture_layer .. last VLM
-    # layer). KLAL-supervised layers MUST be a subset of these.
-    layers: tuple = (9, 10, 11, 12, 13, 14, 15)
-    target_modules: tuple = ("q_proj", "k_proj", "v_proj", "o_proj")
+    dropout: float = 0.0
+    layers: tuple[int, ...] = (9, 10, 11, 12, 13, 14, 15)
+    target_modules: tuple[str, ...] = ("q_proj", "k_proj", "v_proj", "o_proj")
 
 
 class LoRALinear(nn.Module):
-    """Wraps a frozen `nn.Linear` with a trainable low-rank delta.
+    """Wraps a frozen ``nn.Linear`` with a trainable low-rank delta.
 
-    The wrapped base is exposed as `.weight` / `.bias` properties because
-    SmolVLA's custom forward reads `q_proj.weight.dtype` directly
-    (`smolvlm_with_expert.py:222`) -- without these a LoRA-injected q_proj
-    would raise `AttributeError` on the first forward.
+    Forward: ``y = base(x) + (alpha / r) * lora_B(lora_A(dropout(x)))``.
+
+    The wrapped base's ``.weight`` and ``.bias`` are re-exposed as properties
+    because SmolVLA's custom forward reads ``q_proj.weight.dtype`` directly
+    (``smolvlm_with_expert.py:222``); without these a LoRA-injected ``q_proj``
+    would raise ``AttributeError`` on the first forward.
+
+    Args:
+        base: The frozen ``nn.Linear`` to adapt. Its parameters get
+            ``requires_grad=False`` automatically.
+        r: LoRA rank (positive int).
+        alpha: LoRA alpha; ``alpha / r`` scales the update.
+        dropout: Dropout probability on the LoRA branch input.
+
+    Raises:
+        TypeError: if ``base`` is not an ``nn.Linear``.
+        ValueError: if ``r <= 0``.
     """
 
-    def __init__(self, base: nn.Linear, r: int, alpha: int, dropout: float):
+    def __init__(self, base: nn.Linear, r: int, alpha: int, dropout: float) -> None:
         super().__init__()
         if not isinstance(base, nn.Linear):
             raise TypeError(f"LoRALinear expects nn.Linear, got {type(base)}")
