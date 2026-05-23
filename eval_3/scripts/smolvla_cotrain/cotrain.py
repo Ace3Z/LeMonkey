@@ -6,7 +6,7 @@ SmolVLM2's LM head), the rest are robot batches (SmolVLA flow-matching
 action loss). Both losses share one optimizer; both gradients flow into
 the SmolVLM2 body.
 
-This is the SmolVLA-450M sibling of eval_3/scripts/track_2/lerobot_train_with_vl_cotrain.py
+This is the SmolVLA-450M sibling of eval_3/scripts/pi05_vl_cotrain/lerobot_train_with_vl_cotrain.py
 (which is Pi0.5-3B). Unlike that one, this is NOT a scaffold — the training loop
 is integrated end-to-end so it runs as-is on a single GPU AWS node.
 
@@ -491,7 +491,7 @@ def load_policy_and_processor(args, device: torch.device):
     lora_registry: list = []
     lora_layers: tuple = ()
     if args.enable_lora:
-        from m2_lora import LoRAConfig, count_lora_params, inject_lora
+        from lora_smolvla import LoRAConfig, count_lora_params, inject_lora
 
         text_model = policy.model.vlm_with_expert.vlm.model.text_model
         n_layers = len(text_model.layers)
@@ -612,7 +612,7 @@ def merged_lora_for_save(lora_registry):
     LoRA modules are restored on exit; base weights are never mutated.
     """
     if lora_registry:
-        from m2_lora import swap_to_lora, swap_to_merged
+        from lora_smolvla import swap_to_lora, swap_to_merged
 
         swap_to_merged(lora_registry)
         try:
@@ -785,9 +785,9 @@ def main() -> int:
     klal_cfg = None
     klal_name_ids = None
     if args.enable_klal:
-        from m2_klal import KLALConfig
-        from m2_klal_smolvla import build_name_token_ids
-        from m2_klal_vl import (KLALHookSetSmolVLMVL, compute_klal_loss_vl,
+        from klal_pi05 import KLALConfig
+        from klal_smolvla import build_name_token_ids
+        from klal_smolvla_vl import (KLALHookSetSmolVLMVL, compute_klal_loss_vl,
                                 NUM_IMAGE_PATCHES, PATCH_GRID)
 
         klal_layers = tuple(int(x) for x in args.klal_layers.split(","))

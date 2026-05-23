@@ -8,7 +8,7 @@ green and distractors red. Lets a human confirm the can lands on the labelled
 target portrait.
 
 Used 2026-05-21 to verify the Track-3 co-training robot dataset (20/20 correct).
-See 2026-05-21_track3_robot_dataset_visual_verify.md
+See 2026-05-21_robot_dataset_visual_verify.md
 
 Usage:
     python eval_3/tools/verify_robot_episodes.py
@@ -33,7 +33,7 @@ FULL_TO_DISP = {"taylor_swift": "Taylor Swift", "barack_obama": "Barack Obama",
 def main() -> int:
     p = argparse.ArgumentParser(description=__doc__,
                                 formatter_class=argparse.RawDescriptionHelpFormatter)
-    p.add_argument("--aug-root", default="datasets/eval3_track3_aug",
+    p.add_argument("--aug-root", default="datasets/eval3_aug_cotrain",
                    help="per-variant augmented episode dirs")
     p.add_argument("--base-root", default="datasets/eval3",
                    help="base teleop dirs (hold portrait_corners.json)")

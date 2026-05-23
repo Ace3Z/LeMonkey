@@ -199,10 +199,10 @@ LeMonkey/
 ├── eval_3/                      Eval 3: runtime, scripts, README
 │   ├── aug/                     data-augmentation pipeline (celebrity portraits)
 │   ├── scripts/                 training, rollout, and dataset-build scripts
-│   │   ├── brev/                Brev-VM training entrypoints
-│   │   ├── smolvla_cotrain/     the SmolVLA co-training trainer
-│   │   ├── track_2/             Track 2 (warm-start) experiments
-│   │   └── warmstart/           PaliGemma VQA warm-start pipeline
+│   │   ├── brev/                Brev-VM training entrypoints (all four recipes)
+│   │   ├── smolvla_cotrain/     SmolVLA co-training trainer (deployed)
+│   │   ├── pi05_vl_cotrain/     Pi0.5 + VL bbox-grounded VQA cotrain (published variant)
+│   │   └── warmstart/           PaliGemma VQA warm-start (init for Pi0.5)
 │   └── tools/                   dataset-verification tooling
 ├── calibration/                 per-arm SO-101 calibration JSONs
 ├── media/                       logos (figures/) and demo GIFs (gifs/)

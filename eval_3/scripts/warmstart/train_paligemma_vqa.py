@@ -2,7 +2,7 @@
 """Warm-start PaliGemma inside lerobot/pi05_base via LoRA on VGGFace2 VQA.
 
 Goal: teach the VLM (PaliGemma 2B + SigLIP-So400m + LM head) to do face-identity
-naming as a CAUSAL_LM task, so that a subsequent Pi0.5 VLA fine-tune (Track B
+naming as a CAUSAL_LM task, so that a subsequent Pi0.5 VLA fine-tune (Pi0.5
 re-launch) inherits a celeb-aware prior instead of relying on PaliGemma's
 DLP-filtered WebLI pretrain.
 
@@ -15,8 +15,8 @@ We then:
      it adds complexity for marginal benefit).
   2. Freeze the whole Gemma-300M action expert — irrelevant for VQA.
   3. Apply LoRA (r=32, alpha=64, dropout=0.05) to PaliGemma's language_model
-     on q/k/v/o + gate/up/down projections — same target_modules as Track B
-     so adapters align with the architecture used at Track B re-train.
+     on q/k/v/o + gate/up/down projections — same target_modules as Pi0.5
+     so adapters align with the architecture used at Pi0.5 re-train.
 
 ARCHITECTURE — what's evaluated
 ================================
@@ -59,7 +59,7 @@ At end of training:
   2. Plugs the merged PaliGemma back into the full Pi0.5 model.
   3. Saves the full Pi0.5 checkpoint to OUT_DIR and pushes to PUSH_REPO.
 
-The pushed checkpoint is then a valid `--policy.pretrained_path` for a Track B
+The pushed checkpoint is then a valid `--policy.pretrained_path` for a Pi0.5
 re-launch.
 
 USAGE
@@ -98,7 +98,7 @@ def main() -> int:
     ap.add_argument("--target-modules", nargs="+",
                      default=["q_proj", "k_proj", "v_proj", "o_proj",
                               "gate_proj", "up_proj", "down_proj"],
-                     help="LoRA target modules — same as Track B for alignment")
+                     help="LoRA target modules — same as Pi0.5 for alignment")
     ap.add_argument("--epochs", type=int, default=1,
                      help="VGGFace2 is large; 1 epoch is usually plenty")
     ap.add_argument("--batch-size", type=int, default=8)

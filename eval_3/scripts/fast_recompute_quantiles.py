@@ -43,7 +43,7 @@ def main() -> int:
     p = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("--root", type=Path,
-                   default=Path("/home/rohamzn/ETH_Uni/LeMonkey/datasets/eval3_track3_v3_merged"))
+                   default=Path("/home/rohamzn/ETH_Uni/LeMonkey/datasets/eval3_cotrain_merged"))
     args = p.parse_args()
 
     # ── 1. Discover all data parquet files ──

@@ -45,7 +45,7 @@ def discover_episode_dirs(
 
     `aug_pattern` distinguishes variant naming conventions:
         "__var"  → original v3 aug pipeline (eval3_aug_v3/quick_*__varNN)
-        "__t3_"  → Track 3 v3 pipeline      (eval3_track3_aug/quick_*__t3_NNNN_vXX)
+        "__t3_"  → cotrain pipeline      (eval3_aug_cotrain/quick_*__t3_NNNN_vXX)
     """
     base = []
     if base_root.is_dir():
@@ -86,7 +86,7 @@ def main() -> int:
                    help="Root containing augmented variant dirs")
     p.add_argument("--aug-pattern", default="__var",
                    help="Substring identifying augmented variants. "
-                        "'__var' for v3 aug; '__t3_' for Track 3 aug.")
+                        "'__var' for v3 (broad) aug; '__t3_' for cotrain aug.")
     p.add_argument("--dst", type=Path,
                    default=Path("datasets/eval3_merged"),
                    help="Output dir for the merged dataset")

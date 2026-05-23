@@ -2,7 +2,7 @@
 
 RT-2 §3.2 style co-training: every `vl_ratio+1`-th step is a VQA batch with CE loss on SmolVLM2's LM head; the rest are robot batches with SmolVLA's standard flow-matching action loss. Both gradients flow into the same VLM body, which is what keeps the celeb-name prior alive (the failure mode where sequential VLM→action fine-tunes produce a positional-shortcut policy).
 
-This is the SmolVLA-450M sibling of `eval_3/scripts/track_2/lerobot_train_with_vl_cotrain.py` (Pi0.5-3B). Unlike that one, the script here is **end-to-end integrated** - its training loop runs as-is on a single GPU node.
+This is the SmolVLA-450M sibling of `eval_3/scripts/pi05_vl_cotrain/lerobot_train_with_vl_cotrain.py` (Pi0.5-3B). Unlike that one, the script here is **end-to-end integrated** - its training loop runs as-is on a single GPU node.
 
 ## TL;DR
 

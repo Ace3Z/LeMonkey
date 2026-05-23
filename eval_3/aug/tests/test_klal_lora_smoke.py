@@ -37,7 +37,7 @@ def check(name: str, cond: bool, detail: str = "") -> None:
 # Tier 1 — pure logic
 # ===========================================================================
 print("\n=== Tier 1: LoRA ===", flush=True)
-from m2_lora import (LoRAConfig, LoRALinear, count_lora_params, inject_lora,
+from lora_smolvla import (LoRAConfig, LoRALinear, count_lora_params, inject_lora,
                      swap_to_lora, swap_to_merged)
 
 torch.manual_seed(0)
@@ -121,8 +121,8 @@ check("swap_to_lora restores LoRALinear",
       isinstance(tm.layers[10].self_attn.q_proj, LoRALinear))
 
 print("\n=== Tier 1: KLAL target + loss + name tokens ===", flush=True)
-from m2_klal import KLALConfig, gaussian_target_from_mask, klal_loss
-from m2_klal_smolvla import extract_name_token_positions
+from klal_pi05 import KLALConfig, gaussian_target_from_mask, klal_loss
+from klal_smolvla import extract_name_token_positions
 
 mask = torch.zeros(64, dtype=torch.bool)
 mask[27] = mask[28] = True                 # 8x8 grid
@@ -203,7 +203,7 @@ try:
     check("LoRA params are in the trainable set", lora_n > 0 and trainable >= lora_n,
           f"lora={lora_n / 1e6:.2f}M, total trainable={trainable / 1e6:.1f}M")
 
-    from m2_klal_smolvla import KLALHookSetSmolVLA
+    from klal_smolvla import KLALHookSetSmolVLA
     vlm_we = policy.model.vlm_with_expert
     tcfg = vlm_we.config.text_config
     head_dim = getattr(tcfg, "head_dim", None) or (tcfg.hidden_size // tcfg.num_attention_heads)

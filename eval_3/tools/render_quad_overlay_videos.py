@@ -36,7 +36,7 @@ def main() -> int:
     p = argparse.ArgumentParser(description=__doc__,
                                 formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("--manifest", required=True, help="VL-pairs manifest.parquet")
-    p.add_argument("--aug-root", default="datasets/eval3_track3_aug",
+    p.add_argument("--aug-root", default="datasets/eval3_aug_cotrain",
                    help="per-variant augmented episode dirs")
     p.add_argument("--out", default="eval_3/outputs/quad_overlay_videos")
     p.add_argument("--n", type=int, default=4, help="episodes to render")

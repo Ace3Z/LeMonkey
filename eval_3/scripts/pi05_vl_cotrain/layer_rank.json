@@ -1,0 +1,51 @@
+{
+  "_comment": [
+    "Per-layer LoRA rank config for Pi0.5 VL cotrain enhanced (Enhancement B-4).",
+    "Replaces uniform --peft.r=32 with face-binding-aware capacity allocation.",
+    "Rationale (CLAUDE.md §7 triple-source):",
+    "  - BlindVLA Table 12: optimal face-discrim supervision at ~57% LM depth.",
+    "  - Voita et al. 2019: ~5-8 of 48 transformer heads carry most function;",
+    "    concentrate capacity in face-relevant layers.",
+    "  - Roham TRACK_B_WARMSTART.md: lm_head LoRA explicitly rejected (cost).",
+    "Total trainable params ~= uniform r=32, redistributed by relevance.",
+    "Loader is expected to map layer_index -> r for the language_model.layers[i].",
+    "If the lerobot+PEFT version does not support per-layer rank, fall back to",
+    "uniform r=32 by passing --peft.r=32 instead of --peft.layer_rank_config=."
+  ],
+  "model_name": "PaliGemma-2B (Gemma-2B language tower, 18 layers)",
+  "target_modules": [
+    "q_proj", "k_proj", "v_proj", "o_proj",
+    "gate_proj", "up_proj", "down_proj"
+  ],
+  "layer_rank": {
+    "0":  16,
+    "1":  16,
+    "2":  16,
+    "3":  16,
+    "4":  16,
+    "5":  32,
+    "6":  32,
+    "7":  32,
+    "8":  64,
+    "9":  64,
+    "10": 64,
+    "11": 64,
+    "12": 64,
+    "13": 32,
+    "14": 32,
+    "15": 48,
+    "16": 48,
+    "17": 48
+  },
+  "rank_zones": {
+    "0-4":   "preserve warm-PG WebLI prior (low rank)",
+    "5-7":   "lower-mid scaffold (default)",
+    "8-12":  "BlindVLA mid-LM face-discrim zone (r=64 = 2x default)",
+    "13-14": "upper scaffold (default)",
+    "15-17": "top-LM name-token alignment, LM head reads from these (r=48 = 1.5x default)"
+  },
+  "fallback": {
+    "if_per_layer_unsupported": "uniform r=32",
+    "if_lora_target_invalid":  "abort training, do not silently downgrade"
+  }
+}

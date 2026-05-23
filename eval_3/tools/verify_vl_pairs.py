@@ -14,7 +14,7 @@ Expects the dataset's data.tar.zst already extracted under --data-root, so
 that <data-root>/images/ and <data-root>/references/ exist.
 
 Usage:
-    python eval_3/tools/verify_vl_pairs.py --manifest manifest.parquet --data-root /tmp/track3vl
+    python eval_3/tools/verify_vl_pairs.py --manifest manifest.parquet --data-root /tmp/cotrain_vl
 """
 from __future__ import annotations
 
