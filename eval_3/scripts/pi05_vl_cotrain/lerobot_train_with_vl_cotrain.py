@@ -1,43 +1,24 @@
 #!/usr/bin/env python3
-"""Pi0.5 VL cotrain — mixed-batch lerobot-train with ObjectVLA VL co-training.
+"""Pi0.5 + ObjectVLA VL cotrain wrapper around lerobot-train (scaffold).
 
-Extends lerobot-train with:
-  - 10:1 robot:VL batch alternation (ObjectVLA arxiv 2502.11550, +45pp OOD)
-  - per-layer LoRA rank (Enhancement B-4)
-  - curriculum sampler switch at step N (Enhancement B-5)
-  - EMA shadow weights (Enhancement B-7)
+This wrapper is preserved as a starting point for the enhanced ObjectVLA
+recipe; the deployed Pi0.5 reference policy
+(HBOrtiz/so101_pi05_eval3) was trained via the vanilla LoRA path in
+`../brev/train_pi05.sh`, not via this file. The dataloader, mixed-batch
+alternation, per-layer LoRA rank, and EMA pieces are written but the
+training-loop hook into the installed lerobot-train was not completed.
+
+Recipe (when fully integrated):
+  - 10:1 robot:VL batch alternation (ObjectVLA arXiv 2502.11550)
+  - per-layer LoRA rank (see precomputed/layer_rank.json)
+  - two-phase curriculum (see curriculum_sampler.py)
+  - EMA shadow weights
 
 VQA forward path reuses the pattern from
-`eval_3/scripts/warmstart/train_paligemma_vqa.py` —
-PaliGemmaProcessor with suffix masking, standard HF model.forward()
-internal loss. Falls back to manual image-feature splicing if
-transformers ≥5.0 dict-attention-mask hits.
-
-Per: every fallback emits [WARN] with context.
-Per: no Claude attribution in any artifact this script produces.
-
-USAGE
-=====
-
-Standard invocation goes through eval_3/scripts/brev/train_pi05_vl_cotrain.sh.
-For ad-hoc smoke testing:
-
-    python eval_3/scripts/pi05_vl_cotrain/lerobot_train_with_vl_cotrain.py \\
-        --policy.type=pi05 \\
-        --policy.pretrained_path=HBOrtiz/pi05_paligemma_celeb_warm_v2 \\
-        --dataset.repo_id=HBOrtiz/so101_eval3_aug_v3_200celebs \\
-        --vl_dataset.manifest=HBOrtiz/so101_eval3_broad_grounding \\
-        --vl_ratio=10 \\
-        --batch_size=8 --steps=200    # smoke
-
-STATUS
-======
-
-Scaffolded 2026-05-20. Brev-side integration testing pending.
-INTEGRATION POINTS marked with [BREV_INTEGRATE] need:
-  - the VL manifest schema (to lock the collator's column reads)
-  - lerobot version-specific API (training loop hook points may differ)
-  - transformers version on the training VM (dict-mask risk gate)
+`eval_3/scripts/warmstart/train_paligemma_vqa.py`: PaliGemmaProcessor
+with suffix masking and standard HF `model.forward()` loss, with a
+manual image-feature splice as a fallback for transformers >= 5.0
+dict-typed attention masks.
 """
 from __future__ import annotations
 
@@ -160,7 +141,7 @@ class VLPairsDataset(torch.utils.data.Dataset):
             )
             self.df = pd.read_parquet(mf_path)
             # The image root is the snapshot's dataset directory — pull on first use.
-            # [BREV_INTEGRATE]: pre-extract images.tar.zst before training starts
+            # Integration point: pre-extract images.tar.zst before training starts
             # to avoid per-row decode latency. For smoke testing, snapshot_download
             # the whole repo (~1.15 GB) once.
             dataset_root = Path(mf_path).parent
@@ -281,7 +262,7 @@ def pi05_vqa_loss(model, batch: dict, _fallback_state: dict | None = None) -> to
     Fallback (transformers ≥5.0 dict-mask risk): manual image-feature splice
     + direct language_model() call with tensor mask.
 
-    [BREV_INTEGRATE]: smoke-test gates the fallback. If primary path crashes
+    Integration point: smoke-test gates the fallback. If primary path crashes
     with the dict-mask error, set _fallback_state["use_manual_splice"] = True
     and re-call this function.
     """
@@ -309,7 +290,7 @@ def pi05_vqa_loss(model, batch: dict, _fallback_state: dict | None = None) -> to
                 raise
 
     # Manual splice fallback for the dict-attention-mask issue.
-    # [BREV_INTEGRATE]: this requires reading the exact lerobot Pi0.5 wrapper
+    # Integration point: this requires reading the exact lerobot Pi0.5 wrapper
     # to know whether model.model is PaliGemmaWithExpertModel and how to access
     # vision/language submodules. Stub below — fill in once Brev env is online.
     raise NotImplementedError(
@@ -326,7 +307,7 @@ def pi05_vqa_loss(model, batch: dict, _fallback_state: dict | None = None) -> to
 def pi05_flow_loss(policy, batch: dict) -> torch.Tensor:
     """Standard lerobot Pi0.5 flow-matching action loss. Unchanged from
     canonical lerobot-train's per-step forward."""
-    # [BREV_INTEGRATE]: lerobot's policy.forward returns (loss, output) tuple.
+    # Integration point: lerobot's policy.forward returns (loss, output) tuple.
     # Confirm the exact return signature on the Brev env's lerobot version.
     result = policy.forward(batch)
     if isinstance(result, tuple):
@@ -346,7 +327,7 @@ def apply_layer_wise_lora(policy, layer_rank_config_path: str):
     """Configure PEFT LoRA with per-layer ranks. Falls back to uniform if
     PEFT version doesn't support per-layer rank.
 
-    [BREV_INTEGRATE]: PEFT's LoraConfig accepts a single `r` value. Per-layer
+    Integration point: PEFT's LoraConfig accepts a single `r` value. Per-layer
     rank requires either (a) per-target-module rank dict via `rank_pattern=`,
     or (b) applying LoRA in two passes with different ranks. Implement on Brev
     once the PEFT version is confirmed.
@@ -373,12 +354,12 @@ def apply_layer_wise_lora(policy, layer_rank_config_path: str):
             # Regex matches the layer-i instance of this target module.
             rank_pattern[rf".*language_model\.layers\.{i}\..*\.{tm}$"] = int(r)
 
-    # [BREV_INTEGRATE]: pass rank_pattern to LoraConfig + reapply. The lerobot
+    # Integration point: pass rank_pattern to LoraConfig + reapply. The lerobot
     # train.py instantiates LoraConfig from --peft.* flags; we'd need to
     # monkey-patch the LoraConfig kwargs OR apply LoRA post-construction.
     # Stub for now — will integrate during Brev smoke.
     print(f"[layer_rank] built rank_pattern with {len(rank_pattern)} entries. "
-          f"[BREV_INTEGRATE] needed to feed into LoraConfig.", flush=True)
+          f"integration needed to feed into LoraConfig.", flush=True)
     return policy
 
 
@@ -426,7 +407,7 @@ def main(argv: list[str]) -> int:
     print(f"[pi05_vl_cotrain] extra flags: {vars(pi05_vl_cotrain_args)}", flush=True)
     print(f"[pi05_vl_cotrain] forwarding {len(lerobot_args)} flags to lerobot-train", flush=True)
 
-    # [BREV_INTEGRATE]: lerobot's entry point is lerobot.scripts.train.train()
+    # Integration point: lerobot's entry point is lerobot.scripts.train.train()
     # via draccus config. We need to:
     #   1. Build the lerobot config from lerobot_args (draccus-parsed).
     #   2. Construct the policy + optimizer + dataloaders.
@@ -439,8 +420,8 @@ def main(argv: list[str]) -> int:
     # depends on the lerobot version on Brev — see the smoke test plan in
     # the ObjectVLA spec.
 
-    print("\n[pi05_vl_cotrain] ---- INTEGRATION POINTS PENDING BREV SMOKE TEST ----")
-    print("[pi05_vl_cotrain] This wrapper is scaffolded but the lerobot-train hook")
+    print("\n[pi05_vl_cotrain] ---- INTEGRATION POINTS (scaffold) ----")
+    print("[pi05_vl_cotrain] This wrapper is a scaffold; the lerobot-train training-loop hook")
     print("[pi05_vl_cotrain] integration is BLOCKED on:")
     print("[pi05_vl_cotrain]   1. the VL manifest schema (locks VLPairsDataset columns)")
     print("[pi05_vl_cotrain]   2. the training VM lerobot+peft+transformers version check")
