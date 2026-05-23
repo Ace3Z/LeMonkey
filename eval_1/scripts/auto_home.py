@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Capture / drive-to-home helper for run_rollout.sh and run_rollout_voice.sh.
+"""Capture / drive-to-home helper for the eval rollout wrappers.
 
 Two subcommands:
   capture <out.json>             Read the follower state once and dump to JSON.

@@ -40,11 +40,6 @@ plus 35 correction demonstrations) and **SmolVLA-450M** is fine tuned on it from
 `lerobot/smolvla_base` for 25k steps with image augmentation. The deployed
 checkpoint is **`HBOrtiz/so101_smolvla_eval1`** at step `025000`.
 
-To confirm the policy actually reads the colour word rather than memorising a
-motion, the `probe_language_conditioning.py` script swaps `blue` for `red` in
-the prompt and measures how much the predicted action changes: a large change
-means the policy is genuinely listening to the prompt.
-
 ## What is on the Hugging Face Hub
 
 | Repo | Type | Contents |
@@ -54,12 +49,13 @@ means the policy is genuinely listening to the prompt.
 
 ## Running a rollout
 
-All scripts default to the deployed checkpoint, `v2 / 025000`. With the
-`lemonkey` conda environment active:
+With the `lemonkey` conda environment active, the top-level wrapper
+[`run_eval_1.sh`](../run_eval_1.sh) downloads the deployed checkpoint from the
+Hub on first use and starts an interactive prompt loop:
 
 ```bash
-./scripts/run_rollout.sh           # single rollout, type the prompt
-./scripts/run_rollout_voice.sh     # single rollout, speak the prompt (Whisper)
+./run_eval_1.sh                    # default = HF root (final 25k)
+./run_eval_1.sh checkpoints/020000 # earlier intermediate
 ```
 
 Each rollout captures the arm's starting pose, runs the policy for 40 s (press
@@ -86,9 +82,7 @@ and per-prompt-type success rates.
 | `scripts/dagger_record.py` | HG-DAgger correction recorder (`SPACE` toggles teleop, `n` ends an episode early) |
 | `scripts/rest_arms.py` | Release torques and manually home both arms |
 | `scripts/brev_setup.sh` | Idempotent bootstrap for a fresh Brev training VM |
-| `scripts/probe_language_conditioning.py` | Behavioural probe: does the policy listen to the colour word? |
-| `scripts/probe_compositional.py` | Behavioural probe: does the policy respond to spatial language? |
-| `scripts/analyze_memorization.py` | Offline dataset-level memorisation-risk metrics |
+| `scripts/normalize_dagger_to_bc_schema.py` | One-shot: rewrite DAgger episodes into the BC schema so the two sets can be merged |
 
 ## Hardware
 
@@ -107,6 +101,3 @@ eval_1/
 └── evals/             per-session evaluation CSVs (gitignored)
 ```
 
-`scripts/residual/` holds an earlier CR-DAgger residual-head approach we
-explored before v2. The v2 from-scratch retrain absorbs the same DAgger data and
-supersedes it for deployment; the files remain for reproducibility.

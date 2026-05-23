@@ -152,6 +152,6 @@ Run with:
 
 ## Pointers
 
-- The script that actually triggered this: [`eval_3/scripts/brev/train_smolvla_cotrain.sh`](../scripts/brev/run_training.sh) - see the long header comment for the live diagnostic notes captured during the incident.
+- The script that actually triggered this: [`eval_3/scripts/brev/train_smolvla_broad.sh`](train_smolvla_broad.sh) - see the long header comment for the live diagnostic notes captured during the incident.
 - The dataset: [`HBOrtiz/so101_eval3_broad`](https://huggingface.co/datasets/HBOrtiz/so101_eval3_broad) - pulling and iterating this exact dataset will reproduce the workload.
 - The successful (post-fix) training log: [`so101_smolvla_eval3_broad.log`](so101_smolvla_eval3_broad.log) in this same dir - for "this is what a healthy 30 k-step run looks like" reference.

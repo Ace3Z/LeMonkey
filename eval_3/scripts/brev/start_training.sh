@@ -12,6 +12,7 @@
 set -e
 
 UNIT=lerobot-train-eval3
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
 
 UID_NUM=$(id -u "$USER")
 export XDG_RUNTIME_DIR="/run/user/$UID_NUM"
@@ -59,7 +60,7 @@ systemd-run \
   --property=KillSignal=SIGTERM \
   --property=Restart=no \
   --property=LimitNOFILE=524288 \
-  bash ~/run_training.sh
+  bash "$REPO_ROOT/eval_3/scripts/brev/train_smolvla_broad.sh"
 
 # 5. Give it a moment to start, then verify cgroup.
 sleep 3
