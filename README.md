@@ -197,7 +197,6 @@ LeMonkey/
 ├── eval_1/                      Eval 1: runtime, scripts, README
 ├── eval_2/                      Eval 2: runtime, scripts, README
 ├── eval_3/                      Eval 3: runtime, scripts, README
-│   ├── HANDOVER_TO_DEPLOY.md    dev-box → robot-machine deploy runbook
 │   ├── aug/                     data-augmentation pipeline (celebrity portraits)
 │   ├── scripts/                 training, rollout, and dataset-build scripts
 │   │   ├── brev/                Brev-VM training entrypoints
