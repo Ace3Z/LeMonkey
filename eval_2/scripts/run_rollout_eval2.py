@@ -208,8 +208,8 @@ def main() -> int:
 
     Path(args.rollout_dir).mkdir(parents=True, exist_ok=True)
 
-    # Helper: capture/drive home pose. We reuse eval_1/scripts/auto_home.py.
-    auto_home = Path("/home/lemonkey/LeMonkey/eval_1/scripts/auto_home.py")
+    # Helper: capture/drive home pose. We reuse scripts/auto_home.py.
+    auto_home = Path("/home/lemonkey/LeMonkey/scripts/auto_home.py")
     pybin = "/home/lemonkey/miniconda3/envs/lemonkey/bin/python"
     home_pose = "/tmp/run_rollout_eval2_home.json"
 

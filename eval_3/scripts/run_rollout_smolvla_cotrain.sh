@@ -19,7 +19,7 @@ ARG="${1:-step_045000}"
 
 # Repo-relative paths (this script lives at eval_3/scripts/).
 REPO_ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)
-AUTO_HOME="$REPO_ROOT/eval_1/scripts/auto_home.py"
+AUTO_HOME="$REPO_ROOT/scripts/auto_home.py"
 ROLLOUT_DIR="$REPO_ROOT/eval_3/rollouts"
 if [ -d "$REPO_ROOT/policy/so101_smolvla_eval3_cotrain" ]; then
   CACHE="$REPO_ROOT/policy/so101_smolvla_eval3_cotrain"

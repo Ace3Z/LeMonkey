@@ -18,7 +18,7 @@ REPO_ID="HBOrtiz/so101_smolvla_eval2"
 ARG="${1:-}"
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-AUTO_HOME="$REPO_ROOT/eval_1/scripts/auto_home.py"
+AUTO_HOME="$REPO_ROOT/scripts/auto_home.py"
 FILTER_PROMPT="$REPO_ROOT/eval_2/scripts/filter_prompt.py"
 ROLLOUT_DIR="$REPO_ROOT/eval_2/rollouts"
 if [ -d "$REPO_ROOT/policy/so101_smolvla_eval2" ]; then

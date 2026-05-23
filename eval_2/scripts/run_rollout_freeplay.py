@@ -84,7 +84,7 @@ def main() -> int:
         return 1
 
     Path(args.rollout_dir).mkdir(parents=True, exist_ok=True)
-    auto_home = Path("/home/lemonkey/LeMonkey/eval_1/scripts/auto_home.py")
+    auto_home = Path("/home/lemonkey/LeMonkey/scripts/auto_home.py")
     pybin = "/home/lemonkey/miniconda3/envs/lemonkey/bin/python"
     home_pose = "/tmp/run_rollout_freeplay_home.json"
 

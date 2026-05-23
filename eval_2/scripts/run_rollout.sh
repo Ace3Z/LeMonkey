@@ -17,7 +17,7 @@ POLICY="/home/lemonkey/LeMonkey/eval_2/train/smolvla_eval2_v2/checkpoints/${CKPT
 ROLLOUT_DIR="/home/lemonkey/LeMonkey/eval_2/rollouts"
 HERE="$(dirname "$(readlink -f "$0")")"
 PYBIN="/home/lemonkey/miniconda3/envs/lemonkey/bin/python"
-AUTO_HOME="/home/lemonkey/LeMonkey/eval_1/scripts/auto_home.py"
+AUTO_HOME="/home/lemonkey/LeMonkey/scripts/auto_home.py"
 HOME_POSE="/tmp/run_rollout_eval2_typed_home.json"
 HOME_DRIVE_S=2.0
 

@@ -19,7 +19,7 @@ REPO_ID="HBOrtiz/so101_smolvla_eval1"
 ARG="${1:-}"
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-AUTO_HOME="$REPO_ROOT/eval_1/scripts/auto_home.py"
+AUTO_HOME="$REPO_ROOT/scripts/auto_home.py"
 ROLLOUT_DIR="$REPO_ROOT/eval_1/rollouts"
 # Prefer the shipped policy/ copy (submission zip layout). Falls back to a
 # user cache if policy/ is not present.
