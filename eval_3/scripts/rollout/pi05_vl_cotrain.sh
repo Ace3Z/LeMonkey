@@ -5,8 +5,8 @@
 # VQA co-train enhanced spec) from Hugging Face and feeds the typed
 # prompt to the policy through lerobot-record.
 #
-# Adapted from eval_3/scripts/run_rollout.sh (SmolVLA cotrain, SmolVLA, commit
-# 68e3ecd) — same control flow, Pi0.5-specific defaults.
+# Same control flow as the SmolVLA rollouts in this directory, with
+# Pi0.5-specific defaults (camera renaming + 4-camera empty_cameras).
 #
 # Eval-day input contract:
 #   observation.images.camera1 + observation.state + task
@@ -38,10 +38,10 @@ REPO_ID="${REPO_ID:-HBOrtiz/so101_pi05_eval3}"
 ARG="${1:-main}"
 
 HERE="$(dirname "$(readlink -f "$0")")"
-PYBIN="${PYBIN:-/home/lemonkey/miniconda3/envs/lemonkey/bin/python}"
-[ -x "$PYBIN" ] || PYBIN="$(command -v python)"
-AUTO_HOME="${AUTO_HOME:-/home/lemonkey/LeMonkey/scripts/auto_home.py}"
-ROLLOUT_DIR="${ROLLOUT_DIR:-/home/lemonkey/LeMonkey/eval_3/rollouts}"
+REPO_ROOT="$(cd "$HERE/../../.." && pwd)"
+PYBIN="${PYBIN:-$(command -v python)}"
+AUTO_HOME="${AUTO_HOME:-$REPO_ROOT/scripts/auto_home.py}"
+ROLLOUT_DIR="${ROLLOUT_DIR:-$REPO_ROOT/eval_3/rollouts}"
 HOME_POSE="/tmp/run_rollout_eval3_pi05_vl_cotrain_home.json"
 HOME_DRIVE_S=2.0
 
@@ -99,12 +99,7 @@ while true; do
     "$PYBIN" "$AUTO_HOME" capture "$HOME_POSE" || true
   fi
 
-  # Pi0.5 uses PaliGemma (not SmolVLM), so the SmolVLM boundaries patch in
-  # lerobot_record_with_patch.py does NOT apply. Use plain lerobot-record.
-  # If Pi0.5 hits its own transformers compatibility issue at inference time
-  # (e.g., the dict-attention-mask risk from TRACK_B_WARMSTART.md §6),
-  # we'll add a Pi0.5-specific patch wrapper here.
-  #
+  # Pi0.5 uses PaliGemma (not SmolVLM): plain lerobot-record applies.
   # Camera renaming: training used --dataset.rename_map so the policy expects
   # `right_wrist_0_rgb`. We supply the same map at inference for consistency.
   lerobot-record \

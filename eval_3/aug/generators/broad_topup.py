@@ -22,7 +22,7 @@ from pathlib import Path
 
 # Re-use the orchestrator's helpers
 sys.path.insert(0, str(Path(__file__).parent))
-from generate_aug_broad import process_episode    # noqa: E402
+from broad import process_episode    # noqa: E402
 
 import importlib.util                          # noqa: E402
 spec = importlib.util.spec_from_file_location(

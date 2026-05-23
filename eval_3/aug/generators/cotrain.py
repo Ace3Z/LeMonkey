@@ -599,7 +599,7 @@ def render_base_ep_variants(
 
             if debug:
                 _ilu_spec = _ilu.spec_from_file_location(
-                    "_dbg_compare", str(_HERE / "dbg/dbg_compare_gif.py"))
+                    "_dbg_compare", str(_HERE.parent / "dbg" / "compare_gif.py"))
                 if _ilu_spec is not None:
                     _dbg = _ilu.module_from_spec(_ilu_spec); _ilu_spec.loader.exec_module(_dbg)
                     try:

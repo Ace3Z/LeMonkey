@@ -376,14 +376,14 @@ def process_episode(
             if debug:
                 from importlib import import_module
                 _dbg = _ilu.spec_from_file_location(
-                    "_dbg_panels", str(_HERE / "dbg/dbg_stage2_panels.py")
+                    "_dbg_panels", str(_HERE.parent / "dbg" / "stage2_panels.py")
                 )
                 _dbg_mod = _ilu.module_from_spec(_dbg)
                 _dbg.loader.exec_module(_dbg_mod)
                 _dbg_mod.render_one(var_out)
                 # And the compare gif
                 _cmp = _ilu.spec_from_file_location(
-                    "_dbg_compare", str(_HERE / "dbg/dbg_compare_gif.py")
+                    "_dbg_compare", str(_HERE.parent / "dbg" / "compare_gif.py")
                 )
                 _cmp_mod = _ilu.module_from_spec(_cmp)
                 _cmp.loader.exec_module(_cmp_mod)

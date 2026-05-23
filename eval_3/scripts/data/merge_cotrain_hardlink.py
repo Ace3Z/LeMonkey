@@ -64,14 +64,14 @@ def _hardlink_copy2(src, dst, *args, **kwargs):
 shutil.copy2 = _hardlink_copy2
 
 # ── Now invoke the standard merge script ─────────────────────────────────
-_REPO = Path(__file__).resolve().parents[2]
-sys.path.insert(0, str(_REPO / "eval_3" / "scripts"))
+_REPO = Path(__file__).resolve().parents[3]
+sys.path.insert(0, str(_REPO / "eval_3" / "scripts" / "data"))
 
-# Hack: import merge_eval3_episodes as a module so its main() runs
+# Hack: import merge_episodes as a module so its main() runs
 import importlib.util
 spec = importlib.util.spec_from_file_location(
-    "merge_eval3_episodes",
-    str(_REPO / "eval_3" / "scripts" / "merge_eval3_episodes.py"),
+    "merge_episodes",
+    str(_REPO / "eval_3" / "scripts" / "data" / "merge_episodes.py"),
 )
 _merge_mod = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(_merge_mod)

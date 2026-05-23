@@ -18,7 +18,7 @@ import sys
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[3]
-sys.path.insert(0, str(REPO / "eval_3/aug"))
+sys.path.insert(0, str(REPO / "eval_3/aug/training"))
 
 import torch
 import torch.nn as nn
