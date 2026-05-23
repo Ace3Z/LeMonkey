@@ -11,7 +11,7 @@ VQA forward path reuses Roham's pattern from
 `eval_3/scripts/warmstart/train_paligemma_vqa.py` —
 PaliGemmaProcessor with suffix masking, standard HF model.forward()
 internal loss. Falls back to manual image-feature splicing if
-transformers ≥5.0 dict-attention-mask hits (TRACK_B_WARMSTART.md §6).
+transformers ≥5.0 dict-attention-mask hits.
 
 Per CLAUDE.md §5: every fallback emits [WARN] with context.
 Per CLAUDE.md §6: no Claude attribution in any artifact this script produces.
@@ -308,14 +308,14 @@ def pi05_vqa_loss(model, batch: dict, _fallback_state: dict | None = None) -> to
             else:
                 raise
 
-    # Manual splice fallback per TRACK_B_WARMSTART.md §6.
+    # Manual splice fallback for the dict-attention-mask issue.
     # [BREV_INTEGRATE]: this requires reading the exact lerobot Pi0.5 wrapper
     # to know whether model.model is PaliGemmaWithExpertModel and how to access
     # vision/language submodules. Stub below — fill in once Brev env is online.
     raise NotImplementedError(
         "Dict-mask manual splice fallback not yet implemented. "
         "Will be filled in during the Brev smoke test if the primary path crashes. "
-        "See TRACK_B_WARMSTART.md §6 for the splice pattern."
+        "Manual splice fallback not implemented in this scaffold."
     )
 
 

@@ -1,106 +1,56 @@
-# Pi0.5 VL cotrain - ObjectVLA enhanced data prep & training
+# pi05_vl_cotrain — Pi0.5 + ObjectVLA VL cotrain (published variant)
 
-Owner: Sejohn · Branch: `dev/SjohnU/pi05_vl_cotrain`
+Pi0.5 sibling to `../smolvla_cotrain/`. Same RT-2 §3.2 recipe (interleaved robot + bbox-grounded VQA batches) but targets Pi0.5-3B (PaliGemma-2B + Gemma-300M action expert) instead of SmolVLA-450M.
 
-This directory contains the data-side pipeline and training wrapper for Pi0.5 VL cotrain
-(ObjectVLA bbox-grounded VQA co-train on Pi0.5 + 200-celeb dataset).
+The Pi0.5 Eval 3 variant is published as [`HBOrtiz/so101_pi05_eval3`](https://huggingface.co/HBOrtiz/so101_pi05_eval3) (one of the "Other published variants" in [`DATASETS_AND_MODELS.md`](../../../DATASETS_AND_MODELS.md)). The eval-day deployed policies are the two SmolVLA checkpoints (`so101_smolvla_eval3_cotrain` and `_broad`), not this Pi0.5 path.
 
-See `cotrain.py` in `../smolvla_cotrain/` for the SmolVLA-450M sibling of this trainer.
+## Files
 
----
+### Data prep (ran end-to-end)
 
-## Files at a glance
+| File | Purpose |
+|---|---|
+| `verify_bbox_schema.py` | Pre-flight: validate the bbox parquet's column names. |
+| `arcface_audit_200celeb.py` | Per-frame `target_cos`, `max_distractor_cos`, `hardneg_gap` audit over the 200-celebrity inpainted dataset. |
+| `build_keep_list_and_weights.py` | Audit parquet → `keep_episodes.txt` + `hardneg_weights.npy`. |
+| `build_task_to_centroid.py` | Map task strings → celeb slug → ArcFace centroid. Produces `precomputed/task_index_to_centroid.json`. |
+| `build_confusion_matrix.py` | 192×192 celeb-vs-celeb ArcFace cosine matrix. Produces `precomputed/{confusion_matrix.npy, confusion_slugs.json, confusable_topk.json}`. |
+| `generate_vl_pairs.py` | RetinaFace-based VL-pair generator for the 193-celeb bank. |
+| `run_audit_pipeline.sh` | One-shot orchestrator: schema-verify → audit → build keep_list + weights. |
+| `precomputed/` | Static audit artifacts checked in (used by the wrapper below). |
 
-| File | Purpose | Status |
-|---|---|---|
-| `build_task_to_centroid.py` | Parse 960 task strings → map task_index → celeb slug → ArcFace centroid | ✓ tested (192/192 covered) |
-| `task_index_to_centroid.json` | Output of above; used by audit script | ✓ |
-| `build_confusion_matrix.py` | Compute 192×192 celeb-vs-celeb cosines for hard-neg analysis | ✓ tested |
-| `confusion_matrix.npy` / `confusion_slugs.json` / `confusable_topk.json` | Outputs of above | ✓ |
-| `verify_bbox_schema.py` | Pre-flight: validate Roham's bbox parquet schema | ✓ |
-| `arcface_audit_200celeb.py` | Per-frame target_cos + max_distractor_cos + hardneg_gap | ✓ syntax + argparse smoke |
-| `build_keep_list_and_weights.py` | Audit parquet → keep_episodes.txt + hardneg_weights.npy | ✓ syntax + argparse smoke |
-| `curriculum_sampler.py` | Two-phase weighted sampler (easy → full at step 5000) | ✓ smoke-tested with fake data |
-| `layer_rank.json` | Per-layer LoRA rank config (Enhancement B-4) | ✓ JSON valid |
-| `lerobot_train_with_vl_cotrain.py` | Mixed-batch lerobot-train wrapper (canonical + B-1/B-4/B-5/B-7) | scaffolded; [BREV_INTEGRATE] markers |
-| `run_audit_pipeline.sh` | One-shot pipeline: schema verify → audit → build_keep_list | ✓ |
-| `SMOKE_TEST.md` | Gate-by-gate verification protocol before 24 h Brev launch | ✓ |
+### Training wrapper (canonical scaffold)
 
-Launch script lives at `../scripts/brev/train_pi05_vl_cotrain.sh`.
-Rollout runner at `../scripts/run_rollout_pi05_vl_cotrain.sh`.
+| File | Purpose |
+|---|---|
+| `lerobot_train_with_vl_cotrain.py` | Mixed-batch Pi0.5 + VL cotrain wrapper around `lerobot-train`. Includes B-1 warm-PG start, B-2 audit/filter, B-3 hard-negative weights, B-4 per-layer LoRA rank (`layer_rank.json`), B-5 two-phase curriculum (`curriculum_sampler.py`), B-7 EMA. |
+| `curriculum_sampler.py` | Two-phase weighted sampler (easy variants until step 5000, then full distribution). |
+| `layer_rank.json` | Per-layer LoRA rank config (r=64 on layers 8-12, r=48 on layers 15-17). |
+| `probe_pi05_strix.py` | Standalone Pi0.5 VRAM + latency probe (pass criteria: peak under 14 GB, p95 forward under 20 s). |
 
----
+## How `HBOrtiz/so101_pi05_eval3` was produced
 
-## When Roham's bboxes land
+1. PaliGemma backbone warm-started on VGGFace2 VQA → [`HBOrtiz/paligemma_vqa_warm`](https://huggingface.co/HBOrtiz/paligemma_vqa_warm) (see [`../warmstart/`](../warmstart/)).
+2. Pi0.5 LoRA fine-tune from that init on `HBOrtiz/so101_eval3_broad`, launched via [`../brev/train_pi05.sh`](../brev/train_pi05.sh) — the vanilla LoRA path.
 
-One command runs the entire data prep:
+The ObjectVLA enhancements (mixed batches, hard-neg curriculum, per-layer LoRA, EMA) listed in the file table above are documented here as the design intent; the published checkpoint is the vanilla-LoRA result. The wrapper here is preserved so the enhanced recipe can be revived from the precomputed artifacts.
 
-```bash
-bash eval_3/scripts/pi05_vl_cotrain/run_audit_pipeline.sh <path-or-HF-repo>
-```
+## Face-name binding rationale (design intent)
 
-This does:
-1. Schema verify (~5 sec) - fails loud if column names differ from expected
-2. ArcFace audit (~1 h CPU / ~10 min GPU) - per-frame target_cos + hardneg_gap
-3. Build keep_episodes.txt + hardneg_weights.npy (~5 min)
+- **B-1 warm-PG start.** Load `HBOrtiz/paligemma_vqa_warm` instead of `lerobot/pi05_base`, so PaliGemma already has a celebrity-name prior.
+- **B-2 audit/filter.** Drop inpainted variants where the painted face fails ArcFace `cos >= 0.50` against the celeb centroid (removes noise that would weaken the face-binding gradient).
+- **B-3 hard-negative oversampling.** 2x weight on variants where a visually confusable distractor is visible.
+- **B-4 per-layer LoRA.** `r=64` on Gemma layers 8-12 (BlindVLA face-discrim zone) + `r=48` on layers 15-17 (top-LM name-token alignment).
+- **B-5 curriculum.** Easy variants first (high `hardneg_gap`); switch to full distribution at step 5000.
+- **B-7 EMA.** `alpha=0.999` shadow weights reduce gradient-noise oscillation late in training.
 
-After this completes, the Brev launch script has all artifacts it needs.
+## Outputs
 
----
+| Repo | Description |
+|---|---|
+| [`HBOrtiz/so101_pi05_eval3`](https://huggingface.co/HBOrtiz/so101_pi05_eval3) | Published Pi0.5 variant (warm-start + LoRA on broad dataset). |
+| [`HBOrtiz/paligemma_vqa_warm`](https://huggingface.co/HBOrtiz/paligemma_vqa_warm) | PaliGemma backbone warm-started on VGGFace2 VQA (init for Pi0.5). |
 
-## When Darius's VL manifest lands
+Full provenance: [`DATASETS_AND_MODELS.md`](../../../DATASETS_AND_MODELS.md).
 
-The launch script picks up `HBOrtiz/so101_eval3_broad_grounding` automatically
-via the `VL_MANIFEST` env var (default).
-
-Schema expected by `VLPairsDataset` (in `lerobot_train_with_vl_cotrain.py`):
-```
-image_path   (str)
-prompt       (str)
-target       (str)
-bbox         (list[float], 4 elements, normalized xyxy)
-celeb        (str slug)
-caption_type (str: location_explicit / qa_grounded / qa_open / caption)
-```
-
-If Darius uses different column names, the wrapper will fail loudly at
-load time; adjust `VLPairsDataset.__init__` column-resolution accordingly.
-
----
-
-## Smoke test gates (BEFORE 24 h launch)
-
-See [`SMOKE_TEST.md`](SMOKE_TEST.md) for the full gate-by-gate protocol.
-Critical:
-
-1. Darius's Strix VRAM probe (universal Pi0.5 kill switch)
-2. Data prep ran successfully (this directory has `keep_episodes.txt`)
-3. 200-step run on brev_instance2 fires BOTH loss types (flow + VQA CE)
-4. No transformers ≥5.0 dict-attention-mask crash (or fallback splice works)
-
----
-
-## Face-name binding rationale (the "why" for the enhanced spec)
-
-Every script in this directory exists to improve image-to-name binding +
-face recognition during Pi0.5 VL cotrain training:
-
-- **Audit + filter (B-2)**: drops inpainted variants where the painted face
-  doesn't actually look like the target celeb (cos < 0.50). Removes noise
-  that would otherwise weaken the face-binding gradient.
-- **Hard-negative oversampling (B-3)**: 2× weight on variants whose target
-  celeb has a visually-confusable distractor visible. Forces the model to
-  develop fine-grained features instead of coarse ones.
-- **Layer-wise LoRA rank (B-4)**: r=64 on layers 8–12 (BlindVLA Table 12
-  face-discrim zone) + r=48 on 15–17 (top-LM name-token alignment).
-  Concentrates trainable capacity in face-relevant layers.
-- **Curriculum (B-5)**: easy variants first (high hardneg_gap), then full
-  distribution at step 5 k. Lets face features form before action loss
-  settles.
-- **Warm-PG starting (B-1)**: load from `HBOrtiz/pi05_paligemma_celeb_warm_v2`
-  which already has VGGFace2 celeb knowledge LoRA-merged into PaliGemma.
-- **EMA (B-7)**: α=0.999 shadow weights reduce gradient-noise oscillation
-  late in training.
-
-Multi-prompt N=3 inference ensemble (B-6) was previously considered but
-removed per the user's call.
+The rollout runner for the published checkpoint is [`../rollout/pi05_vl_cotrain.sh`](../rollout/pi05_vl_cotrain.sh).

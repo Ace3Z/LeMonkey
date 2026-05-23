@@ -358,7 +358,7 @@ The 7 research agents triangulated to a stable recommendation:
 - [`VLA_ARCHITECTURES.md`](../../VLA_ARCHITECTURES.md) - original architecture decision, knob inventory
 - [`RELATED_WORK.md`](../../RELATED_WORK.md) - prior public work survey
 - [`eval_3/README.md`](../README.md) - Eval 3 project plan + 2026-05-09 PaliGemma probe results
-- [`eval_3/aug/STRATEGY_v3.md`](STRATEGY_v3.md) - current augmentation strategy
+- [`eval_3/aug/STRATEGY.md`](STRATEGY.md) - current augmentation strategy
 - [`eval_3/aug/RESEARCH_v2.md`](RESEARCH_v2.md) - detection + temporal-stability research
 - [`third_party/lerobot/src/lerobot/policies/smolvla/modeling_smolvla.py`](../../third_party/lerobot/src/lerobot/policies/smolvla/modeling_smolvla.py) - SmolVLA training forward + image plumbing
 - [`third_party/lerobot/src/lerobot/policies/smolvla/smolvlm_with_expert.py`](../../third_party/lerobot/src/lerobot/policies/smolvla/smolvlm_with_expert.py) - vision encoder hook point

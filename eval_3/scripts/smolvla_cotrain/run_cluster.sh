@@ -5,8 +5,8 @@
 # launches `cotrain.py` under torchrun with manual data-parallel gradient
 # all-reduce. Checkpoint + HF push every SAVE_FREQ steps.
 #
-# Prereqs (see RUN_ON_CLUSTER.md for the full step-by-step):
-#   1. repo cloned, branch dev/mahbod/kl-divergence checked out
+# Prereqs (see README.md for the full step-by-step):
+#   1. repo cloned with submodules (third_party/lerobot populated)
 #   2. the python env is active and has lerobot[smolvla,dataset,av-dep] installed
 #   3. HF_TOKEN  exported — a token with WRITE access (checkpoints are pushed)
 #   4. PUSH_REPO exported — the HF model repo to push checkpoints to

@@ -1,7 +1,7 @@
 """
 Eval 3 v3 augmentation generator — Path A image-as-prompt, 195-celeb bank.
 
-Per the locked strategy in `eval_3/aug/STRATEGY_v3.md`:
+Per the locked strategy in `eval_3/aug/STRATEGY.md`:
 
   For each base teleop episode, generate M variants. Each variant:
     1. Samples 3 distinct celebs from the bank (target + 2 distractors).
@@ -51,7 +51,7 @@ render_variant         = _v4.render_variant
 hardlink_meta          = _v4.hardlink_meta
 find_video             = _v4.find_video
 
-# ─── Prompt mixture (see STRATEGY_v3.md §8) ─────────────────────────────
+# ─── Prompt mixture (see STRATEGY.md §8) ─────────────────────────────
 PROMPT_PARAPHRASES = [
     "Place the coke on {name}.",
     "Put the coke on {name}.",
@@ -64,7 +64,7 @@ PROMPT_REFERENCE_ONLY = [
     "Put the coke on whoever is in the reference photo.",
     "Place the can on the celebrity shown in the reference image.",
 ]
-# Mix is 75/15/10 — see STRATEGY_v3.md §8.1
+# Mix is 75/15/10 — see STRATEGY.md §8.1
 BUCKET_PROBS = {"default": 0.75, "ref_only": 0.15, "counterfactual": 0.10}
 
 
@@ -135,7 +135,7 @@ def precompute_target_assignment(
     For the planned 179 base episodes × M=25 = 4475 total variants over a
     195-celeb bank: 185 celebs each appear as target 23 times, 10 celebs
     each appear as target 22 times (185×23 + 10×22 = 4475). This is what
-    STRATEGY_v3.md §5 calls for and what the user mandated.
+    STRATEGY.md §5 calls for and what the user mandated.
 
     Returns {(episode_name, variant_idx): target_celeb_slug}.
     """
@@ -212,7 +212,7 @@ def pick_photos_v3(
 ) -> tuple[dict[str, Path], Path]:
     """Pick 4 distinct photos per variant: one per workspace slot + one
     reference for the target (must be DIFFERENT photo than the workspace
-    target photo). Per STRATEGY_v3.md §3."""
+    target photo). Per STRATEGY.md §3."""
     used: set[Path] = set()
     workspace: dict[str, Path] = {}
     for pid, celeb in pid_to_celeb.items():

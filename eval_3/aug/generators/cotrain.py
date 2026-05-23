@@ -33,7 +33,7 @@ Enumeration:
             - Re-paint: target slot ← target_photo of target;
               other 2 slots ← chosen distractor photos per layout.
             - Reference video ← a DIFFERENT photo of target (face-verification
-              setup per STRATEGY_v3.md §3).
+              setup per STRATEGY.md §3).
 
 CACHING
 =======

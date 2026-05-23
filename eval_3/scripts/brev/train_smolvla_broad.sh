@@ -3,7 +3,7 @@
 # Coke-on-celebrity task). Run this directly OR via start_training.sh
 # (which wraps it in systemd).
 #
-# Recipe rationale — see eval_3/aug/STRATEGY_v3.md §6 and the 3-agent
+# Recipe rationale — see eval_3/aug/STRATEGY.md §6 and the 3-agent
 # parallel research cross-check 2026-05-15 (Interleave-VLA 2505.02152,
 # Pi0.5-KI 2505.23705, "Don't Blind Your VLA" 2510.25616, SmolVLA paper
 # 2506.01844, canonical configuration_smolvla.py).

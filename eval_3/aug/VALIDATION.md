@@ -8,13 +8,13 @@
 
 | # | Default | Code location | Verdict | Action taken |
 |---|---|---|---|---|
-| 1 | ArcFace cos-sim ≥ 0.4 | `1_mine_celeb_photos.py:266`, `5_verify_identity.py:--threshold` | **CONFIRMED** | Kept; comments + citations added |
-| 2 | Reinhard sample 5-px outer ring (`ring_dilate_px=11`) | `4_inpaint_video.py:replace_portrait` | EMPIRICAL ONLY | Kept; widening guidance documented |
-| 3 | MTF Gaussian σ = 0.8 px | `4_inpaint_video.py:replace_portrait` | EMPIRICAL ONLY | Kept; ESF probe TODO added |
-| 4 | Mask erosion = 3 px | `4_inpaint_video.py:replace_portrait` | **NEEDS CHANGE** | **Reduced to 1 px** (OpenCV erodes ~3 px internally per opencv#17450) |
-| 5 | `cv2.seamlessClone` flag = `NORMAL_CLONE` | `4_inpaint_video.py:replace_portrait` | **CONFIRMED** | Kept; Pérez Eq. 11 cited |
-| 6 | SAM 2 occlusion threshold `obj_score < 0` | `3_extract_corners.py:detect_and_interp_occlusion` | **CONFIRMED** | Kept; sam2_base.py:1115 cited |
-| 7 | Rolling window = 15 frames | `3_extract_corners.py:detect_and_interp_occlusion` | EMPIRICAL ONLY | Kept; bumps proposed for 60 fps |
+| 1 | ArcFace cos-sim ≥ 0.4 | `mining/mine_celeb_photos.py:266`, `_legacy/stage5_verify_identity.py:--threshold` | **CONFIRMED** | Kept; comments + citations added |
+| 2 | Reinhard sample 5-px outer ring (`ring_dilate_px=11`) | `stages/inpaint_video.py:replace_portrait` | EMPIRICAL ONLY | Kept; widening guidance documented |
+| 3 | MTF Gaussian σ = 0.8 px | `stages/inpaint_video.py:replace_portrait` | EMPIRICAL ONLY | Kept; ESF probe TODO added |
+| 4 | Mask erosion = 3 px | `stages/inpaint_video.py:replace_portrait` | **NEEDS CHANGE** | **Reduced to 1 px** (OpenCV erodes ~3 px internally per opencv#17450) |
+| 5 | `cv2.seamlessClone` flag = `NORMAL_CLONE` | `stages/inpaint_video.py:replace_portrait` | **CONFIRMED** | Kept; Pérez Eq. 11 cited |
+| 6 | SAM 2 occlusion threshold `obj_score < 0` | `_legacy/stage3_extract_corners.py:detect_and_interp_occlusion` | **CONFIRMED** | Kept; sam2_base.py:1115 cited |
+| 7 | Rolling window = 15 frames | `_legacy/stage3_extract_corners.py:detect_and_interp_occlusion` | EMPIRICAL ONLY | Kept; bumps proposed for 60 fps |
 | + | Recommended ADDS | various | OPTIONAL | `--apply-unsharp` flag added to `replace_portrait` |
 
 ## §1 - ArcFace cos-sim threshold = 0.4 - CONFIRMED
@@ -53,7 +53,7 @@
 - **Source 2:** OpenCV issue #17450 - reporters argue that OpenCV's `seamlessClone` already **internally erodes** the mask by ~3 px; stacking another 3-px erosion pulls colour too far inward. (<https://github.com/opencv/opencv/issues/17450>)
 - **Source 3:** Community/best-practice (LearnOpenCV, Scaler tutorials) - feather via Gaussian or 1-3 px erosion to suppress halos when the mask edge crosses textured background. The OpenCV `getStructuringElement` default kernel is 3×3 (i.e., 1-pixel erode per iteration).
 
-**Verdict:** Stacking erosions is harmful. **Reduced default to `erode_px = 1`** (one-pixel erosion). Citation added in `4_inpaint_video.py:replace_portrait`.
+**Verdict:** Stacking erosions is harmful. **Reduced default to `erode_px = 1`** (one-pixel erosion). Citation added in `stages/inpaint_video.py:replace_portrait`.
 
 ## §5 - `seamlessClone(NORMAL_CLONE)` - CONFIRMED
 
@@ -149,7 +149,7 @@ synthetic noisy-gray scene with red-ish portrait + blue/yellow photo):
 originals** - the policy would learn nothing from the augmentation pass.
 This is a non-negotiable change.
 
-Code: `4_inpaint_video.py:replace_portrait` step 4 (new pre-fill block).
+Code: `stages/inpaint_video.py:replace_portrait` step 4 (new pre-fill block).
 Test: `tests/test_replace_portrait.py` (5/5 pass).
 
 ## Sign-off
