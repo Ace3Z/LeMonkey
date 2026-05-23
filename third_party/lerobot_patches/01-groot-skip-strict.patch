@@ -1,0 +1,26 @@
+diff --git a/src/lerobot/policies/groot/groot_n1.py b/src/lerobot/policies/groot/groot_n1.py
+index c9110301..651d6e35 100644
+--- a/src/lerobot/policies/groot/groot_n1.py
++++ b/src/lerobot/policies/groot/groot_n1.py
+@@ -13,6 +13,7 @@
+ # See the License for the specific language governing permissions and
+ # limitations under the License.
+ 
++from dataclasses import dataclass
+ from pathlib import Path
+ from typing import TYPE_CHECKING, Any
+ 
+@@ -178,7 +179,12 @@ N_COLOR_CHANNELS = 3
+ 
+ 
+ # config
+-@strict
++# Upstream applies `@strict` here without `@dataclass`, which fails on
++# huggingface_hub>=1.0 (`@strict` requires the class to be a dataclass first,
++# and additionally rejects `validate_rope` inherited from transformers
++# `PretrainedConfig`). Dropping `@strict` here, since validation comes from
++# `PretrainedConfig.__post_init__` anyway.
++@dataclass
+ class GR00TN15Config(PretrainedConfig):
+     model_type = "gr00t_n1_5"
+ 

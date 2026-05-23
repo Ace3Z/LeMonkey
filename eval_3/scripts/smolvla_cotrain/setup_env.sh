@@ -51,6 +51,10 @@ echo "    dataset : LeRobotDataset + pandas + pyarrow + torchcodec"
 echo "    av-dep  : av>=15 (PyAV - video backend used at training time)"
 pip install -e "$REPO_ROOT/third_party/lerobot[smolvla,dataset,av-dep]"
 
+# Apply our lerobot patches (groot @strict + untagged-dataset fallback).
+# See third_party/lerobot_patches/README.md for rationale.
+bash "$REPO_ROOT/third_party/lerobot_patches/apply.sh"
+
 # ── 3. zstandard (VL image tar.zst extraction) ──────────────────────────────
 echo
 echo "==> [3/4] installing zstandard (needed if VL images arrive as images.tar.zst) ..."

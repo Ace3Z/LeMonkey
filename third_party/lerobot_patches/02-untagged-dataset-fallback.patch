@@ -1,0 +1,31 @@
+diff --git a/src/lerobot/datasets/utils.py b/src/lerobot/datasets/utils.py
+index de91978e..31e7fe9c 100644
+--- a/src/lerobot/datasets/utils.py
++++ b/src/lerobot/datasets/utils.py
+@@ -366,17 +366,16 @@ def get_safe_version(repo_id: str, version: str | packaging.version.Version) ->
+     hub_versions = get_repo_versions(repo_id)
+ 
+     if not hub_versions:
+-        raise RevisionNotFoundError(
+-            f"""Your dataset must be tagged with a codebase version.
+-            Assuming _version_ is the codebase_version value in the info.json, you can run this:
+-            ```python
+-            from huggingface_hub import HfApi
+-
+-            hub_api = HfApi()
+-            hub_api.create_tag("{repo_id}", tag="_version_", repo_type="dataset")
+-            ```
+-            """
++        # Upstream raises RevisionNotFoundError here, but huggingface_hub>=1.0
++        # requires `RevisionNotFoundError(..., response=httpx.Response)` and we
++        # have no HTTPResponse to attach. Fall back to the `main` branch with
++        # a [WARN] (per CLAUDE.md §5) rather than crashing on import-time.
++        logging.warning(
++            f"[WARN] dataset_version: expected=tagged dataset for repo_id={repo_id}, "
++            f"got=no version tags, fallback=branch 'main'. "
++            f"Tag the repo with `HfApi().create_tag('{repo_id}', tag='v3.0', repo_type='dataset')`."
+         )
++        return "main"
+ 
+     if target_version in hub_versions:
+         return f"v{target_version}"

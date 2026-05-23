@@ -68,6 +68,10 @@ echo "=== [3/6] pip install -e $LEROBOT_DIR[smolvla,pi] ==="
 pip install --quiet --upgrade pip
 pip install --quiet -e "$LEROBOT_DIR[smolvla,pi]" 2>&1 | tail -3
 
+# Apply our lerobot patches (groot @strict + untagged-dataset fallback).
+# See third_party/lerobot_patches/README.md for rationale.
+bash "$REPO_ROOT/third_party/lerobot_patches/apply.sh"
+
 # ── 4. Force cu128 PyTorch on Blackwell (must happen AFTER lerobot install
 #       since lerobot pulls a torch version that's pre-cu128).
 if [ "$NEEDS_CU128" = "1" ]; then

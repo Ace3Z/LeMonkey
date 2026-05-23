@@ -129,6 +129,9 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--video_backend", default="pyav",
                    help="LeRobotDataset video backend. Default pyav, torchcodec leaks "
                         "~35 GB/worker over long runs (see README.md §Known caveats).")
+    p.add_argument("--episodes_limit", type=int, default=None,
+                   help="If set, only load this many episodes from the robot dataset "
+                        "(for smoke tests). Default: all episodes.")
     # LoRA — parameter-efficient VLM adaptation. With --enable_lora the VLM
     # base is frozen and adapted only via low-rank adapters (instead of
     # full-fine-tuning the VLM body); both VQA-CE and action gradients flow
@@ -531,8 +534,13 @@ def load_robot_dataset(args, policy_cfg):
 
     ds_meta = LeRobotDatasetMetadata(args.robot_dataset)
     delta_timestamps = resolve_delta_timestamps(policy_cfg, ds_meta)
+    eps_kw = {}
+    if args.episodes_limit:
+        eps_kw["episodes"] = list(range(args.episodes_limit))
+        print(f"[robot_dataset] limiting to first {args.episodes_limit} episodes "
+              f"(smoke mode)", flush=True)
     ds = LeRobotDataset(repo_id=args.robot_dataset, delta_timestamps=delta_timestamps,
-                        video_backend=args.video_backend)
+                        video_backend=args.video_backend, **eps_kw)
     dt_summary = ({k: len(v) for k, v in delta_timestamps.items()}
                   if delta_timestamps else None)
     print(f"[robot_dataset] {len(ds)} frames across {ds.num_episodes} episodes "

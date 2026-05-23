@@ -55,6 +55,10 @@ echo "=== [3/5] pip install -e $LEROBOT_DIR[smolvla,pi]  (editable, our fork) ==
 pip install --quiet --upgrade pip
 pip install --quiet -e "$LEROBOT_DIR[smolvla,pi]" 2>&1 | tail -5
 
+# Apply our lerobot patches (groot @strict + untagged-dataset fallback).
+# See third_party/lerobot_patches/README.md for rationale.
+bash "$REPO_ROOT/third_party/lerobot_patches/apply.sh"
+
 # Extras we use in our scripts that aren't in lerobot[smolvla,pi]
 echo "=== [4/5] pip install pandas safetensors peft ==="
 pip install --quiet pandas safetensors peft 2>&1 | tail -3
