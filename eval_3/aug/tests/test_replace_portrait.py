@@ -34,7 +34,7 @@ sys.path.insert(0, str(HERE.parent))
 # Import the function we're validating. The aug/ dir uses leading-digit
 # filenames so we use importlib.
 import importlib.util
-spec = importlib.util.spec_from_file_location("inpaint_mod", HERE.parent / "4_inpaint_video.py")
+spec = importlib.util.spec_from_file_location("inpaint_mod", HERE.parent / "stages" / "inpaint_video.py")
 _mod = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(_mod)
 replace_portrait = _mod.replace_portrait

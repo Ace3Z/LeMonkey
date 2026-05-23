@@ -94,11 +94,11 @@ import pycocotools.mask as mask_util
 
 # ─── Local imports — reuse helpers from 4_inpaint_video.py + generate_aug_broad.py
 _HERE = Path(__file__).resolve().parent
-_spec4 = _ilu.spec_from_file_location("_v4", str(_HERE / "4_inpaint_video.py"))
+_spec4 = _ilu.spec_from_file_location("_v4", str(_HERE.parent / "stages" / "inpaint_video.py"))
 _v4 = _ilu.module_from_spec(_spec4); _spec4.loader.exec_module(_v4)
-_specv3 = _ilu.spec_from_file_location("_v3", str(_HERE / "generate_aug_broad.py"))
+_specv3 = _ilu.spec_from_file_location("_v3", str(_HERE / "broad.py"))
 _v3 = _ilu.module_from_spec(_specv3); _specv3.loader.exec_module(_v3)
-_spec_vio = _ilu.spec_from_file_location("_video_io", str(_HERE / "_video_io.py"))
+_spec_vio = _ilu.spec_from_file_location("_video_io", str(_HERE.parent / "stages" / "video_io.py"))
 _vio = _ilu.module_from_spec(_spec_vio); _spec_vio.loader.exec_module(_vio)
 
 face_centered_aspect_crop = _v4.face_centered_aspect_crop

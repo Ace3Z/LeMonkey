@@ -29,7 +29,7 @@ import pycocotools.mask as mu
 # Local _video_io for AV1 → H.264 transcode
 _HERE = Path(__file__).resolve().parent
 spec = importlib.util.spec_from_file_location(
-    "_video_io", str(_HERE.parent / "_video_io.py"))
+    "_video_io", str(_HERE.parent / "stages" / "video_io.py"))
 _vio = importlib.util.module_from_spec(spec); spec.loader.exec_module(_vio)
 ensure_h264 = _vio.ensure_h264
 

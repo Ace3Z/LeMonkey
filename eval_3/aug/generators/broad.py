@@ -43,7 +43,7 @@ import numpy as np
 
 # ─── Local imports — reuse helpers from 4_inpaint_video.py ───────────────
 _HERE = Path(__file__).resolve().parent
-_spec = _ilu.spec_from_file_location("_v4", str(_HERE / "4_inpaint_video.py"))
+_spec = _ilu.spec_from_file_location("_v4", str(_HERE.parent / "stages" / "inpaint_video.py"))
 _v4 = _ilu.module_from_spec(_spec); _spec.loader.exec_module(_v4)
 load_photo_bank        = _v4.load_photo_bank
 face_centered_aspect_crop = _v4.face_centered_aspect_crop

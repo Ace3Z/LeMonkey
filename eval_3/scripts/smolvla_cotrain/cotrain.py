@@ -73,11 +73,10 @@ import torch.distributed as dist
 import torch.nn.functional as F
 from torch.utils.data import DataLoader, Dataset, DistributedSampler, Subset
 
-# The m2_* helpers (LoRA, KLAL attention supervision) live in eval_3/aug.
-# Add it to the path so the bare `import m2_*` statements resolve regardless
-# of the CWD the script is launched from.
+# LoRA + KLAL helpers live in eval_3/aug/training/. Add to path so the bare
+# `import klal_*` / `import lora_*` statements resolve regardless of CWD.
 REPO_ROOT = Path(__file__).resolve().parents[3]
-sys.path.insert(0, str(REPO_ROOT / "eval_3/aug"))
+sys.path.insert(0, str(REPO_ROOT / "eval_3/aug/training"))
 
 
 # -----------------------------------------------------------------------------
@@ -785,8 +784,8 @@ def main() -> int:
     klal_cfg = None
     klal_name_ids = None
     if args.enable_klal:
-        from klal_pi05 import KLALConfig
-        from klal_smolvla import build_name_token_ids
+        from klal_core import KLALConfig
+        from klal_smolvla_action import build_name_token_ids
         from klal_smolvla_vl import (KLALHookSetSmolVLMVL, compute_klal_loss_vl,
                                 NUM_IMAGE_PATCHES, PATCH_GRID)
 

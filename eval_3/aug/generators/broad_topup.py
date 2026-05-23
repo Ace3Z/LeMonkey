@@ -26,7 +26,7 @@ from generate_aug_broad import process_episode    # noqa: E402
 
 import importlib.util                          # noqa: E402
 spec = importlib.util.spec_from_file_location(
-    "inp", Path(__file__).parent / "4_inpaint_video.py"
+    "inp", Path(__file__).parent.parent / "stages" / "inpaint_video.py"
 )
 _v4 = importlib.util.module_from_spec(spec); spec.loader.exec_module(_v4)
 load_photo_bank = _v4.load_photo_bank

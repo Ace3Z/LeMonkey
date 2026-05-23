@@ -397,8 +397,8 @@ cat <<EOF
   Run the v9.3 augmentation pipeline to materialize the augmented dataset:
 
     cd ~/LeMonkey
-    python eval_3/aug/2_detect_static.py --root $ROOT --force
-    python eval_3/aug/4_inpaint_video.py --root $ROOT --num-variants 5
+    python eval_3/aug/stages/detect_static.py --root $ROOT --force
+    python eval_3/aug/stages/inpaint_video.py --root $ROOT --num-variants 5
 
   This will produce 5 augmented variants per real demo = up to 750 effective
   training videos. Per research:

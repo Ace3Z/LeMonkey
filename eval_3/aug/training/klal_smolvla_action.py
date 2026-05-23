@@ -1,6 +1,6 @@
 """KLAL attention-supervision hookset for SmolVLA's policy (action) forward.
 
-`klal_pi05.KLALHookSet` is Pi0.5/PaliGemma-specific: it hooks the shared
+`klal_core.KLALHookSet` is Pi0.5/PaliGemma-specific: it hooks the shared
 `text_model.rotary_emb` module and uses Gemma's `apply_rotary_pos_emb`.
 SmolVLA has neither — its custom forward (`smolvlm_with_expert.py`) applies
 RoPE on the fly via the module-level `apply_rope(x, positions)` function and
@@ -20,7 +20,7 @@ forward path (`SmolVLMWithExpertModel.forward`):
   softmax scale `head_dim ** -0.5`, exactly matching `forward_attn_layer`.
 
 The loss (`klal_loss`) and the target builder (`gaussian_target_from_mask`)
-are model-agnostic and reused from `klal_pi05.py` unchanged.
+are model-agnostic and reused from `klal_core.py` unchanged.
 
 Why the recompute is faithful (same argument as the Pi0.5 KLAL):
 - SmolVLA's prefix (image + language) is fully bidirectional

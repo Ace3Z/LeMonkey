@@ -36,7 +36,7 @@ import numpy as np
 # Local — reuse the cached buffalo_l face app from 4_inpaint_video.py
 import importlib.util as _ilu
 _HERE = Path(__file__).resolve().parent
-_spec = _ilu.spec_from_file_location("_v4", str(_HERE / "4_inpaint_video.py"))
+_spec = _ilu.spec_from_file_location("_v4", str(_HERE.parent / "stages" / "inpaint_video.py"))
 _v4 = _ilu.module_from_spec(_spec); _spec.loader.exec_module(_v4)
 _get_face_app = _v4._get_face_app
 _is_color_photo = _v4._is_color_photo

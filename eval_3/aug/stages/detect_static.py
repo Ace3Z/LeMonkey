@@ -69,7 +69,7 @@ def _import_heavy():
     from sam2.sam2_image_predictor import SAM2ImagePredictor
     from insightface.app import FaceAnalysis as _FaceAnalysis
     import pycocotools.mask as mask_util
-    spec = importlib.util.spec_from_file_location("_video_io", str(Path(__file__).resolve().parent / "_video_io.py"))
+    spec = importlib.util.spec_from_file_location("_video_io", str(Path(__file__).resolve().parent / "video_io.py"))
     _vio = importlib.util.module_from_spec(spec); spec.loader.exec_module(_vio)
     ensure_h264 = _vio.ensure_h264
     ensure_frame_dir = _vio.ensure_frame_dir

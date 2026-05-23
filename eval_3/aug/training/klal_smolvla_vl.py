@@ -3,7 +3,7 @@
 Track-T2's KLAL teaches the celebrity-name token to attend to the prompted
 celeb's printed-portrait region. This module computes that loss on the **VL
 batches** (the `so101_eval3_cotrain_grounding` grounding stream) — the companion to
-`klal_smolvla.py`, which handles the robot-action forward.
+`klal_smolvla_action.py`, which handles the robot-action forward.
 
 Why a separate module — verified facts (research probe 2026-05-21, see
 `2026-05-21_brev_handover.md`):
@@ -23,7 +23,7 @@ Why a separate module — verified facts (research probe 2026-05-21, see
   in `[0, 16)`.
 
 The loss (`klal_loss`), the target builder (`gaussian_target_from_mask`) and
-the config (`KLALConfig`) are model-agnostic and reused from `klal_pi05.py`.
+the config (`KLALConfig`) are model-agnostic and reused from `klal_core.py`.
 """
 from __future__ import annotations
 
@@ -139,7 +139,7 @@ class KLALHookSetSmolVLMVL:
             scores = scores.masked_fill(pad, float("-inf"))
         # Head-average the attention probabilities, then (per sample, below)
         # renormalise over the image columns — same ordering as the established
-        # klal_pi05.KLALHookSet. Defensive nan_to_num: under right-padding no row
+        # klal_core.KLALHookSet. Defensive nan_to_num: under right-padding no row
         # is fully -inf so softmax is NaN-free, but guard so a layout surprise
         # degrades to 0 rather than a silent NaN.
         attn = torch.nan_to_num(torch.softmax(scores, dim=-1).mean(dim=1))
@@ -222,8 +222,8 @@ def compute_klal_loss_vl(hookset: KLALHookSetSmolVLMVL, cfg, name_ids: dict,
     (list[str]), `quad_corners_norm` ((B,4,2)); optional `bbox_refit_ok`
     ((B,) bool) — samples whose quad refit failed are skipped.
     """
-    from klal_pi05 import klal_loss
-    from klal_smolvla import extract_name_token_positions
+    from klal_core import klal_loss
+    from klal_smolvla_action import extract_name_token_positions
 
     input_ids = batch["input_ids"].to(device)
     attn_mask = batch["attention_mask"].to(device)

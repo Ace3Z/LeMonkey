@@ -54,7 +54,7 @@ import pycocotools.mask as mask_util
 
 # Local import — _video_io routes AV1 mp4s through a one-time H.264 transcode
 import importlib.util as _ilu
-_spec = _ilu.spec_from_file_location("_video_io", str(Path(__file__).resolve().parent / "_video_io.py"))
+_spec = _ilu.spec_from_file_location("_video_io", str(Path(__file__).resolve().parent / "video_io.py"))
 _vio = _ilu.module_from_spec(_spec); _spec.loader.exec_module(_vio)
 ensure_h264 = _vio.ensure_h264
 
