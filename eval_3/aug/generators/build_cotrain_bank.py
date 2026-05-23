@@ -33,7 +33,7 @@ from pathlib import Path
 import cv2
 import numpy as np
 
-# Local — reuse the cached buffalo_l face app from 4_inpaint_video.py
+# Local: reuse the cached buffalo_l face app from eval_3/aug/stages/inpaint_video.py
 import importlib.util as _ilu
 _HERE = Path(__file__).resolve().parent
 _spec = _ilu.spec_from_file_location("_v4", str(_HERE.parent / "stages" / "inpaint_video.py"))
@@ -49,7 +49,8 @@ CELEBS = [
 ]
 
 
-def score_scraped_photo(path: Path, face_app) -> tuple[float, dict]:
+def score_scraped_photo(path: Path, face_app: "FaceAnalysis") -> tuple[float, dict]:
+    """Return (face confidence score, debug info dict) for a single scraped photo."""
     img = cv2.imread(str(path), cv2.IMREAD_COLOR)
     if img is None:
         return -1.0, {"err": "cannot_decode"}
@@ -81,11 +82,14 @@ def main() -> int:
     p = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("--heldout-root", type=Path,
-                   default=Path("/home/rohamzn/ETH_Uni/LeMonkey/datasets/eval3_celebs/heldout"))
+                   default=Path.home() / "LeMonkey/datasets/eval3_celebs/heldout",
+                   help="Root containing one subdir per celeb with the printed/heldout photos")
     p.add_argument("--scraped-root", type=Path,
-                   default=Path("/home/rohamzn/ETH_Uni/LeMonkey/datasets/eval3_celebs/scraped"))
+                   default=Path.home() / "LeMonkey/datasets/eval3_celebs/scraped",
+                   help="Root containing one subdir per celeb with the scraped photos")
     p.add_argument("--out-root", type=Path,
-                   default=Path("/home/rohamzn/ETH_Uni/LeMonkey/datasets/eval3_celebs/cotrain_bank"))
+                   default=Path.home() / "LeMonkey/datasets/eval3_celebs/cotrain_bank",
+                   help="Where the merged cotrain photo bank will be written")
     args = p.parse_args()
 
     face_app = _get_face_app()

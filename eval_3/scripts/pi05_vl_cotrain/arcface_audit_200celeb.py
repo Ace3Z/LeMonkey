@@ -12,12 +12,12 @@ This feeds two downstream artifacts:
 2. sample_weights.npy — oversample variants with low hardneg_score (force fine-grained
    discrimination during training)
 
-Per no silent fallbacks. Any failure path emits a [WARN] with what
+No silent fallbacks: every failure path emits a [WARN]. Any failure path emits a [WARN] with what
 was expected, what happened, and what fallback was chosen.
 
-Per / §8: numerical defaults are triple-sourced inline.
+All numerical defaults are sourced inline.
 
-Input contract (Darius will deliver, format TBD — script accepts either):
+Input contract (upstream bbox producer will ship one of two schemas):
 
   Schema A — bbox only (script computes ArcFace on crops):
     parquet with columns:
@@ -41,7 +41,7 @@ Usage:
 
 If --dataset-root is omitted, the script requires Schema B (pre-computed embeddings).
 If --dataset-root is provided, the script decodes camera1 mp4s and runs ArcFace on
-the bbox crops — slower (~6h on single GPU, ~1h on a CPU host 128-core CPU).
+the bbox crops, slower (~6 h on single GPU, ~1 h on a 128-core CPU host).
 """
 from __future__ import annotations
 
@@ -58,9 +58,8 @@ import numpy as np
 # Standard ArcFace verification cosine thresholds (buffalo_l on LFW):
 #   FAR=1e-4 → 0.42, FAR=1e-3 → 0.36 (InsightFace docs)
 #   For OUR inpainted-painted-photo distribution (NOT clean web headshots),
-#   empirical scatter is ~10-15% looser (per the M2 data audit
-#   2026-05-19_m2_data_audit.md: same-celeb cos ~0.5-0.8,
-#   cross-celeb cos ~0.0-0.2).
+#   empirical scatter is ~10-15% looser (verified empirically against our
+#   dataset: same-celeb cos ~0.5-0.8, cross-celeb cos ~0.0-0.2).
 #   → 0.5 keep threshold = "well above noise floor, below clean-face mean"
 DEFAULT_KEEP_COS = 0.50
 
@@ -119,7 +118,7 @@ def _build_arcface_app():
     return app
 
 
-def embed_face_crop(app, img_bgr, bbox_xyxy) -> np.ndarray | None:
+def embed_face_crop(app: "FaceAnalysis", img_bgr: "np.ndarray", bbox_xyxy: tuple[float, float, float, float]) -> "np.ndarray | None":
     """Run ArcFace on a face crop from img_bgr at bbox_xyxy (pixel coords)."""
     import cv2  # local import
 
@@ -145,10 +144,10 @@ def embed_face_crop(app, img_bgr, bbox_xyxy) -> np.ndarray | None:
 
 
 def audit_dataset(
-    bbox_df,
+    bbox_df: "pd.DataFrame",
     centroids: dict[str, np.ndarray],
     dataset_root: Path | None,
-    app_lazy_loader,
+    app_lazy_loader: "Callable[[], FaceAnalysis]",
 ) -> np.ndarray:
     """Compute target_cos + max_distractor_cos + hardneg_score per row.
 
@@ -161,7 +160,7 @@ def audit_dataset(
     # Group by episode_idx so we can decode mp4 once per episode if needed.
     if dataset_root is not None:
         try:
-            from lerobot.common.datasets.lerobot_dataset import LeRobotDataset  # noqa
+            from lerobot.common.datasets.lerobot_dataset import LeRobotDataset  # noqa: F401 — import probe; we only use it as an availability check.
             print("[info] lerobot dataset loader available — will decode camera1 lazily")
         except ImportError:
             print(f"[WARN] lerobot not importable: expected=lazy mp4 decode, "
@@ -237,16 +236,16 @@ def _decode_frame(dataset_root: Path, episode_idx: int, frame_idx: int):
     Lazy fallback path. If lerobot loader isn't available or the file is missing,
     returns None and emits [WARN].
     """
-    # Implementation deferred — depends on the dataset's actual chunking layout
-    # on disk. Will be filled in once we know whether Darius provides Schema A
-    # (we decode) or Schema B (he provides embeddings).
+    # Implementation deferred, depends on whether the upstream producer ships Schema A
+    # (we decode) or Schema B (it provides embeddings).
     print(f"[WARN] _decode_frame called for ep={episode_idx} frame={frame_idx} "
           f"but on-the-fly decoding is not yet implemented; expected=image, got=None, "
-          f"fallback=skip row (require Schema B from Darius)", flush=True)
+          f"fallback=skip row (require Schema B from the upstream bbox producer)", flush=True)
     return None
 
 
 def main() -> int:
+    """Load bbox parquet + celeb centroid manifest, compute per-frame target_cos/hardneg_gap, and write the audited parquet."""
     parser = argparse.ArgumentParser()
     parser.add_argument("--bbox-parquet", type=Path, required=True,
                         help="the per-frame bbox annotations for 200-celeb")

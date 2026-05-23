@@ -25,12 +25,12 @@ python -u "$(which lerobot-train)" \
   --policy.push_to_hub=false \
   --policy.empty_cameras=2 \
   --dataset.repo_id=local/so101_eval2 \
-  --dataset.root=/home/shadeform/LeMonkey/datasets/eval2_merged \
+  --dataset.root="$HOME/LeMonkey/datasets/eval2_merged" \
   --dataset.image_transforms.enable=true \
   --batch_size=192 \
   --steps=25000 \
   --save_freq=5000 \
-  --output_dir=/home/shadeform/outputs/train/so101_smolvla_eval2 \
+  --output_dir="$HOME/outputs/train/so101_smolvla_eval2" \
   --job_name=so101_smolvla_eval2 \
   --policy.device=cuda \
   --wandb.enable=false \

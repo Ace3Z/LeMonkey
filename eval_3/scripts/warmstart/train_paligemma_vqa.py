@@ -81,6 +81,7 @@ from PIL import Image
 
 
 def main() -> int:
+    """Run the PaliGemma VQA warm-start training loop and save the warm-PG checkpoint."""
     ap = argparse.ArgumentParser(description=__doc__,
                                   formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--manifest", type=Path, required=True,
@@ -174,7 +175,7 @@ def main() -> int:
         print(f"==> SMOKE: trimmed dataset to {len(ds)} rows", flush=True)
     print(f"manifest rows: {len(ds)}", flush=True)
 
-    def collate(batch):
+    def collate(batch: list[dict]) -> dict:
         """Returns the dict PaliGemma's forward expects:
             input_ids, attention_mask, pixel_values, labels
         Uses `suffix=target` so the processor masks prompt tokens (sets label=-100)

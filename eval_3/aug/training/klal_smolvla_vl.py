@@ -1,12 +1,12 @@
 """KLAL attention supervision on SmolVLA's VL co-training forward pass.
 
-Track-T2's KLAL teaches the celebrity-name token to attend to the prompted
-celeb's printed-portrait region. This module computes that loss on the **VL
-batches** (the `so101_eval3_cotrain_grounding` grounding stream) — the companion to
-`klal_smolvla_action.py`, which handles the robot-action forward.
+This module supervises the celebrity-name token to attend to the prompted
+celeb's printed-portrait region. It computes that loss on the **VL
+batches** (the `so101_eval3_cotrain_grounding` grounding stream), the
+companion to `klal_smolvla_action.py`, which handles the robot-action
+forward.
 
-Why a separate module — verified facts (research probe 2026-05-21, see
-`2026-05-21_brev_handover.md`):
+Why a separate module, verified facts:
 
 - SmolVLA's VLM (SmolVLM2-500M) text model is a stock transformers
   `LlamaModel`: a shared `rotary_emb` module emits `(cos, sin)`, and
@@ -232,9 +232,8 @@ def compute_klal_loss_vl(hookset: KLALHookSetSmolVLMVL, cfg, name_ids: dict,
 
     Reads the q/k/(cos,sin) the `hookset` captured during the VL forward,
     builds the per-sample portrait-quad target, and returns the scaled loss
-    (`cfg.lam` applied inside `klal_loss`). Returns a 0-d tensor with no grad
-    — logged once, — if the image span or name tokens could not
-    be resolved.
+    (`cfg.lam` applied inside `klal_loss`). Returns a 0-d tensor (logged
+    once) when the image span or name tokens cannot be located.
 
     Required `batch` keys: `input_ids`, `attention_mask`, `celeb_slug`
     (list[str]), `quad_corners_norm` ((B,4,2)); optional `bbox_refit_ok`

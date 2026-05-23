@@ -8,16 +8,19 @@
 #   - the HBOrtiz HF token so the policy push at end-of-training works
 #
 # Usage:
-#   eval_3/scripts/brev/sync_to_brev.sh shadeform@<brev-host>:~/LeMonkey
+#   eval_3/scripts/brev/sync_to_brev.sh user@<vm-host>:~/LeMonkey
 #
-# After sync, on Brev:
-#   bash ~/LeMonkey/eval_1/scripts/brev_setup.sh        # idempotent env install
+# Tested on Brev/Shadeform/generic CUDA VMs.
+#
+# After sync, on the VM:
+#   bash ~/LeMonkey/eval_3/scripts/brev/setup_pi05.sh        # idempotent env install for Pi0.5
+#   # or: bash ~/LeMonkey/eval_3/scripts/brev/setup_paligemma_warmstart.sh   # for the PaliGemma warm-start path
 #   bash ~/LeMonkey/eval_3/scripts/brev/start_training.sh  # launch training
 set -euo pipefail
 
 if [ "$#" -lt 1 ]; then
   echo "Usage: $0 <user@host:path>" >&2
-  echo "Example: $0 shadeform@brev-h100-foo:~/LeMonkey" >&2
+  echo "Example: $0 user@<vm-host>:~/LeMonkey" >&2
   exit 2
 fi
 
@@ -59,6 +62,6 @@ rsync -avP "$REPO_ROOT/secrets/huggingface/token_hbortiz" \
 echo
 echo "==> sync complete."
 echo
-echo "Next steps on Brev:"
-echo "  bash ~/LeMonkey/eval_1/scripts/brev_setup.sh"
+echo "Next steps on the VM:"
+echo "  bash ~/LeMonkey/eval_3/scripts/brev/setup_pi05.sh   # or setup_paligemma_warmstart.sh"
 echo "  bash ~/LeMonkey/eval_3/scripts/brev/start_training.sh"

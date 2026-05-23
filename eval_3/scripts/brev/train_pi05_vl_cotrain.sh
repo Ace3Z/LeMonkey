@@ -4,12 +4,12 @@
 # Mirrors train_pi05.sh + adds:
 #   - --vl_dataset.manifest  (the VL pairs, HBOrtiz/so101_eval3_broad_grounding)
 #   - --vl_ratio=10          (10 robot batches : 1 VL batch - ObjectVLA published)
-#   - --policy.pretrained_path=HBOrtiz/pi05_paligemma_celeb_warm_v2  (Enhancement B-1)
-#   - --dataset.episodes_file (Enhancement B-2 keep_list - when ready)
-#   - --dataset.sample_weights (Enhancement B-3 hardneg weights - when ready)
-#   - --dataset.curriculum_switch_step=5000 (Enhancement B-5)
-#   - --peft.layer_rank_config (Enhancement B-4 - per-layer LoRA rank)
-#   - --train.use_ema (Enhancement B-7)
+#   - --policy.pretrained_path=HBOrtiz/pi05_paligemma_celeb_warm_v2  (warm PaliGemma start)
+#   - --dataset.episodes_file (audit-filtered keep_list - when ready)
+#   - --dataset.sample_weights (per-episode hard-negative weights - when ready)
+#   - --dataset.curriculum_switch_step=5000 (two-phase curriculum)
+#   - --peft.layer_rank_config (per-layer LoRA rank)
+#   - --train.use_ema (EMA shadow weights)
 #
 #
 # PRE-FLIGHT (must be true before running this):
@@ -36,33 +36,34 @@ LORA_R="${LORA_R:-32}"
 LORA_ALPHA="${LORA_ALPHA:-64}"
 LORA_TARGETS='["q_proj","k_proj","v_proj","o_proj","gate_proj","up_proj","down_proj"]'
 
-# Enhancement B-1: warm-PG starting point (NOT cold pi05_base).
+# Warm PaliGemma starting point (NOT cold pi05_base).
+# _v2 is the on-disk dataset version, not a code-version suffix.
 PRETRAINED="${PRETRAINED:-HBOrtiz/pi05_paligemma_celeb_warm_v2}"
 
-# Enhancement B-2/B-3 artifacts (paths relative to repo root).
+# Audit-filter + hard-negative-weights artifacts (paths relative to repo root).
 KEEP_LIST="${KEEP_LIST:-eval_3/scripts/pi05_vl_cotrain/keep_episodes.txt}"
 SAMPLE_WEIGHTS="${SAMPLE_WEIGHTS:-eval_3/scripts/pi05_vl_cotrain/hardneg_weights.npy}"
 
-# Enhancement B-4: per-layer LoRA rank config.
+# Per-layer LoRA rank config.
 LAYER_RANK_CONFIG="${LAYER_RANK_CONFIG:-eval_3/scripts/pi05_vl_cotrain/layer_rank.json}"
 
-# Enhancement B-5: curriculum learning switch step.
+# Two-phase curriculum switch step.
 CURRICULUM_SWITCH="${CURRICULUM_SWITCH:-5000}"
 
-# Enhancement B-7: EMA shadow weights.
+# EMA shadow weights.
 USE_EMA="${USE_EMA:-true}"
 EMA_ALPHA="${EMA_ALPHA:-0.999}"
 
 # Pre-flight artifact checks - emit [WARN] not abort (some enhancements optional).
 if [ ! -f "$KEEP_LIST" ]; then
-    echo "[WARN] keep_list missing: expected=$KEEP_LIST, got=missing, fallback=launch without B-2 filter" >&2
+    echo "[WARN] keep_list missing: expected=$KEEP_LIST, got=missing, fallback=launch without audit-filter" >&2
     KEEP_LIST_FLAG=""
 else
     KEEP_LIST_FLAG="--dataset.episodes_file=$KEEP_LIST"
 fi
 
 if [ ! -f "$SAMPLE_WEIGHTS" ]; then
-    echo "[WARN] hardneg_weights missing: expected=$SAMPLE_WEIGHTS, got=missing, fallback=launch without B-3" >&2
+    echo "[WARN] hardneg_weights missing: expected=$SAMPLE_WEIGHTS, got=missing, fallback=launch without hard-negative weighting" >&2
     SAMPLE_WEIGHTS_FLAG=""
 else
     SAMPLE_WEIGHTS_FLAG="--dataset.sample_weights=$SAMPLE_WEIGHTS"

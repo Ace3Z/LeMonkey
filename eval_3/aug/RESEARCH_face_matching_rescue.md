@@ -4,7 +4,7 @@
 
 **Authors:** LeMonkey team (4 first-wave decision agents + 3 second-wave deep-dive agents), cross-checked per the triple-source-defaults rule.
 
-**Purpose.** SmolVLA-450M was trained for the Eval 3 image-as-prompt face-matching task (place coke on the celebrity whose photo is in `observation.images.camera2`). Smoke-tested on Strix on 2026-05-17: the pipeline works end-to-end but the policy puts the can on the *wrong* portrait. Four hypotheses were tested:
+**Purpose.** SmolVLA-450M was trained for the Eval 3 image-as-prompt face-matching task (place coke on the celebrity whose photo is in `observation.images.camera2`). Smoke-tested on a 16 GB GPU laptop on 2026-05-17: the pipeline works end-to-end but the policy puts the can on the *wrong* portrait. Four hypotheses were tested:
 
 1. `camera2` silently dropped in `prepare_images()` → **refuted** by direct instrumentation (image[1] = reference photo confirmed reaching the model intact).
 2. Wrist-cam aim shift from training distribution → **refuted** by manual workspace inspection.
@@ -57,7 +57,7 @@ The Pi0.5 feasibility agent found **no published evidence that Pi0.5 face-matche
 
 ### 2.3 OpenVLA-7B is deploy-blocked
 
-The alt-VLAs agent verified OpenVLA-7B requires **~14 GB bf16 weights + KV cache + ViT activations** for 30 Hz inference, which **does not fit** on the Strix RTX 3080 Ti Laptop's 16 GB ([model card](https://huggingface.co/openvla/openvla-7b), [LeRobot v0.5 release notes](https://huggingface.co/blog/lerobot-release-v050)). It also lacks native LeRobot integration - implementing a new policy class is a multi-day fork.
+The alt-VLAs agent verified OpenVLA-7B requires **~14 GB bf16 weights + KV cache + ViT activations** for 30 Hz inference, which **does not fit** on the 16 GB RTX 3080 Ti Laptop GPU target ([model card](https://huggingface.co/openvla/openvla-7b), [LeRobot v0.5 release notes](https://huggingface.co/blog/lerobot-release-v050)). It also lacks native LeRobot integration - implementing a new policy class is a multi-day fork.
 
 ### 2.4 The X-VLA-0.9B insurance track is real
 

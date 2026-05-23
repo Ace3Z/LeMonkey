@@ -14,7 +14,7 @@
 # Augmentation (later, in eval_3/aug/) handles the rest of the diversity
 # (photo content, lighting noise, etc.).
 #
-# RESEARCH SOURCES (all 3 agents converged on this plan):
+# DESIGN REFERENCES:
 #   • LeRobot SmolVLA docs        - 50/task floor
 #   • SmolVLA paper (2506.01844)  - 10×5 positions structure on SO-101
 #   • Gando SO-101 reproduction   - 75 demos with consistent grasp > 81 mixed
@@ -40,7 +40,7 @@
 # VARIED (diversity axes we explicitly want):
 #   • Can starting position - LEFT / MIDDLE / RIGHT (3 positions per celeb)
 #   • Target celebrity - alternates per phase (Swift -> Obama -> LeCun)
-#   • (photo content) - varied later via the v9.3 inpainting pipeline
+#   • (photo content) - varied later via the augmentation pipeline under eval_3/aug/
 
 set -euo pipefail
 
@@ -283,7 +283,7 @@ for celeb in "${TARGETS[@]}"; do
       if [[ "$ans" == "q" ]]; then echo "  quitting at user request"; exit 0; fi
 
     # Per-batch recorder loop with error recovery + manual delete option.
-    # The Python recorder (record_eval3_quick.py) already supports an in-loop
+    # The Python recorder (record_quick.py) already supports an in-loop
     # 'd' key to drop the LAST completed episode between episodes. The bash
     # wrapper handles the OUTER cases: the recorder crashed mid-episode (e.g.
     # motor lost power, USB hiccup) - we count what's actually on disk and
@@ -394,14 +394,9 @@ cat <<EOF
 
 [5/5] Next steps (augmentation + verification):
 
-  Run the v9.3 augmentation pipeline to materialize the augmented dataset:
+  # See eval_3/aug/README.md for the canonical augmentation pipeline entry points.
 
-    cd ~/LeMonkey
-    python eval_3/aug/stages/detect_static.py --root $ROOT --force
-    python eval_3/aug/stages/inpaint_video.py --root $ROOT --num-variants 5
-
-  This will produce 5 augmented variants per real demo = up to 750 effective
-  training videos. Per research:
+  This will produce up to N augmented variants per real demo. Per research:
     • cap aug at N=5/demo (Lin et al. plateau analysis)
     • augmentation is a MULTIPLIER on real data, never a substitute
     • watch for failure signals during eval:
@@ -409,6 +404,6 @@ cat <<EOF
         - OOD < TOY/IID by >30 pp -> spurious face-region cue
         - seam-line at photo border affects grasp -> boundary cue
 
-  Then train SmolVLA-450M with Path A on the combined dataset (real + aug).
+  Then train SmolVLA on the combined dataset (real + augmented).
 
 EOF

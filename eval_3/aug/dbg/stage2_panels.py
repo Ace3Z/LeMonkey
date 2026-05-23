@@ -5,8 +5,8 @@ Two PNGs land in each eval3_aug variant folder:
   - dbg_stage2_occluders.png  (5 sampled frames showing occluder regions per portrait)
 
 Usage:
-    python dbg_stage2_panels.py <variant_dir>
-    python dbg_stage2_panels.py --root <eval3_aug_root>
+    python eval_3/aug/dbg/stage2_panels.py <variant_dir>
+    python eval_3/aug/dbg/stage2_panels.py --root <eval3_aug_root>
 """
 from __future__ import annotations
 
@@ -50,13 +50,16 @@ def find_source_episode(variant_dir: Path) -> Path | None:
     return None
 
 
-def _label(img, text, x, y, color):
+def _label(img: np.ndarray, text: str, x: int, y: int,
+           color: tuple[int, int, int]) -> None:
+    """Draw a filled rectangle behind `text` and overlay the label on `img`."""
     cv2.rectangle(img, (x, y - 18), (x + 8 * len(text) + 6, y), color, -1)
     cv2.putText(img, text, (x + 3, y - 5), cv2.FONT_HERSHEY_SIMPLEX, 0.45,
                 (255, 255, 255), 1, cv2.LINE_AA)
 
 
-def _panel_header(img, title):
+def _panel_header(img: np.ndarray, title: str) -> np.ndarray:
+    """Return a copy of `img` with a black title bar containing `title` along the top."""
     out = img.copy()
     cv2.rectangle(out, (0, 0), (out.shape[1], 26), (0, 0, 0), -1)
     cv2.putText(out, title, (8, 18), cv2.FONT_HERSHEY_SIMPLEX, 0.58,
@@ -64,13 +67,16 @@ def _panel_header(img, title):
     return out
 
 
-def _overlay_mask(img, mask_bool, color, alpha=0.45):
+def _overlay_mask(img: np.ndarray, mask_bool: np.ndarray,
+                  color: tuple[int, int, int], alpha: float = 0.45) -> np.ndarray:
+    """Return `img` blended with `color` everywhere `mask_bool` is True."""
     overlay = img.copy()
     overlay[mask_bool] = color
     return cv2.addWeighted(overlay, alpha, img, 1 - alpha, 0)
 
 
 def make_portrait_panels(ep_dir: Path) -> np.ndarray:
+    """Return the GroundingDINO / SAM / final-quads diagnostic strip (3-panel hstack)."""
     frame0 = cv2.imread(str(ep_dir / "frame_0.png"))
     if frame0 is None:
         raise RuntimeError(f"missing frame_0.png in {ep_dir}")
@@ -86,7 +92,7 @@ def make_portrait_panels(ep_dir: Path) -> np.ndarray:
             seeds["celebs"], seeds["arcface_cosines"])):
         x0, y0, x1, y1 = map(int, box)
         cv2.rectangle(a, (x0, y0), (x1, y1), COLORS[i], 2)
-        _label(a, f"pid{i} {celeb} gdino={score:.2f} arc={cos:.2f}", x0, y0, COLORS[i])
+        _label(a, f"pid{i} {celeb} gdino={score:.2f} arcface={cos:.2f}", x0, y0, COLORS[i])
     trusted = seeds.get("arcface_trusted")
     a = _panel_header(a, f"A. GroundingDINO portrait bboxes  (ArcFace trusted={trusted})")
 
@@ -117,12 +123,13 @@ def make_portrait_panels(ep_dir: Path) -> np.ndarray:
             continue
         cv2.drawMarker(c, (int(fc[0]), int(fc[1])), (255, 255, 255),
                        markerType=cv2.MARKER_CROSS, markerSize=16, thickness=2)
-    c = _panel_header(c, "C. Final quads (minAreaRect + v9.5 face-aware reorder; white cross = face center)")
+    c = _panel_header(c, "C. Final quads (minAreaRect + face-aware reorder; white cross = face center)")
 
     return np.hstack([a, b, c])
 
 
 def make_occluder_panels(ep_dir: Path, n_samples: int = 5) -> np.ndarray:
+    """Return an hstack of `n_samples` sampled frames showing per-portrait occluder regions."""
     masks_pkl = pickle.load(open(ep_dir / "portrait_masks.pkl", "rb"))
     M_0 = masks_pkl["M_0_per_pid"]
     per_frame = masks_pkl["masks"]
@@ -192,6 +199,7 @@ def _render_occluder_frame(frame: np.ndarray, M_0: dict, per_frame_masks: dict,
 
 
 def make_occluder_video(ep_dir: Path, out_path: Path) -> dict:
+    """Render a side-by-side (original | annotated) mp4 to `out_path`; return a status dict."""
     masks_pkl = pickle.load(open(ep_dir / "portrait_masks.pkl", "rb"))
     M_0 = masks_pkl["M_0_per_pid"]
     per_frame = masks_pkl["masks"]
@@ -241,6 +249,7 @@ def make_occluder_video(ep_dir: Path, out_path: Path) -> dict:
 
 
 def render_one(variant_dir: Path) -> dict:
+    """Render every stage-2 diagnostic panel + occluder mp4 for one variant directory."""
     if not (variant_dir / "augmentation.json").is_file():
         return {"variant": variant_dir.name, "error": "augmentation.json missing"}
     ep_dir = find_source_episode(variant_dir)
@@ -260,9 +269,9 @@ def render_one(variant_dir: Path) -> dict:
         cv2.imwrite(str(out_o), occ_img)
         vid_res = make_occluder_video(ep_dir, out_v)
 
-        # v10: surface every pipeline-trace debug PNG from the source episode
+        # surface every pipeline-trace debug PNG from the source episode
         # into the variant dir so each augmentation output is a self-contained
-        # debugging bundle. quality bar — every step visible.
+        # debugging bundle. quality bar: every step visible.
         copied = mirror_pipeline_debug(ep_dir, variant_dir)
         return {"variant": variant_dir.name,
                 "portraits": str(out_p),
@@ -308,7 +317,8 @@ def mirror_pipeline_debug(ep_dir: Path, variant_dir: Path) -> list[str]:
 
 def main() -> int:
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    p.add_argument("variant_dir", nargs="?", default=None)
+    p.add_argument("variant_dir", nargs="?", default=None,
+                   help="Path to a single augmented variant directory to render panels for")
     p.add_argument("--root", default=None,
                    help="iterate over all variant dirs under this root (eval3_aug)")
     args = p.parse_args()

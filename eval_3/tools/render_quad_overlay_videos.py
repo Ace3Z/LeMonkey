@@ -6,10 +6,7 @@ For each sampled episode, opens its augmented camera1 video and overlays the
 labelled with the celeb names from the VL-pairs manifest. Degenerate quads
 (< 4 distinct corners) are drawn in red and flagged.
 
-Originally written to inspect the ~21% degenerate-quad bug in the pre-v3
-VL-pairs dataset (the augmented videos themselves were fine — the degenerate
-quad was an annotation-only defect). Kept as a general quad-overlay video
-renderer. See 2026-05-21_vl_pairs_image_mispairing.md
+General quad-overlay video renderer.
 
 Usage:
     python eval_3/tools/render_quad_overlay_videos.py --manifest manifest.parquet
@@ -18,7 +15,6 @@ Usage:
 from __future__ import annotations
 
 import argparse
-import glob
 import os
 
 import cv2
@@ -27,12 +23,14 @@ import pyarrow.parquet as pq
 from PIL import Image
 
 
-def is_degenerate(quad) -> bool:
+def is_degenerate(quad: np.ndarray | list) -> bool:
+    """Return True iff the 4-corner quad collapses to fewer than 4 distinct points."""
     pts = np.array([list(p) for p in quad], dtype=float)
     return len({tuple(np.round(p, 5)) for p in pts}) < 4
 
 
 def main() -> int:
+    """Sample episodes, overlay their portrait quads onto the video frames, and write a montage + per-episode GIFs."""
     p = argparse.ArgumentParser(description=__doc__,
                                 formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("--manifest", required=True, help="VL-pairs manifest.parquet")
@@ -89,6 +87,7 @@ def main() -> int:
         cap.release()
 
         def draw(fr):
+            """Overlay the per-pid quad polygons + labels on a single frame."""
             im = fr.copy()
             for pid in (0, 1, 2):
                 if pid not in quads:

@@ -2,19 +2,19 @@
 
 `klal_core.KLALHookSet` is Pi0.5/PaliGemma-specific: it hooks the shared
 `text_model.rotary_emb` module and uses Gemma's `apply_rotary_pos_emb`.
-SmolVLA has neither — its custom forward (`smolvlm_with_expert.py`) applies
+SmolVLA has neither: its custom forward (`smolvlm_with_expert.py`) applies
 RoPE on the fly via the module-level `apply_rope(x, positions)` function and
 never instantiates a rotary_emb module.
 
 This file is the SmolVLA twin, targeting the **policy / robot-action**
 forward path (`SmolVLMWithExpertModel.forward`):
 
-- hooks `text_model.layers[n].self_attn.{q,k}_proj` — these fire on the VLM
-  prefix stream only (the action expert uses `lm_expert.layers[...]`),
+- hooks `text_model.layers[n].self_attn.{q,k}_proj` (these fire on the VLM
+  prefix stream only; the action expert uses `lm_expert.layers[...]`),
 - captures the live `position_ids` by wrapping the module-level `apply_rope`
   (SmolVLA calls `vlm_with_expert.forward` directly, bypassing nn.Module
   `__call__`, so a forward-pre-hook never fires; `apply_rope` is called for
-  q/k on every layer with the exact `cumsum(pad_masks)-1` positions — NOT a
+  q/k on every layer with the exact `cumsum(pad_masks)-1` positions, NOT a
   plain arange, which would mis-RoPE on padded tokens),
 - recomputes attention with SmolVLA's own `apply_rope` and the eager
   softmax scale `head_dim ** -0.5`, exactly matching `forward_attn_layer`.
@@ -27,12 +27,10 @@ Why the recompute is faithful (same argument as the Pi0.5 KLAL):
   (`make_att_2d_masks`, att_mask=0 across the whole prefix), and prefix rows
   attend only to prefix columns (the suffix carries att_mask=1, masked out).
   So the real prefix->prefix attention equals softmax(QK^T * scale) over
-  prefix columns — which is exactly what we recompute from the VLM-stream
+  prefix columns, which is exactly what we recompute from the VLM-stream
   q/k capture.
-- RoPE MUST be applied: `forward_attn_layer` RoPEs q/k before attention; a
-  no-RoPE recompute would supervise a proxy decoupled from the policy's real
-  attention — the HIGH-severity bug found in the Pi0.5 KLAL
-  (2026-05-20_track_E_method_validation.md §3).
+- RoPE MUST be applied because a no-RoPE recompute supervises a
+  content-only proxy.
 """
 from __future__ import annotations
 
@@ -134,9 +132,9 @@ class KLALHookSetSmolVLA:
         """Total image-patch rows before the language tokens in the prefix
         (= n_image_streams * patches_per_image), or None if not yet measured.
 
-        Assumes `add_image_special_tokens=False` (the SmolVLA default and the
-        M2-toolkit invariant) — with special tokens on, the image block also
-        carries per-image start/end tokens not counted here.
+        Assumes `add_image_special_tokens=False` (verified for SmolVLA's
+        standard processor config); with special tokens on, the image
+        block also carries per-image start/end tokens not counted here.
         """
         if self._patches_per_image is None or self._n_image_calls == 0:
             return None
@@ -236,7 +234,7 @@ class KLALHookSetSmolVLA:
 
 # The track-3 baseline dataset is the 3-celeb TOY bucket; full names as they
 # appear verbatim in every training prompt (verified across all 9,394
-# episodes by the Track E data audit).
+# training episodes).
 CELEB_FULL_NAMES = {
     "swift": "Taylor Swift",
     "obama": "Barack Obama",

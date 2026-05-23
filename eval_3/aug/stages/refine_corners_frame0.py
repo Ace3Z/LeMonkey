@@ -37,6 +37,7 @@ import sys
 import time
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from pathlib import Path
+from typing import Callable
 
 import cv2
 import numpy as np
@@ -47,7 +48,7 @@ import pycocotools.mask as mask_util
 _REFINE_FN = None
 
 
-def get_refine_fn():
+def get_refine_fn() -> Callable:
     global _REFINE_FN
     if _REFINE_FN is None:
         spec = ilu.spec_from_file_location(
@@ -59,7 +60,8 @@ def get_refine_fn():
     return _REFINE_FN
 
 
-def order_tl_tr_br_bl(pts):
+def order_tl_tr_br_bl(pts: np.ndarray) -> np.ndarray:
+    """Reorder 4 points as top-left, top-right, bottom-right, bottom-left."""
     pts = np.asarray(pts, dtype=np.float32)
     s = pts.sum(axis=1)
     d = np.diff(pts, axis=1).flatten()
@@ -68,6 +70,9 @@ def order_tl_tr_br_bl(pts):
 
 
 def refine_one_ep(ep_dir_str: str) -> dict:
+    """Re-run sub-pixel paper-quad refinement for one base episode and write
+    portrait_corners_refined_frame0.json. Returns a stats dict
+    ``{ep, ok, reason, n_refit_ok, n_total}`` describing the outcome."""
     ep_dir = Path(ep_dir_str)
     out_path = ep_dir / "portrait_corners_refined_frame0.json"
     stats = {"ep": ep_dir.name, "ok": False, "reason": ""}
@@ -151,10 +156,12 @@ def main() -> int:
     p = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("--base-root", type=Path,
-                   default=Path.home() / "LeMonkey/datasets/eval3")
+                   default=Path.home() / "LeMonkey/datasets/eval3",
+                   help="Root containing the base teleop episodes to refine")
     p.add_argument("--num-workers", type=int, default=16,
-                   help="Refinement uses cv2 (Canny+Hough+cornerSubPix) — moderate parallelism is fine.")
-    p.add_argument("--force", action="store_true")
+                   help="Refinement uses cv2 (Canny+Hough+cornerSubPix); moderate parallelism is fine.")
+    p.add_argument("--force", action="store_true",
+                   help="Recompute even when portrait_corners_refined_frame0.json already exists")
     args = p.parse_args()
 
     cv2.setNumThreads(1)

@@ -20,12 +20,13 @@ import sys
 from pathlib import Path
 
 DEFAULT_ROOTS = [
-    Path("/home/lemonkey/LeMonkey/datasets/eval3_quick"),
-    Path("/home/lemonkey/LeMonkey/datasets/eval3"),
+    Path.home() / "LeMonkey/datasets/eval3_quick",
+    Path.home() / "LeMonkey/datasets/eval3",
 ]
 
 
 def human_size(nbytes: int) -> str:
+    """Render a byte count as a short human-readable string (e.g. '12.3MB')."""
     for unit in ("B", "KB", "MB", "GB"):
         if nbytes < 1024:
             return f"{nbytes:.1f}{unit}"
@@ -41,6 +42,7 @@ def find_video(ep_dir: Path) -> Path | None:
 
 
 def list_root(root: Path, paths_only: bool, want_open: bool) -> int:
+    """List all episode dirs under `root`, printing metadata + video info (or just video paths if paths_only)."""
     if not root.is_dir():
         return 0
     eps = sorted(p for p in root.iterdir() if p.is_dir())
@@ -91,6 +93,7 @@ def list_root(root: Path, paths_only: bool, want_open: bool) -> int:
 
 
 def main() -> int:
+    """Scan the default (or user-specified) dataset roots and summarise each recorded episode."""
     ap = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
     )

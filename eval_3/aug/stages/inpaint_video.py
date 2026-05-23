@@ -3,7 +3,7 @@
 
 For each episode, produces N augmented variants. Each variant replaces all
 3 printed portraits with NEW photos of the same celebrities (drawn from
-the photo bank built by 1_mine_celeb_photos.py), plus picks a separate
+the photo bank built by eval_3/aug/mining/mine_celeb_photos.py), plus picks a separate
 held-out reference photo for the TARGET celeb (used as image-as-prompt
 at training time).
 
@@ -14,13 +14,13 @@ The "Recommended tier" composite recipe (per STRATEGY.md §3.4):
 
 Usage:
     # one variant of one episode
-    python 4_inpaint_video.py /path/to/episode_dir --variant 0
+    python eval_3/aug/stages/inpaint_video.py /path/to/episode_dir --variant 0
 
     # N variants of every episode under a root
-    python 4_inpaint_video.py --root ~/LeMonkey/datasets/eval3_quick --num-variants 5
+    python eval_3/aug/stages/inpaint_video.py --root ~/LeMonkey/datasets/eval3_quick --num-variants 5
 
     # alternative photo bank
-    python 4_inpaint_video.py /path/to/ep --photo-bank /custom/path
+    python eval_3/aug/stages/inpaint_video.py /path/to/ep --photo-bank /custom/path
 
 Output layout:
     <out-root>/<episode_name>__var<NN>/
@@ -150,12 +150,12 @@ def replace_portrait(
     apply_unsharp: bool = False,
     apply_reinhard: bool = False,
     blend_mode: str = "alpha_feather",
-    feather_sigma: float = 0.8,    # v9.1: was 2.0 — wider feather caused a visible
+    feather_sigma: float = 0.8,    # was 2.0; wider feather caused a visible
                                    # halo of the original photo to leak through at
                                    # occluder boundaries (where the visible-paper
                                    # mask transitions 1→0). σ=0.8 ≈ 1.5 px transition
                                    # gives a sharp but anti-aliased edge.
-    auto_rotate_to_paper_aspect: bool = True,  # v9.4: rotate the source photo 90°
+    auto_rotate_to_paper_aspect: bool = True,  # rotate the source photo 90°
                                    # if its aspect (w/h) doesn't match the paper's
                                    # long-axis direction. Eliminates horizontal
                                    # stretching when a portrait photo lands on a
@@ -170,12 +170,11 @@ def replace_portrait(
     new_photo   : (h,w,3) uint8 BGR  (high-res replacement)
     dst_corners : (4,2)   float32   TL,TR,BR,BL of the original portrait
 
-    Defaults — see eval_3/aug/STRATEGY.md §3.4 + the validation pass dated
-    2026-05-10 in eval_3/aug/VALIDATION.md:
+    Defaults, see eval_3/aug/STRATEGY.md §3.4 and eval_3/aug/VALIDATION.md:
       mtf_sigma=0.8     — empirical, in the 0.5-1.0 px range typical for
                           640×480 USB webcam PSFs (Mosleh CVPR 2015,
-                          consumer-OLPF lit). EMPIRICAL ONLY — refine via
-                          dbg/probe_mtf.py if you can characterise the cam.
+                          consumer-OLPF lit). EMPIRICAL ONLY, characterise
+                          the cam empirically and re-tune sigma.
       erode_px=1        — OpenCV's seamlessClone already erodes ~3 px
                           internally (issue opencv#17450); stacking another
                           3-px erosion pulls colour too far inward.
@@ -190,7 +189,7 @@ def replace_portrait(
     """
     H, W = src_frame.shape[:2]
 
-    # v9.4: auto-rotate the source photo if its aspect doesn't match the paper's.
+    # auto-rotate the source photo if its aspect doesn't match the paper's.
     # dst_corners is ordered TL/TR/BR/BL (see _order_tl_tr_br_bl in stage 2).
     # The "top edge" of the paper is corner[0]→corner[1]; the "left edge" is
     # corner[0]→corner[3]. If top > left, the paper is landscape (long side
@@ -239,7 +238,7 @@ def replace_portrait(
         usm_blur = cv2.GaussianBlur(warped, (0, 0), sigmaX=1.0)
         warped = cv2.addWeighted(warped, 1.5, usm_blur, -0.5, 0)
 
-    # 2c. SHADOW MODULATION (v7) — modulate the warped new photo by the
+    # 2c. SHADOW MODULATION, modulate the warped new photo by the
     # per-pixel luminance ratio L_i / L_0 so that shadows cast by the gripper /
     # can / hand on the original paper appear naturally on the new photo.
     # Without this, shadow regions either reveal the original (binary alpha
@@ -254,8 +253,8 @@ def replace_portrait(
 
     # 3. (Optional) Reinhard color transfer (Reinhard et al. 2001) sampled
     # from a ~5-px outer ring of the mask. Disabled by default (apply_reinhard
-    # = False) because empirically (Validation Pass 3 on ep01, 2026-05-10)
-    # it over-corrects when the ring is dominated by table/wall white —
+    # = False) because empirically it over-corrects when the ring is
+    # dominated by table/wall white,
     # Reinhard pulls the photo's mean toward white and the std-clamp keeps
     # only a fraction of the photo's contrast → bleached output. The pre-fill
     # step (4 below) already provides local DC matching at the Poisson
@@ -295,14 +294,14 @@ def replace_portrait(
     #        anyway in the original — feathering matches that look
     #     c) preserves the new photo's identity (ArcFace cosine ≥ 0.4) which
     #        Poisson NORMAL_CLONE bleaches when the ring is dominated by
-    #        white table (verified empirically on ep01 frame 0, 2026-05-10:
+    #        white table (verified empirically on real episodes:
     #        Poisson output mean = (198, 201, 209), warped photo mean
     #        = (105, 139, 166); ArcFace cosine for Poisson output likely
     #        below threshold).
     #
     # blend_mode = "poisson_normal": cv2.seamlessClone(NORMAL_CLONE) on a
     #   pre-filled destination (mask region replaced with ring-mean before
-    #   cloning, per Validation Pass 2 — without the pre-fill, OpenCV's
+    #   cloning, per validation runs, without the pre-fill, OpenCV's
     #   internal 3-px erosion anchors Poisson to the *original* portrait
     #   colour and reverts the inpaint). Use when the new photo's lighting
     #   genuinely differs from the local environment and you want
@@ -446,8 +445,7 @@ def _is_color_photo(path: Path, min_mean_sat: float = 60.0) -> bool:
     """True when `path` is a colour photo (not B&W / sepia / muted).
     Uses mean saturation in HSV; B&W has near-zero saturation everywhere,
     sepia 10-25, muted 25-55, clearly colour 60+. Threshold empirically
-    separates the categories in the eval3 photo bank (see saturation probe
-    2026-05-13)."""
+    separates the categories in the eval3 photo bank."""
     img = cv2.imread(str(path), cv2.IMREAD_COLOR)
     if img is None or img.ndim != 3 or img.shape[2] != 3:
         return False
@@ -462,7 +460,7 @@ def load_photo_bank(
     - portrait_only=True: drop photos whose width >= height (landscape stretches
       faces horizontally when pasted into typically-portrait paper regions).
     - color_only=True: drop B&W / sepia photos (jarring style mismatch when
-      pasted next to color printed portraits — see eval3 dbg_compare F2)."""
+      pasted next to color printed portraits, see eval_3/aug/dbg/compare_gif.py)."""
     from PIL import Image
     bank: dict[str, list[Path]] = {}
     dropped_portrait: dict[str, int] = {}
@@ -533,14 +531,14 @@ def pick_photos_for_variant(
 def _mean_lum_ratio_v9(
     frame_i: np.ndarray, frame_0: np.ndarray, visible_paper: np.ndarray,
 ) -> float:
-    """v9: ONE SCALAR mean luminance ratio over the visible-paper region.
+    """ONE SCALAR mean luminance ratio over the visible-paper region.
 
-    Replaces v7/v8 per-pixel lum_ratio. The research consensus (LIBERO-Plus
-    2025, Pumacay et al., LeRobot/OpenVLA defaults, ROSIE, GenAug, CACTI)
-    is that per-pixel shadow modeling is the smallest-impact perturbation
-    axis for VLAs (8-11pp impact vs 45-72pp for camera shift). A single
-    scalar that crudely matches the inserted photo's brightness to the
-    current frame's average is sufficient — ColorJitter at train time
+    Replaces an earlier per-pixel lum_ratio. The research consensus
+    (LIBERO-Plus 2025, Pumacay et al., LeRobot/OpenVLA defaults, ROSIE,
+    GenAug, CACTI) is that per-pixel shadow modeling is the smallest-impact
+    perturbation axis for VLAs (8-11pp impact vs 45-72pp for camera shift).
+    A single scalar that crudely matches the inserted photo's brightness to
+    the current frame's average is sufficient, ColorJitter at train time
     handles the rest. Clamped to [0.6, 1.2] so a near-fully-occluded
     visible_paper (only a few pixels left, possibly all in shadow) can't
     push the photo to extreme values."""
@@ -566,16 +564,16 @@ def render_variant(
     out_video: Path,
     fps: int,
     work_dir: Path,
-    frame_0: np.ndarray | None = None,            # v7: shadow-modulation reference
-    M_0_per_pid: dict[int, np.ndarray] | None = None,  # v7: paper-rectangle mask per pid
+    frame_0: np.ndarray | None = None,            # shadow-modulation reference
+    M_0_per_pid: dict[int, np.ndarray] | None = None,  # paper-rectangle mask per pid
 ) -> int:
     """Render a single augmented variant. Returns frame count written.
 
-    v7: when `frame_0` and `M_0_per_pid` are provided (saved by stage 2 v7),
+    When `frame_0` and `M_0_per_pid` are provided (saved by stage 2),
     compute a per-pixel luminance ratio L_i/L_0 within the M_0 rectangle and
     pass it to `replace_portrait` so shadows cast on the original paper
-    appear on the augmented photo. Falls back gracefully to the v6 binary
-    composite when v7 sidecars are absent.
+    appear on the augmented photo. Falls back gracefully to the binary
+    composite when the shadow sidecars are absent.
 
     `masks_pkl` carries per-frame visible-paper masks (M_0 AND NOT object).
     `corners_data` carries the constant 4-corner rectangle per portrait.
@@ -626,10 +624,10 @@ def render_variant(
                 cv2.fillPoly(mask, [pts], 1)
             corners = np.asarray(rec["corners"], dtype=np.float32)
 
-            # v9 global brightness match: one scalar = mean(L_i/L_0) over the
-            # currently-visible paper. Replaces v7's per-pixel lum_ratio. Per
-            # LIBERO-Plus 2025 + Pumacay decomp, this is sufficient — the field
-            # skips per-pixel shadow modeling for VLA augmentation.
+            # global brightness match: one scalar = mean(L_i/L_0) over the
+            # currently-visible paper. Replaces an earlier per-pixel lum_ratio.
+            # Per LIBERO-Plus 2025 + Pumacay decomp, this is sufficient; the
+            # field skips per-pixel shadow modeling for VLA augmentation.
             lum_ratio = None
             if frame_0 is not None:
                 ratio = _mean_lum_ratio_v9(frame, frame_0, mask)
@@ -735,11 +733,11 @@ def process_episode(
     corners_json = ep_dir / "portrait_corners.json"
     masks_pkl: Path | None = ep_dir / "portrait_masks.pkl"
     if masks_pkl is not None and not masks_pkl.is_file():
-        masks_pkl = None                                  # 2_detect_track.py path — corners-only
+        masks_pkl = None                                  # eval_3/aug/stages/detect_static.py path, corners-only
     ref_json = ep_dir / "reference.json"
 
     if not corners_json.is_file():
-        return {"ep": ep_dir.name, "error": "portrait_corners.json missing — run 2_detect_track.py (or 2_segment_video.py + 3_extract_corners.py)"}
+        return {"ep": ep_dir.name, "error": "portrait_corners.json missing, run eval_3/aug/stages/detect_static.py"}
     if not ref_json.is_file():
         return {"ep": ep_dir.name, "error": "reference.json missing — episode wasn't recorded with our recorder"}
 
@@ -762,9 +760,9 @@ def process_episode(
     src_video = find_video(ep_dir)
     rng = random.Random(seed + hash(ep_dir.name) % 1_000_000)
 
-    # v7: load frame_0 for shadow-aware luminance modulation. Stage 2 v7
+    # load frame_0 for shadow-aware luminance modulation. Stage 2
     # writes frame_0.png next to portrait_corners.json. Fall back to None
-    # (= v6 binary composite behaviour) when the sidecar is absent.
+    # (binary composite behaviour) when the sidecar is absent.
     frame_0_path = ep_dir / "frame_0.png"
     frame_0_img: np.ndarray | None = None
     if frame_0_path.is_file():
@@ -790,8 +788,8 @@ def process_episode(
                 img = cv2.imread(str(p), cv2.IMREAD_COLOR)
                 if img is None:
                     raise RuntimeError(f"cannot read {p}")
-                # v9.6: face-centered crop to paper aspect — eliminates the
-                # warp's 20-35% face stretch when photo aspect ≠ paper aspect.
+                # face-centered crop to paper aspect, eliminates the
+                # warp's 20-35% face stretch when photo aspect != paper aspect.
                 pts = np.asarray(corners_data["portraits"][pid]["0"]["corners"], dtype=np.float32)
                 paper_top = float(np.linalg.norm(pts[1] - pts[0]))
                 paper_left = float(np.linalg.norm(pts[3] - pts[0]))
@@ -832,16 +830,22 @@ def main() -> int:
     p = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter,
     )
-    p.add_argument("episode_dir", nargs="?", default=None)
-    p.add_argument("--root", default=None)
-    p.add_argument("--out-root", default="/home/lemonkey/LeMonkey/datasets/eval3_aug",
+    p.add_argument("episode_dir", nargs="?", default=None,
+                   help="Path to the source episode directory")
+    p.add_argument("--root", default=None,
+                   help="Root containing many base episode directories to process")
+    p.add_argument("--out-root", default=str(Path.home() / "LeMonkey/datasets/eval3_aug"),
                    help="where augmented variants are written")
-    p.add_argument("--photo-bank", default="/home/lemonkey/LeMonkey/datasets/eval3_celebs/web",
-                   help="root of the verified photo bank from 1_mine_celeb_photos.py")
-    p.add_argument("--num-variants", type=int, default=5)
-    p.add_argument("--seed", type=int, default=42)
-    p.add_argument("--fps", type=int, default=30)
-    p.add_argument("--force", action="store_true")
+    p.add_argument("--photo-bank", default=str(Path.home() / "LeMonkey/datasets/eval3_celebs/web"),
+                   help="root of the verified photo bank from eval_3/aug/mining/mine_celeb_photos.py")
+    p.add_argument("--num-variants", type=int, default=5,
+                   help="Number of augmented variants to render per episode")
+    p.add_argument("--seed", type=int, default=42,
+                   help="Base random seed (combined with episode name for reproducibility)")
+    p.add_argument("--fps", type=int, default=30,
+                   help="Output mp4 frame rate; must match the source episode fps")
+    p.add_argument("--force", action="store_true",
+                   help="Re-render variants whose output directory already exists")
     args = p.parse_args()
 
     if (args.episode_dir is None) == (args.root is None):
@@ -850,7 +854,7 @@ def main() -> int:
 
     bank = load_photo_bank(Path(args.photo_bank))
     if not bank:
-        print(f"[ERROR] no photos in bank at {args.photo_bank} — run 1_mine_celeb_photos.py first",
+        print(f"[ERROR] no photos in bank at {args.photo_bank}, run eval_3/aug/mining/mine_celeb_photos.py first",
               file=sys.stderr)
         return 1
     print(f"photo bank: {sum(len(v) for v in bank.values())} photos across "

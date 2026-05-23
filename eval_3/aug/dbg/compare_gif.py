@@ -4,8 +4,8 @@
 Spot-check after stage 4 to confirm the inpaint looks natural.
 
 Usage:
-    python dbg_compare_gif.py /path/to/eval3_aug/<variant_dir>
-    python dbg_compare_gif.py --root ~/LeMonkey/datasets/eval3_aug --first 5
+    python eval_3/aug/dbg/compare_gif.py /path/to/eval3_aug/<variant_dir>
+    python eval_3/aug/dbg/compare_gif.py --root ~/LeMonkey/datasets/eval3_aug --first 5
 
 Output: <variant_dir>/dbg_compare.mp4 (and dbg_compare_3frames.png)
 """
@@ -23,11 +23,13 @@ import numpy as np
 
 
 def find_video(d: Path) -> Path | None:
+    """Locate the camera1 mp4 (or its sidecar) for an episode dir; return None if missing."""
     cands = list(d.glob("videos/*/chunk-*/file-*.mp4"))
     return cands[0] if cands else None
 
 
 def find_src_video(variant_dir: Path) -> Path | None:
+    """Locate the camera1 mp4 (or its sidecar) for an episode dir; return None if missing."""
     aug_path = variant_dir / "augmentation.json"
     if not aug_path.is_file():
         return None
@@ -110,8 +112,10 @@ def make_compare(variant_dir: Path, *, fps: int | None = None) -> dict:
 def main() -> int:
     p = argparse.ArgumentParser(description=__doc__,
                                 formatter_class=argparse.RawDescriptionHelpFormatter)
-    p.add_argument("variant_dir", nargs="?", default=None)
-    p.add_argument("--root", default=None)
+    p.add_argument("variant_dir", nargs="?", default=None,
+                   help="Path to a single augmented variant directory")
+    p.add_argument("--root", default=None,
+                   help="Root containing many augmented variant directories")
     p.add_argument("--first", type=int, default=None,
                    help="when --root: only do the first N variants")
     p.add_argument("--fps", type=int, default=None,

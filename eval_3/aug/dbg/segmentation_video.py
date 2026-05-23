@@ -6,8 +6,8 @@ Useful sanity check after stage 2: confirms the masks track every frame,
 not just the start/end.
 
 Usage:
-    python dbg_segmentation_video.py /path/to/episode_dir
-    python dbg_segmentation_video.py --root ~/LeMonkey/datasets/eval3_quick
+    python eval_3/aug/dbg/segmentation_video.py /path/to/episode_dir
+    python eval_3/aug/dbg/segmentation_video.py --root ~/LeMonkey/datasets/eval3_quick
 
 Output: <episode_dir>/dbg_segmentation.mp4
 """
@@ -35,10 +35,14 @@ ensure_h264 = _vio.ensure_h264
 
 
 COLORS = [(0, 255, 0), (255, 0, 0), (0, 0, 255)]   # BGR: green, blue, red
-CELEB_BY_PID = {0: "swift", 1: "obama", 2: "lecun"}  # default if no seeds.json
+# Default labels for the 3-celeb in-distribution baseline; otherwise read
+# identity from portrait_seeds.json.
+CELEB_BY_PID = {0: "swift", 1: "obama", 2: "lecun"}
 
 
 def render_one(ep_dir: Path, *, fps: int = 30) -> dict:
+    """Render dbg_segmentation.mp4 with per-frame portrait masks overlaid;
+    return ``{ep, saved, n_frames}`` (or ``{ep, error}`` on failure)."""
     masks_pkl = ep_dir / "portrait_masks.pkl"
     if not masks_pkl.is_file():
         return {"ep": ep_dir.name, "error": "portrait_masks.pkl missing"}
@@ -116,8 +120,10 @@ def render_one(ep_dir: Path, *, fps: int = 30) -> dict:
 def main() -> int:
     p = argparse.ArgumentParser(description=__doc__,
                                 formatter_class=argparse.RawDescriptionHelpFormatter)
-    p.add_argument("episode_dir", nargs="?", default=None)
-    p.add_argument("--root", default=None)
+    p.add_argument("episode_dir", nargs="?", default=None,
+                   help="Path to a single episode directory to render")
+    p.add_argument("--root", default=None,
+                   help="Root containing many episode directories to render")
     args = p.parse_args()
     if (args.episode_dir is None) == (args.root is None):
         print("[ERROR] specify one of: episode_dir, --root", file=sys.stderr)

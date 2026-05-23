@@ -7,12 +7,12 @@
 #   1. Quantile stats recomputed on the merged dataset:
 #        python third_party/lerobot/src/lerobot/scripts/augment_dataset_quantile_stats.py \
 #            --repo-id local/eval3_cotrain \
-#            --root /home/rohamzn/ETH_Uni/LeMonkey/datasets/eval3_cotrain_merged \
+#            --root $HOME/LeMonkey/datasets/eval3_cotrain_merged \
 #            --overwrite
 #   2. Dataset re-pushed to HF (so HBOrtiz/so101_eval3_cotrain has the
 #      corrected meta/stats.json):
 #        python eval_3/scripts/data/push_dataset_to_hf.py \
-#            --local /home/rohamzn/ETH_Uni/LeMonkey/datasets/eval3_cotrain_merged \
+#            --local $HOME/LeMonkey/datasets/eval3_cotrain_merged \
 #            --repo HBOrtiz/so101_eval3_cotrain
 #   3. Brev VM has the conda 'lemonkey' env + this repo synced.
 

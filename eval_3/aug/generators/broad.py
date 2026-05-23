@@ -1,5 +1,7 @@
 """
-Eval 3 v3 augmentation generator — Path A image-as-prompt, 195-celeb bank.
+Eval 3 broad augmentation generator: replaces each printed portrait with
+another photo of the same celebrity and writes a reference-image stream;
+supports up to ~200 celebrities.
 
 Per the locked strategy in `eval_3/aug/STRATEGY.md`:
 
@@ -12,15 +14,15 @@ Per the locked strategy in `eval_3/aug/STRATEGY.md`:
     4. Sets the prompt via a 75 / 15 / 10 mixture (default name+action /
        reference-only / counterfactual wrong-name).
 
-Reuses helpers from `4_inpaint_video.py` (face_centered_aspect_crop,
-render_variant, load_photo_bank). This file is the orchestrator — it
-holds the random sampling, the prompt mixture, and the reference
-video writer.
+Reuses helpers from `eval_3/aug/stages/inpaint_video.py`
+(face_centered_aspect_crop, render_variant, load_photo_bank). This file
+is the orchestrator: it holds the random sampling, the prompt mixture,
+and the reference video writer.
 
 Run:
-    python generate_aug_broad.py --root  /home/rohamzn/.../datasets/eval3 \
-                              --photo-bank /home/rohamzn/.../scraped \
-                              --out-root /home/rohamzn/.../datasets/eval3_aug_v3 \
+    python eval_3/aug/generators/broad.py --root ~/LeMonkey/datasets/eval3 \
+                              --photo-bank ~/LeMonkey/datasets/eval3_celebs/scraped \
+                              --out-root ~/LeMonkey/datasets/eval3_aug_v3 \
                               --num-variants 25 \
                               --seed 42
 """
@@ -41,7 +43,7 @@ from pathlib import Path
 import cv2
 import numpy as np
 
-# ─── Local imports — reuse helpers from 4_inpaint_video.py ───────────────
+# ─── Local imports: reuse helpers from eval_3/aug/stages/inpaint_video.py ───
 _HERE = Path(__file__).resolve().parent
 _spec = _ilu.spec_from_file_location("_v4", str(_HERE.parent / "stages" / "inpaint_video.py"))
 _v4 = _ilu.module_from_spec(_spec); _spec.loader.exec_module(_v4)
@@ -253,7 +255,7 @@ def process_episode(
     debug: bool = False,
     target_assignment: dict[tuple[str, int], str] | None = None,
 ) -> dict:
-    """Generate `num_variants` Path-A augmented variants for one base
+    """Generate `num_variants` augmented variants for one base
     teleop episode. Each variant writes:
       - videos/observation.images.camera1/...  (inpainted wrist)
       - videos/observation.images.reference/...  (constant ref photo)
@@ -411,11 +413,16 @@ def main() -> int:
                    help="Explicit list of teleop episode dirs")
     p.add_argument("--photo-bank", required=True,
                    help="Path to the scraped/ photo bank (one subdir per celeb)")
-    p.add_argument("--out-root", required=True)
-    p.add_argument("--num-variants", type=int, default=25)
-    p.add_argument("--seed", type=int, default=42)
-    p.add_argument("--fps", type=int, default=30)
-    p.add_argument("--force", action="store_true")
+    p.add_argument("--out-root", required=True,
+                   help="Where augmented variants will be written")
+    p.add_argument("--num-variants", type=int, default=25,
+                   help="Number of augmented variants to generate per episode")
+    p.add_argument("--seed", type=int, default=42,
+                   help="Base random seed (combined with episode name for reproducibility)")
+    p.add_argument("--fps", type=int, default=30,
+                   help="Output mp4 frame rate; must match the source episode fps")
+    p.add_argument("--force", action="store_true",
+                   help="Re-render variants whose output directory already exists")
     p.add_argument("--debug", action="store_true",
                    help="Also produce dbg_compare.mp4 + dbg_stage2_panels.png per variant")
     args = p.parse_args()

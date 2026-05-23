@@ -16,9 +16,7 @@ recognition, in our case). Diagnosed need: sequential VLM-then-action
 fine-tuning produces a positional-shortcut policy that ignores the prompt
 celeb name.
 
-Per: every fallback emits [WARN] with context.
-Per the triple-source-defaults rule: written but UNSMOKED locally — must be smoke-tested on
-the user's AWS node before being trusted for a 24h run.
+Every fallback emits [WARN] with context.
 
 Usage
 =====
@@ -84,6 +82,7 @@ sys.path.insert(0, str(REPO_ROOT / "eval_3/aug/training"))
 # -----------------------------------------------------------------------------
 
 def parse_args() -> argparse.Namespace:
+    """Build the SmolVLA + VL cotrain CLI parser and return the parsed args."""
     p = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     # Data
@@ -128,8 +127,8 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--compile_model", action="store_true",
                    help="torch.compile the policy. Recommend OFF for smoke, ON for full run.")
     p.add_argument("--video_backend", default="pyav",
-                   help="LeRobotDataset video backend. Default pyav — torchcodec leaks "
-                        "~35 GB/worker over long runs (see TORCHCODEC_OOM_REPORT.md).")
+                   help="LeRobotDataset video backend. Default pyav, torchcodec leaks "
+                        "~35 GB/worker over long runs (see README.md §Known caveats).")
     # LoRA — parameter-efficient VLM adaptation. With --enable_lora the VLM
     # base is frozen and adapted only via low-rank adapters (instead of
     # full-fine-tuning the VLM body); both VQA-CE and action gradients flow
@@ -302,6 +301,7 @@ def make_vl_collator(processor):
         return text if image_token in text else f"{image_token}{text}"
 
     def collate(batch: list[dict]) -> dict:
+        """Process a list of {image, prompt, target} examples into a VLM-ready batch with suffix-masked LM labels."""
         prompts_only = [_ensure_image_placeholder(ex["prompt"]) for ex in batch]
         prompts_full = [f"{p} {ex['target']}" for p, ex in zip(prompts_only, batch)]
         # SmolVLM's processor expects `images` as a list-of-lists — one sublist
@@ -405,14 +405,14 @@ def smolvla_action_loss(policy, batch: dict) -> torch.Tensor:
 def _patch_smolvlm_vision_embeddings() -> None:
     """Move `boundaries` to the input device in SmolVLMVisionEmbeddings.forward.
 
-    transformers==4.55 builds `boundaries` on CPU while the rest of the math
-    runs on CUDA, so `torch.bucketize` raises a device-mismatch. This is the
-    same fix `eval_3/scripts/lerobot_train_with_m2.py` already applies — copied
-    here so the standalone cotrain script needs no external launcher.
+    We patch SmolVLM's `boundaries` tensor to the input device, needed for
+    transformers 4.55 which builds it on CPU while the rest of the math runs
+    on CUDA, causing a `torch.bucketize` device mismatch.
     """
     from transformers.models.smolvlm.modeling_smolvlm import SmolVLMVisionEmbeddings
 
     def forward(self, pixel_values, patch_attention_mask):
+        """Replacement for SmolVLMVisionEmbeddings.forward: handles per-batch variable patch_attention_mask without recompilation."""
         batch_size, _, max_im_h, max_im_w = pixel_values.shape
         patch_embeds = self.patch_embedding(pixel_values)
         embeddings = patch_embeds.flatten(2).transpose(1, 2)
@@ -728,6 +728,7 @@ def _assert_ddp_synced(policy, world_size: int, is_main: bool, device, tag: str
 
 
 def main() -> int:
+    """Run the SmolVLA + VL cotrain training loop: build datasets/policy, alternate robot + VL batches per --vl_ratio, checkpoint, optionally push to HF."""
     args = parse_args()
 
     # transformers 4.55 SmolVLM device fix — must run before any SmolVLM forward.

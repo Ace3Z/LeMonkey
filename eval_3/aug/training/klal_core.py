@@ -1,12 +1,10 @@
-"""KL Attention Loss (KLAL) — cross-modal grounding fix per WACV 2026
+"""KL Attention Loss (KLAL): cross-modal grounding fix per WACV 2026
 "Direct Visual Grounding by Directing Attention of Visual Tokens"
 (arXiv:2511.12738).
 
-Why we need it: M2 distillation shaped face-patch hidden states to align
-with ArcFace centroids on SmolVLA, but the language-name token never
-attended to those face patches (attention probe found constant argmax
-across prompts → `2026-05-19_attention_probe_step10000`).
-KLAL directly supervises the attention distribution from name-tokens to
+Why we need it: an earlier hidden-state distillation didn't propagate to
+the language stream, so KLAL supervises attention directly. KLAL
+directly supervises the attention distribution from name-tokens to
 image-patches with a target distribution built from bounding-box
 annotations.
 
@@ -65,6 +63,9 @@ class KLALHookSet:
     The captures populated during the wrapped forward are then read back via
     :meth:`get_attention` and consumed by :func:`klal_loss` (see that
     function's docstring for the full argument list).
+
+    Requires ``text_model`` to expose a ``.rotary_emb`` module (PaliGemma's
+    shared rotary).
 
     Args:
         text_model: The PaliGemma text-model module to attach hooks to
@@ -185,7 +186,7 @@ class KLALHookSet:
         # slices and RE-NORMALISES over the 256 image-patch columns (never
         # padded), which divides out the shared softmax denominator; the
         # residual effect on the supervised image distribution is second-order
-        # (confirmed by 2-agent review, 2026-05-20).
+        # (confirmed by review).
         attn = torch.softmax(scores, dim=-1)  # (B, H, L, L)
         attn_avg_heads = attn.mean(dim=1)     # (B, L, L)
 

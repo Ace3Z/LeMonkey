@@ -16,9 +16,9 @@ Output: `task_index_to_centroid.json` keyed by task_index:
 
 This decouples the audit script from re-parsing tasks per frame.
 
-Per no silent fallbacks — every parse failure or missing-centroid
-case emits a [WARN] with context.
-Per the triple-source-defaults rule: triple-source defaults inline.
+No silent fallbacks: every parse failure or missing-centroid case emits a
+[WARN] with context.
+Triple-source defaults inline.
 """
 from __future__ import annotations
 
@@ -100,6 +100,7 @@ def parse_task_string(task: str) -> str | None:
 
 
 def main() -> int:
+    """Walk meta/tasks.parquet, parse celeb name out of each task string, and write a JSON mapping task_index -> centroid metadata."""
     parser = argparse.ArgumentParser()
     parser.add_argument("--tasks-parquet", type=Path,
                         default=Path("data/200celebs/meta/tasks.parquet"),
@@ -155,7 +156,8 @@ def main() -> int:
     n_broken_centroid = 0
     unique_slugs_seen: set[str] = set()
 
-    # Known broken centroid from the audit (oier_mees own-photo cosines too low).
+    # Slugs whose ArcFace centroid was flagged unreliable during dataset audit
+    # (downstream consumers will mark `centroid_ok=False`).
     BROKEN_SLUGS = {"oier_mees"}
 
     for _, row in df.iterrows():

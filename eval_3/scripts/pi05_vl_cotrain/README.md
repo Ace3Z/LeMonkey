@@ -23,26 +23,26 @@ The Pi0.5 Eval 3 variant is published as [`HBOrtiz/so101_pi05_eval3`](https://hu
 
 | File | Purpose |
 |---|---|
-| `lerobot_train_with_vl_cotrain.py` | Mixed-batch Pi0.5 + VL cotrain wrapper around `lerobot-train`. Includes B-1 warm-PG start, B-2 audit/filter, B-3 hard-negative weights, B-4 per-layer LoRA rank (`layer_rank.json`), B-5 two-phase curriculum (`curriculum_sampler.py`), B-7 EMA. |
+| `lerobot_train_with_vl_cotrain.py` | Mixed-batch Pi0.5 + VL cotrain wrapper around `lerobot-train`. Includes warm-PG start, audit/filter, hard-negative weights, per-layer LoRA rank (`layer_rank.json`), two-phase curriculum (`curriculum_sampler.py`), EMA. |
 | `curriculum_sampler.py` | Two-phase weighted sampler (easy variants until step 5000, then full distribution). |
 | `layer_rank.json` | Per-layer LoRA rank config (r=64 on layers 8-12, r=48 on layers 15-17). |
-| `probe_pi05_strix.py` | Standalone Pi0.5 VRAM + latency probe (pass criteria: peak under 14 GB, p95 forward under 20 s). |
+| `probe_pi05_inference.py` | Standalone Pi0.5 VRAM + latency probe (pass criteria: peak under 14 GB, p95 forward under 20 s). |
 
 ## How `HBOrtiz/so101_pi05_eval3` was produced
 
 1. PaliGemma backbone warm-started on VGGFace2 VQA -> [`HBOrtiz/paligemma_vqa_warm`](https://huggingface.co/HBOrtiz/paligemma_vqa_warm) (see [`../warmstart/`](../warmstart/)).
-2. Pi0.5 LoRA fine-tune from that init on `HBOrtiz/so101_eval3_broad`, launched via [`../brev/train_pi05.sh`](../brev/train_pi05.sh) - the vanilla LoRA path.
+2. Pi0.5 LoRA fine-tune from that init on `HBOrtiz/so101_eval3_broad`, launched via [`../brev/train_pi05.sh`](../brev/train_pi05.sh), the vanilla LoRA path.
 
 The ObjectVLA enhancements (mixed batches, hard-neg curriculum, per-layer LoRA, EMA) listed in the file table above are documented here as the design intent; the published checkpoint is the vanilla-LoRA result. The wrapper here is preserved so the enhanced recipe can be revived from the precomputed artifacts.
 
 ## Face-name binding rationale (design intent)
 
-- **B-1 warm-PG start.** Load `HBOrtiz/paligemma_vqa_warm` instead of `lerobot/pi05_base`, so PaliGemma already has a celebrity-name prior.
-- **B-2 audit/filter.** Drop inpainted variants where the painted face fails ArcFace `cos >= 0.50` against the celeb centroid (removes noise that would weaken the face-binding gradient).
-- **B-3 hard-negative oversampling.** 2x weight on variants where a visually confusable distractor is visible.
-- **B-4 per-layer LoRA.** `r=64` on Gemma layers 8-12 (BlindVLA face-discrim zone) + `r=48` on layers 15-17 (top-LM name-token alignment).
-- **B-5 curriculum.** Easy variants first (high `hardneg_gap`); switch to full distribution at step 5000.
-- **B-7 EMA.** `alpha=0.999` shadow weights reduce gradient-noise oscillation late in training.
+- **Warm PaliGemma start.** Load `HBOrtiz/paligemma_vqa_warm` instead of `lerobot/pi05_base`, so PaliGemma already has a celebrity-name prior.
+- **Audit & filter inpainted variants.** Drop inpainted variants where the painted face fails ArcFace `cos >= 0.50` against the celeb centroid (removes noise that would weaken the face-binding gradient).
+- **Hard-negative oversampling.** 2x weight on variants where a visually confusable distractor is visible.
+- **Per-layer LoRA rank.** `r=64` on Gemma layers 8-12 (BlindVLA face-discrim zone) + `r=48` on layers 15-17 (top-LM name-token alignment).
+- **Two-phase curriculum.** Easy variants first (high `hardneg_gap`); switch to full distribution at step 5000.
+- **EMA shadow weights.** `alpha=0.999` shadow weights reduce gradient-noise oscillation late in training.
 
 ## Outputs
 

@@ -44,6 +44,7 @@ import random
 import shutil
 import subprocess
 import sys
+from collections.abc import Callable
 from dataclasses import dataclass, field, asdict
 from datetime import datetime
 from pathlib import Path
@@ -54,6 +55,7 @@ ARRANGEMENTS = ["BRG", "BGR", "RBG", "RGB", "GBR", "GRB"]
 
 
 def is_valid_arrangement(s: str) -> bool:
+    """Return True iff ``s`` is a 3-letter permutation of ``BRG``."""
     return len(s) == 3 and sorted(s) == ["B", "G", "R"]
 
 
@@ -143,16 +145,19 @@ NEG_PHR = [
 # Each: returns (target_idx, prompt) or (None, None) if the combo is invalid.
 
 def gen_direct(arrangement: str, target_idx: int) -> tuple[int, str]:
+    """Direct colour reference (`"Put the banana in the red bowl"`)."""
     color = COLOR_NAMES[arrangement[target_idx]]
     return target_idx, random.choice(DIRECT_COLOR_PHR).format(c=color)
 
 
 def gen_absolute(arrangement: str, target_idx: int) -> tuple[int, str]:
+    """Absolute spatial reference (`"... in the leftmost bowl"`)."""
     pos = ["left", "middle", "right"][target_idx]
     return target_idx, random.choice(ABS_PHR[pos])
 
 
 def gen_ordinal(arrangement: str, target_idx: int) -> tuple[int, str]:
+    """Ordinal spatial reference (`"... in the 2nd bowl from the left"`)."""
     side = random.choice(["left", "right"])
     n = target_idx + 1 if side == "left" else 3 - target_idx
     word = random.choice(ORDINAL_WORDS[n])
@@ -160,6 +165,10 @@ def gen_ordinal(arrangement: str, target_idx: int) -> tuple[int, str]:
 
 
 def gen_relational_lr(arrangement: str, target_idx: int) -> tuple[int | None, str | None]:
+    """Left/right relational reference (`"... the bowl to the right of the red bowl"`).
+
+    Returns ``(None, None)`` if the target has no valid neighbour to anchor against.
+    """
     options = []
     for side, dx in [("right", -1), ("left", +1)]:
         ref_idx = target_idx + dx
@@ -173,6 +182,10 @@ def gen_relational_lr(arrangement: str, target_idx: int) -> tuple[int | None, st
 
 
 def gen_relational_between(arrangement: str, target_idx: int) -> tuple[int | None, str | None]:
+    """Between-relation reference (`"... the bowl between blue and green"`).
+
+    Only valid for ``target_idx == 1`` (the middle slot); returns ``(None, None)`` otherwise.
+    """
     if target_idx != 1:
         return None, None
     a = COLOR_NAMES[arrangement[0]]
@@ -183,6 +196,7 @@ def gen_relational_between(arrangement: str, target_idx: int) -> tuple[int | Non
 
 
 def gen_negation(arrangement: str, target_idx: int) -> tuple[int, str]:
+    """Negation reference (`"... the bowl that is not blue or green"`)."""
     target_color = COLOR_NAMES[arrangement[target_idx]]
     others = [c for c in ["blue", "red", "green"] if c != target_color]
     if random.random() < 0.5:
@@ -191,7 +205,7 @@ def gen_negation(arrangement: str, target_idx: int) -> tuple[int, str]:
     return target_idx, random.choice(NEG_PHR).format(a=a, b=b)
 
 
-GENERATORS: dict[str, callable] = {
+GENERATORS: dict[str, Callable[..., tuple[int | None, str | None]]] = {
     "direct":               gen_direct,
     "spatial_absolute":     gen_absolute,
     "spatial_ordinal":      gen_ordinal,
@@ -218,6 +232,7 @@ def _valid_target_indices(family: str, arrangement: str) -> list[int]:
 
 @dataclass
 class Episode:
+    """One slot in the 180-episode recording plan, with its arrangement, family, prompt, and status."""
     idx: int                 # original plan position
     arrangement: str
     family: str
@@ -231,6 +246,7 @@ class Episode:
 
 @dataclass
 class Plan:
+    """The full 180-episode plan plus the seed used to generate it (round-trips to JSON)."""
     episodes: list[Episode] = field(default_factory=list)
     seed: int = 42
 
@@ -289,6 +305,7 @@ def generate_plan(seed: int) -> Plan:
 
 
 def load_or_create_plan(path: Path, seed: int, regenerate: bool) -> Plan:
+    """Load an existing plan JSON, or generate and persist a fresh one."""
     if path.exists() and not regenerate:
         try:
             return Plan.from_json(json.loads(path.read_text()))
@@ -301,10 +318,12 @@ def load_or_create_plan(path: Path, seed: int, regenerate: bool) -> Plan:
 
 
 def save_plan(plan: Plan, path: Path) -> None:
+    """Serialise the plan back to disk as JSON."""
     path.write_text(json.dumps(plan.to_json(), indent=2))
 
 
 def next_pending(plan: Plan) -> Episode | None:
+    """Return the next episode whose status is ``pending``, or None if the plan is finished."""
     for ep in plan.episodes:
         if ep.status == "pending":
             return ep
@@ -312,6 +331,7 @@ def next_pending(plan: Plan) -> Episode | None:
 
 
 def progress_summary(plan: Plan) -> str:
+    """Format a per-arrangement / per-family / per-target-colour progress report."""
     n_total = len(plan.episodes)
     by_status: dict[str, int] = {}
     by_arr: dict[str, dict[str, int]] = {a: {"pending": 0, "recorded": 0, "deleted": 0} for a in ARRANGEMENTS}
@@ -377,20 +397,31 @@ def delete_last_recorded(plan: Plan) -> Episode | None:
 # ─── Main loop ───────────────────────────────────────────────────────────────
 
 def main() -> int:
+    """Drive the balanced 180-episode Eval 2 teleop recording plan."""
     p = argparse.ArgumentParser(description=__doc__,
                                 formatter_class=argparse.RawDescriptionHelpFormatter)
-    p.add_argument("--plan-path", default="/home/lemonkey/LeMonkey/eval_2/state/plan.json")
+    p.add_argument("--plan-path", default=str(Path.home() / "LeMonkey/eval_2/state/plan.json"),
+                   help="JSON file that holds the persistent 180-episode plan and progress")
     p.add_argument("--regenerate-plan", action="store_true",
                    help="Discard existing plan and start over (this resets all progress)")
-    p.add_argument("--seed", type=int, default=42)
-    p.add_argument("--episode-time-s", type=float, default=20.0)
-    p.add_argument("--reset-time-s",   type=float, default=10.0)
-    p.add_argument("--root", default="/home/lemonkey/LeMonkey/datasets/eval2")
-    p.add_argument("--leader-port",   default="/dev/so101-leader")
-    p.add_argument("--leader-id",     default="my_leader")
-    p.add_argument("--follower-port", default="/dev/so101-follower")
-    p.add_argument("--follower-id",   default="my_follower")
-    p.add_argument("--cam-path",      default="/dev/video0")
+    p.add_argument("--seed", type=int, default=42,
+                   help="Seed used when generating a fresh plan")
+    p.add_argument("--episode-time-s", type=float, default=20.0,
+                   help="Length of each teleop episode in seconds")
+    p.add_argument("--reset-time-s",   type=float, default=10.0,
+                   help="Pause between episodes for re-arranging the scene")
+    p.add_argument("--root", default=str(Path.home() / "LeMonkey/datasets/eval2"),
+                   help="Directory under which per-episode dataset dirs are written")
+    p.add_argument("--leader-port",   default="/dev/so101-leader",
+                   help="Serial device of the SO-101 leader arm (teleop)")
+    p.add_argument("--leader-id",     default="my_leader",
+                   help="Calibration id for the leader arm")
+    p.add_argument("--follower-port", default="/dev/so101-follower",
+                   help="Serial device of the SO-101 follower arm")
+    p.add_argument("--follower-id",   default="my_follower",
+                   help="Calibration id for the follower arm")
+    p.add_argument("--cam-path",      default="/dev/video0",
+                   help="OpenCV camera path (USB wrist cam)")
     p.add_argument("--dry-run", action="store_true",
                    help="Walk through the plan without recording (no robot needed)")
     args = p.parse_args()

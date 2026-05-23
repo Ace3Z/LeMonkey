@@ -20,11 +20,15 @@ from huggingface_hub import HfApi
 
 
 def main() -> int:
+    """Push --local to HF dataset repo --repo via huggingface_hub.upload_large_folder using a token read from --token-file."""
     p = argparse.ArgumentParser()
-    p.add_argument("--local", type=Path, default=Path("datasets/eval3_merged"))
-    p.add_argument("--repo", default="HBOrtiz/so101_eval3_broad")
+    p.add_argument("--local", type=Path, default=Path("datasets/eval3_merged"),
+                   help="Local dataset root to upload (default: datasets/eval3_merged).")
+    p.add_argument("--repo", default="HBOrtiz/so101_eval3_broad",
+                   help="HF dataset repo id to push to (default: HBOrtiz/so101_eval3_broad).")
     p.add_argument("--token-file", type=Path,
-                   default=Path("secrets/huggingface/token_hbortiz"))
+                   default=Path("secrets/huggingface/token_hbortiz"),
+                   help="File containing the HF token (must begin with 'hf_').")
     args = p.parse_args()
 
     if not args.local.is_dir():

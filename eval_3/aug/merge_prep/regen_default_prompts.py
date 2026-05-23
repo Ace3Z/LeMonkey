@@ -56,12 +56,16 @@ def discover_in_merge_order(base_root: Path, aug_root: Path,
 def main() -> int:
     p = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
-    p.add_argument("--merged-root", type=Path, required=True)
+    p.add_argument("--merged-root", type=Path, required=True,
+                   help="Path to the merged LeRobot v3 dataset whose prompts will be regenerated")
     p.add_argument("--base-root", type=Path,
-                   default=Path.home() / "LeMonkey/datasets/eval3")
+                   default=Path.home() / "LeMonkey/datasets/eval3",
+                   help="Root containing the base teleop directories")
     p.add_argument("--aug-root", type=Path,
-                   default=Path.home() / "LeMonkey/datasets/eval3_aug_v3_200celebs")
-    p.add_argument("--aug-pattern", default="__var")
+                   default=Path.home() / "LeMonkey/datasets/eval3_aug_v3_200celebs",
+                   help="Root containing the augmented variant directories")
+    p.add_argument("--aug-pattern", default="__var",
+                   help="Substring used to filter augmented variant directory names")
     args = p.parse_args()
 
     t_start = time.time()

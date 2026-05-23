@@ -1,5 +1,8 @@
 #!/usr/bin/env bash
-# One-shot snapshot of training status (eval3 default). Run: ~/training_status.sh
+# Prints a one-shot snapshot of the systemd training unit's status, GPU
+# utilization, the latest training progress line from the log, the last 5
+# INFO/WARN/ERROR events, and the saved checkpoint list.
+# Run: ~/training_status.sh
 LOG="${1:-$HOME/outputs/train/so101_smolvla_eval3_broad.log}"
 
 echo "=== systemd service ==="

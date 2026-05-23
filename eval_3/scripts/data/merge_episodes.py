@@ -1,22 +1,19 @@
 #!/usr/bin/env python3
 """Merge all base teleops + augmented variants into one LeRobot v3 dataset.
 
+Discovers all episode dirs under --base-root (any dir with meta/info.json and
+reference.json) and --aug-root (any dir containing the --aug-pattern
+substring), schema-checks them, and merges into one LeRobot v3 root via
+lerobot.datasets.aggregate.aggregate_datasets() (with
+video_files_size_in_mb=0.01 to force per-episode video files and avoid the
+DTS-monotonicity bug). The --lerobot-bin argparse flag is currently unused
+and held for compatibility with an earlier subprocess-based path.
+
 Sources:
   --base-root  datasets/eval3/                 (179 base teleops)
   --aug-root   datasets/eval3_aug_v3/          (4017 augmented variants)
 
 Total:        4196 episodes after merge.
-
-Wraps `lerobot-edit-dataset --operation.type=merge`. The merge command
-takes JSON arrays of repo_ids and roots; we pass each subdir as its own
-(fake-local-repo, root) pair and let the tool concatenate them in chunked
-layout under --new_root.
-
-Adapted from eval_2/scripts/merge_episodes.py. Pre-flight schema
-check rejects the merge if any episode dir's features.keys() differ from
-the others, which protects us against the eval3-aug schema bug where
-augmented variants used to declare only camera1 (fixed by
-eval_3/aug/merge_prep/prep_for_merge.py before this script runs).
 
 Usage:
     merge_episodes.py                         # default paths
@@ -44,8 +41,8 @@ def discover_episode_dirs(
     later analysis.
 
     `aug_pattern` distinguishes variant naming conventions:
-        "__var"  → original v3 aug pipeline (eval3_aug_v3/quick_*__varNN)
-        "__t3_"  → cotrain pipeline      (eval3_aug_cotrain/quick_*__t3_NNNN_vXX)
+        "__var"  matches the broad augmentation output (per-episode 5-variant pipeline)
+        "__t3_"  matches the co-train augmentation output (one variant per (target_photo, layout) tuple)
     """
     base = []
     if base_root.is_dir():
@@ -74,6 +71,7 @@ def schema_fingerprint(ep: Path) -> str:
 
 
 def main() -> int:
+    """Discover base + augmented episode dirs, schema-check them, and aggregate into one LeRobot v3 dataset at --dst."""
     p = argparse.ArgumentParser(
         description=__doc__,
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -86,7 +84,8 @@ def main() -> int:
                    help="Root containing augmented variant dirs")
     p.add_argument("--aug-pattern", default="__var",
                    help="Substring identifying augmented variants. "
-                        "'__var' for v3 (broad) aug; '__t3_' for cotrain aug.")
+                        "'__var' matches the broad augmentation output (per-episode 5-variant pipeline); "
+                        "'__t3_' matches the co-train augmentation output (one variant per (target_photo, layout) tuple).")
     p.add_argument("--dst", type=Path,
                    default=Path("datasets/eval3_merged"),
                    help="Output dir for the merged dataset")

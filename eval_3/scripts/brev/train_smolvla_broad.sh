@@ -3,12 +3,17 @@
 # Coke-on-celebrity task). Run this directly OR via start_training.sh
 # (which wraps it in systemd).
 #
-# Recipe rationale - see eval_3/aug/STRATEGY.md §6 and the 3-agent
-# parallel research cross-check 2026-05-15 (Interleave-VLA 2505.02152,
+# NOTE: This is the IMAGE-AS-PROMPT training recipe (early Eval 3 work).
+# The published HBOrtiz/so101_smolvla_eval3_broad checkpoint was trained
+# from this file; rollout uses text-only prompting because of how the
+# policy is invoked at inference.
+#
+# Recipe rationale - see eval_3/aug/STRATEGY.md §6 and the parallel
+# research cross-check 2026-05-15 (Interleave-VLA 2505.02152,
 # Pi0.5-KI 2505.23705, "Don't Blind Your VLA" 2510.25616, SmolVLA paper
 # 2506.01844, canonical configuration_smolvla.py).
 #
-# Key diffs vs eval_2's recipe:
+# Recipe diffs vs eval_1:
 #   - dual image input         (camera1 = wrist webcam; camera2 = reference photo
 #                                stream after --rename_map from
 #                                observation.images.reference. empty_cameras=1
@@ -84,7 +89,7 @@ python -u "$(which lerobot-train)" \
   --policy.use_amp=true \
   --policy.device=cuda \
   --dataset.repo_id=local/so101_eval3_broad \
-  --dataset.root=/home/shadeform/LeMonkey/datasets/eval3_merged \
+  --dataset.root=$HOME/LeMonkey/datasets/eval3_merged \
   --dataset.video_backend=pyav \
   --dataset.image_transforms.enable=true \
   --rename_map='{"observation.images.reference": "observation.images.camera2"}' \
@@ -92,7 +97,7 @@ python -u "$(which lerobot-train)" \
   --steps=30000 \
   --save_freq=5000 \
   --num_workers=8 \
-  --output_dir=/home/shadeform/outputs/train/so101_smolvla_eval3_broad \
+  --output_dir=$HOME/outputs/train/so101_smolvla_eval3_broad \
   --job_name=so101_smolvla_eval3_broad \
   --wandb.enable=false \
   2>&1 | tee "$LOG"

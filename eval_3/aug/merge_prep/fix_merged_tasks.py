@@ -70,9 +70,12 @@ def correct_prompt_for(ep_dir: Path) -> str:
 
 def main() -> int:
     p = argparse.ArgumentParser()
-    p.add_argument("--merged", type=Path, default=Path("datasets/eval3_merged"))
-    p.add_argument("--base-root", type=Path, default=Path("datasets/eval3"))
-    p.add_argument("--aug-root", type=Path, default=Path("datasets/eval3_aug_v3"))
+    p.add_argument("--merged", type=Path, default=Path("datasets/eval3_merged"),
+                   help="Path to the merged LeRobot v3 dataset whose tasks.parquet will be fixed")
+    p.add_argument("--base-root", type=Path, default=Path("datasets/eval3"),
+                   help="Root containing the base teleop directories used to source prompts")
+    p.add_argument("--aug-root", type=Path, default=Path("datasets/eval3_aug_v3"),
+                   help="Root containing the augmented variant directories used to source prompts")
     args = p.parse_args()
 
     merged = args.merged

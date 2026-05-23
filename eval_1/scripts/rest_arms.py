@@ -30,10 +30,14 @@ from lerobot.teleoperators.so_leader.so_leader import SOLeader
 
 
 p = argparse.ArgumentParser()
-p.add_argument("--follower-port", default="/dev/so101-follower")
-p.add_argument("--leader-port",   default="/dev/so101-leader")
-p.add_argument("--follower-id",   default="my_follower")
-p.add_argument("--leader-id",     default="my_leader")
+p.add_argument("--follower-port", default="/dev/so101-follower",
+               help="Serial device of the SO-101 follower arm")
+p.add_argument("--leader-port",   default="/dev/so101-leader",
+               help="Serial device of the SO-101 leader arm")
+p.add_argument("--follower-id",   default="my_follower",
+               help="Calibration id used to look up the follower's calibration JSON")
+p.add_argument("--leader-id",     default="my_leader",
+               help="Calibration id used to look up the leader's calibration JSON")
 p.add_argument("--hold-after",    action="store_true",
                help="After the user presses ENTER, re-engage follower torque "
                     "at the new pose so the arm holds position.")

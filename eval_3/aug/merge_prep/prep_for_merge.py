@@ -34,9 +34,7 @@ import argparse
 import hashlib
 import json
 import os
-import shutil
 import subprocess
-import sys
 from pathlib import Path
 
 # Map base teleop's short celeb tag -> scraped/<slug>/ dir
@@ -253,12 +251,16 @@ def phase_b_prep_base(base_root: Path, photo_bank: Path,
 def main() -> int:
     p = argparse.ArgumentParser()
     p.add_argument("--aug-root",
-                   default="datasets/eval3_aug_v3", type=Path)
+                   default="datasets/eval3_aug_v3", type=Path,
+                   help="Root containing the augmented variant directories")
     p.add_argument("--base-root",
-                   default="datasets/eval3", type=Path)
+                   default="datasets/eval3", type=Path,
+                   help="Root containing the base teleop directories")
     p.add_argument("--photo-bank",
-                   default="datasets/eval3_celebs/scraped", type=Path)
-    p.add_argument("--phase", choices=["a", "b", "both"], default="both")
+                   default="datasets/eval3_celebs/scraped", type=Path,
+                   help="Root of the scraped celebrity photo bank")
+    p.add_argument("--phase", choices=["a", "b", "both"], default="both",
+                   help="Which prep phase to run (a, b, or both)")
     p.add_argument("--ref-size", type=int, default=480,
                    help="Reference video resolution (square)")
     args = p.parse_args()

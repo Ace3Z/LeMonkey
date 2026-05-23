@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
-"""Pi0.5 + ObjectVLA VL cotrain wrapper around lerobot-train (scaffold).
+"""Pi0.5 + ObjectVLA VL cotrain wrapper around lerobot-train.
+
+SCAFFOLD ONLY — the deployed Pi0.5 checkpoint was trained with
+../brev/train_pi05.sh; this file documents the intended structure but is
+not executed in production.
 
 This wrapper is preserved as a starting point for the enhanced ObjectVLA
 recipe; the deployed Pi0.5 reference policy
@@ -27,7 +31,6 @@ import json
 import os
 import sys
 from pathlib import Path
-from typing import Any
 
 import torch
 
@@ -57,25 +60,25 @@ def build_argparser() -> argparse.ArgumentParser:
                         "published default: 10. Do NOT improvise (see "
                         "the ObjectVLA spec risk).")
 
-    # -- Enhancement B-2/B-3 (data prep artifacts) --
+    # == Data filtering + per-episode sample weights ==
     p.add_argument("--dataset.episodes_file", dest="episodes_file", default=None,
-                   help="Path to keep_episodes.txt (B-2 filter). Comma-list "
+                   help="Path to keep_episodes.txt (audit-filter). Comma-list "
                         "or newline-list of episode_idx ints to keep.")
     p.add_argument("--dataset.sample_weights", dest="sample_weights", default=None,
-                   help="Path to hardneg_weights.npy (B-3 per-episode weights).")
+                   help="Path to hardneg_weights.npy (per-episode hard-negative weights).")
     p.add_argument("--dataset.curriculum_switch_step", dest="curriculum_switch",
                    type=int, default=0,
                    help="Step at which curriculum sampler flips phase 1 (easy "
-                        "only) → phase 2 (full distribution). 0 = no curriculum.")
+                        "only) -> phase 2 (full distribution). 0 = no curriculum.")
 
-    # -- Enhancement B-4 (per-layer LoRA rank) --
+    # == Per-layer LoRA rank config ==
     p.add_argument("--peft.layer_rank_config", dest="layer_rank_config",
                    default=None,
                    help="Path to layer_rank.json with per-layer LoRA "
                         "ranks. If unset, lerobot's default --peft.r applies "
                         "uniformly.")
 
-    # -- Enhancement B-7 (EMA) --
+    # == EMA shadow weights ==
     p.add_argument("--train.use_ema", dest="use_ema",
                    type=lambda s: s.lower() in {"true", "1", "yes"},
                    default=False)
@@ -235,6 +238,7 @@ def make_vl_collator(processor, max_text_len: int = 384):
     and only the celeb name contributes to the loss.
     """
     def collate(batch):
+        """Process the (image, prompt, target) tuples into a PaliGemma-ready batch with suffix-masked labels."""
         images = [b["image"] for b in batch]
         prompts = [b["prompt"] for b in batch]
         targets = [b["target"] for b in batch]
@@ -320,7 +324,7 @@ def pi05_flow_loss(policy, batch: dict) -> torch.Tensor:
 
 
 # -----------------------------------------------------------------------------
-# Layer-wise LoRA rank (Enhancement B-4) — applied at policy construction.
+# == Per-layer LoRA rank config == applied at policy construction.
 # -----------------------------------------------------------------------------
 
 def apply_layer_wise_lora(policy, layer_rank_config_path: str):
@@ -364,7 +368,7 @@ def apply_layer_wise_lora(policy, layer_rank_config_path: str):
 
 
 # -----------------------------------------------------------------------------
-# EMA shadow weights (Enhancement B-7).
+# == EMA shadow weights ==
 # -----------------------------------------------------------------------------
 
 class EMAShadow:
@@ -382,6 +386,7 @@ class EMAShadow:
 
     @torch.no_grad()
     def update(self, model) -> None:
+        """Update the EMA shadow with the current trainable parameter values via shadow := alpha*shadow + (1-alpha)*param."""
         a = self.alpha
         for name, p in model.named_parameters():
             if not p.requires_grad:
@@ -392,6 +397,7 @@ class EMAShadow:
             self.shadow[name].mul_(a).add_(p.data, alpha=1 - a)
 
     def save(self, path: Path) -> None:
+        """Serialize the EMA shadow dict to `path` (parents created)."""
         path.parent.mkdir(parents=True, exist_ok=True)
         torch.save(self.shadow, path)
         print(f"[ema] shadow saved to {path}", flush=True)
@@ -402,6 +408,7 @@ class EMAShadow:
 # -----------------------------------------------------------------------------
 
 def main(argv: list[str]) -> int:
+    """Parse the wrapper's extra flags, then forward the rest to lerobot-train (scaffold: integration points only)."""
     parser = build_argparser()
     pi05_vl_cotrain_args, lerobot_args = parser.parse_known_args(argv)
     print(f"[pi05_vl_cotrain] extra flags: {vars(pi05_vl_cotrain_args)}", flush=True)

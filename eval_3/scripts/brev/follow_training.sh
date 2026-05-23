@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 # Follow the lerobot-train log live (eval3 default).
+# Colorises matched patterns by severity: red=traceback/OOM/SIGTERM,
+# yellow=warnings, green=loss/step/checkpoint.
 # Usage:
 #   ./follow_training.sh                   # follow the eval3 log
 #   ./follow_training.sh /path/to/file.log # follow another log

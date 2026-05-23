@@ -8,10 +8,9 @@ coke on Yann LeCun.") regardless of the variant's actual target celeb.
 The per-variant correct prompt lives only in `augmentation.json` and
 `reference.json`.
 
-Compounding: with the TA's 2026-05-18 text-only ruling, the 15% ref-only
-prompts ("Place the coke on the person in the reference image.") and
-10% counterfactual prompts ("Place the coke on Yann LeCun." with
-target=Swift) are now INVALID — they assumed a reference channel.
+Compounding: after the project moved to a text-only prompt contract,
+the 15% reference-only and 10% counterfactual prompt buckets are no
+longer valid (they assumed a reference channel).
 
 THIS SCRIPT, per variant:
   1. Re-derives a default-bucket prompt from the variant's
@@ -130,7 +129,8 @@ def main() -> int:
     p = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("--aug-root", type=Path,
-                   default=Path("/home/rohamzn/ETH_Uni/LeMonkey/datasets/eval3_aug_cotrain"))
+                   default=Path.home() / "LeMonkey/datasets/eval3_aug_cotrain",
+                   help="Root containing the cotrain augmented variant directories")
     p.add_argument("--dry-run", action="store_true",
                    help="Print what would change; don't write")
     p.add_argument("--limit", type=int, default=None,

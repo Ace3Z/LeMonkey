@@ -1,11 +1,10 @@
 #!/usr/bin/env python3
-"""Cotrain augmentation — tuple-driven, 3-celeb-only, full-enumeration capable.
+"""Cotrain augmentation: tuple-driven, 3-celeb-only, full-enumeration capable.
 
 Goal: train the in-distribution SmolVLA cotrain (3-celeb) with maximum coverage
 of the (target_celeb, target_photo, layout, distractor_photos) space, using
-only Swift / Obama / LeCun. Re-uses the existing per-base-episode caches
-(portrait_masks.pkl, portrait_corners.json) — these were computed once when
-the v3 4500-variant dataset was generated.
+only Swift / Obama / LeCun. Reuses per-episode caches produced by the broad
+augmentation run (portrait_masks.pkl, portrait_corners.json).
 
 DESIGN
 ======
@@ -52,13 +51,13 @@ USAGE
 =====
 
     # Full enumeration (9216 aug variants, ~77h single-GPU)
-    python generate_aug_cotrain.py \
-        --base-root /home/rohamzn/ETH_Uni/LeMonkey/datasets/eval3 \
-        --bank-root /home/rohamzn/ETH_Uni/LeMonkey/datasets/eval3_celebs/cotrain_bank \
-        --out-root  /home/rohamzn/ETH_Uni/LeMonkey/datasets/eval3_aug_cotrain
+    python eval_3/aug/generators/cotrain.py \
+        --base-root ~/LeMonkey/datasets/eval3 \
+        --bank-root ~/LeMonkey/datasets/eval3_celebs/cotrain_bank \
+        --out-root  ~/LeMonkey/datasets/eval3_aug_cotrain
 
     # Smoke-test: 3 tuples × 2 variants each = 6 variants
-    python generate_aug_cotrain.py \
+    python eval_3/aug/generators/cotrain.py \
         --base-root ... --bank-root ... --out-root /tmp/aug_smoke \
         --limit-tuples 3 --limit-variants-per-tuple 2 --debug
 
@@ -92,7 +91,7 @@ import numpy as np
 import pickle
 import pycocotools.mask as mask_util
 
-# ─── Local imports — reuse helpers from 4_inpaint_video.py + generate_aug_broad.py
+# ─── Local imports: reuse helpers from eval_3/aug/stages/inpaint_video.py and eval_3/aug/generators/broad.py
 _HERE = Path(__file__).resolve().parent
 _spec4 = _ilu.spec_from_file_location("_v4", str(_HERE.parent / "stages" / "inpaint_video.py"))
 _v4 = _ilu.module_from_spec(_spec4); _spec4.loader.exec_module(_v4)
@@ -134,7 +133,7 @@ IID_CELEBS = ("swift", "obama", "lecun")
 # camera). The SAM seeds + portrait_corners.json see camera-LMR. The two
 # are mirror-reversed:
 #       camera_layout = filename_layout[::-1]
-# Verified empirically across all 9 (target,layout) base cells (2026-05-18).
+# Verified empirically across all 9 (target,layout) base cells.
 # Internally THIS SCRIPT uses camera-LMR throughout — that is the convention
 # that matches the actual paper positions in the wrist-camera frames, which
 # is what the inpainter writes into.
@@ -556,7 +555,7 @@ def render_base_ep_variants(
             # 4. Reference video
             write_reference_video(ref_photo, n_written, fps, ref_video)
 
-            # 5. Prompt: 75/15/10 mix — reuses generate_aug_broad helper.
+            # 5. Prompt: 75/15/10 mix; reuses eval_3/aug/generators/broad.py helper.
             prompt, bucket = pick_prompt(target_full, all_slugs_full, rng)
 
             # 6. Hardlink data + meta + sidecars
@@ -627,10 +626,13 @@ def main() -> int:
     p = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("--base-root", type=Path,
-                   default=Path("/home/rohamzn/ETH_Uni/LeMonkey/datasets/eval3"))
+                   default=Path.home() / "LeMonkey/datasets/eval3",
+                   help="Root containing the base teleop episodes")
     p.add_argument("--bank-root", type=Path,
-                   default=Path("/home/rohamzn/ETH_Uni/LeMonkey/datasets/eval3_celebs/cotrain_bank"))
-    p.add_argument("--out-root", type=Path, required=True)
+                   default=Path.home() / "LeMonkey/datasets/eval3_celebs/cotrain_bank",
+                   help="Root of the cotrain photo bank built by build_cotrain_bank.py")
+    p.add_argument("--out-root", type=Path, required=True,
+                   help="Where new cotrain augmented variants will be written")
     p.add_argument("--num-distractor-combos", type=int, default=64,
                    help="K distractor-photo combos per (target, photo, layout) tuple. "
                         "Default 64 = full enumeration (8x8). Set lower for sampled mode.")
@@ -653,9 +655,12 @@ def main() -> int:
     p.add_argument("--num-workers", type=int, default=1,
                    help="Total number of parallel workers. Each worker processes the "
                         "subset of base teleops where sorted_index %% num_workers == worker_id.")
-    p.add_argument("--seed", type=int, default=42)
-    p.add_argument("--fps", type=int, default=30)
-    p.add_argument("--force", action="store_true")
+    p.add_argument("--seed", type=int, default=42,
+                   help="Base random seed for distractor sampling and ordering")
+    p.add_argument("--fps", type=int, default=30,
+                   help="Output mp4 frame rate; must match the source episode fps")
+    p.add_argument("--force", action="store_true",
+                   help="Re-render variants whose output directory already exists")
     p.add_argument("--debug", action="store_true",
                    help="Write dbg_compare.gif per variant (slow)")
     args = p.parse_args()

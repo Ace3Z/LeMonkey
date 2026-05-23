@@ -27,7 +27,7 @@ mutated, so the round-trip is exact and training resumes bit-identical.
 from __future__ import annotations
 
 import math
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 import torch
 import torch.nn as nn
@@ -147,7 +147,7 @@ class LoRALinear(nn.Module):
         return merged
 
 
-def inject_lora(text_model, cfg: LoRAConfig) -> list[tuple]:
+def inject_lora(text_model: nn.Module, cfg: LoRAConfig) -> list[tuple]:
     """Replace the target `nn.Linear` submodules in `text_model.layers[cfg.layers]`
     with `LoRALinear`. Returns a registry list of `(parent_module, attr, lora)`.
 
@@ -189,6 +189,7 @@ def swap_to_lora(registry: list[tuple]) -> None:
 
 
 def count_lora_params(registry: list[tuple]) -> int:
+    """Return the total trainable LoRA parameter count (deduped across the registry)."""
     seen: set[int] = set()
     total = 0
     for _parent, _attr, lora in registry:

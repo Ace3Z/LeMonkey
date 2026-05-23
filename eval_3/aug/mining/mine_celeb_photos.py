@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""STAGE 1 — celebrity photo miner with identity verification.
+"""STAGE 1: celebrity photo miner with identity verification.
 
 Mines ≥ N photos per celebrity from the web, verifies each via InsightFace
 ArcFace cosine similarity to a Wikipedia reference, and saves the survivors
@@ -16,10 +16,10 @@ Resumable: each celeb's output dir is checked at start; we top up to --num
 without redoing finished celebs.
 
 Usage:
-    python 1_mine_celeb_photos.py                              # IID three, 30 each
-    python 1_mine_celeb_photos.py --celebs swift obama lecun federer merkel
-    python 1_mine_celeb_photos.py --num 50 --threshold 0.45
-    python 1_mine_celeb_photos.py --dry-run                    # plan + reference only
+    python eval_3/aug/mining/mine_celeb_photos.py                              # IID three, 30 each
+    python eval_3/aug/mining/mine_celeb_photos.py --celebs swift obama lecun federer merkel
+    python eval_3/aug/mining/mine_celeb_photos.py --num 50 --threshold 0.45
+    python eval_3/aug/mining/mine_celeb_photos.py --dry-run                    # plan + reference only
 
 See STRATEGY.md §3.1 for design rationale.
 """
@@ -73,6 +73,8 @@ KNOWN_CELEBS: dict[str, dict[str, str]] = {
     "biden":   {"name": "Joe Biden",          "wiki": "Joe_Biden"},
 }
 
+# User-Agent header sent to Wikipedia; contact is the maintainer's address
+# per Wikipedia's UA policy.
 UA = "LeMonkey-research/0.1 (mtajdini@student.ethz.ch)"
 
 
@@ -333,7 +335,7 @@ def main() -> int:
                    help="target verified photos per celeb (default 30)")
     p.add_argument("--threshold", type=float, default=0.4,
                    help="ArcFace cosine threshold for accept (default 0.40)")
-    p.add_argument("--out-root", default="/home/lemonkey/LeMonkey/datasets/eval3_celebs/web",
+    p.add_argument("--out-root", default=str(Path.home() / "LeMonkey/datasets/eval3_celebs/web"),
                    help="output root for verified photos")
     p.add_argument("--keep-raw", action="store_true",
                    help="don't delete the _raw bulk-download dir after verification")

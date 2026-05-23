@@ -16,7 +16,7 @@ Differs from run_rollout_structured.py:
 Every invocation is fully random (no seed, no plan).
 
 Usage:
-    run_rollout_freeplay.py                    # default v2/025000, prompt for arrangement
+    run_rollout_freeplay.py                    # default 025000, prompt for arrangement
     run_rollout_freeplay.py 020000             # different intermediate ckpt
     run_rollout_freeplay.py --arrangement BRG  # skip the initial prompt
     run_rollout_freeplay.py --ood-prob 0.3     # 30% OOD instead of 50%
@@ -68,6 +68,7 @@ def random_pick_for(arr: str, ood_prob: float) -> tuple[str, str, int, str]:
 
 
 def ask_arrangement(prompt_text: str) -> str | None:
+    """Prompt the operator for a 3-letter BRG permutation; loop until they enter a valid one."""
     while True:
         try:
             ans = input(prompt_text).strip().upper()
@@ -79,35 +80,45 @@ def ask_arrangement(prompt_text: str) -> str | None:
 
 
 def main() -> int:
+    """Free-play Eval 2 rollout loop: operator fixes the bowl arrangement, script samples prompts."""
     p = argparse.ArgumentParser(description=__doc__,
                                 formatter_class=argparse.RawDescriptionHelpFormatter)
-    p.add_argument("ckpt_step", nargs="?", default="025000")
+    p.add_argument("ckpt_step", nargs="?", default="025000",
+                   help="Checkpoint step under train/smolvla_eval2_v2/checkpoints/")
     p.add_argument("--arrangement",   default=None,
                    help="Skip the initial prompt and use this arrangement (e.g. BRG)")
-    p.add_argument("--ood-prob",      type=float, default=0.5)
-    p.add_argument("--episode-time-s", type=float, default=40.0)
-    p.add_argument("--reset-time-s",   type=float, default=10.0)
-    p.add_argument("--rollout-dir",   default="/home/lemonkey/LeMonkey/eval_2/rollouts")
-    p.add_argument("--follower-port", default="/dev/so101-follower")
-    p.add_argument("--follower-id",   default="my_follower")
-    p.add_argument("--cam-path",      default="/dev/video0")
-    p.add_argument("--home-drive-s",  type=float, default=2.0)
+    p.add_argument("--ood-prob",      type=float, default=0.5,
+                   help="Probability of drawing from OOD phrasings (default 0.5)")
+    p.add_argument("--episode-time-s", type=float, default=40.0,
+                   help="Maximum length of each rollout in seconds")
+    p.add_argument("--reset-time-s",   type=float, default=10.0,
+                   help="Pause between rollouts for re-arranging the scene")
+    p.add_argument("--rollout-dir",   default=str(Path.home() / "LeMonkey/eval_2/rollouts"),
+                   help="Directory where per-rollout dataset dirs are written")
+    p.add_argument("--follower-port", default="/dev/so101-follower",
+                   help="Serial device of the SO-101 follower arm")
+    p.add_argument("--follower-id",   default="my_follower",
+                   help="Calibration id for the follower arm")
+    p.add_argument("--cam-path",      default="/dev/video0",
+                   help="OpenCV camera path (USB wrist cam)")
+    p.add_argument("--home-drive-s",  type=float, default=2.0,
+                   help="Seconds to spend driving the arm back to the home pose")
     args = p.parse_args()
 
     random.seed(time.time_ns())  # fully random per invocation
 
-    policy = Path(f"/home/lemonkey/LeMonkey/eval_2/train/smolvla_eval2_v2/checkpoints/{args.ckpt_step}/pretrained_model")
+    policy = Path(str(Path.home() / f"LeMonkey/eval_2/train/smolvla_eval2_v2/checkpoints/{args.ckpt_step}/pretrained_model"))
     if not policy.is_dir():
         print(f"ERROR: checkpoint not found: {policy}", file=sys.stderr)
         return 1
 
     Path(args.rollout_dir).mkdir(parents=True, exist_ok=True)
-    auto_home = Path("/home/lemonkey/LeMonkey/scripts/auto_home.py")
-    pybin = "/home/lemonkey/miniconda3/envs/lemonkey/bin/python"
+    auto_home = Path.home() / "LeMonkey/scripts/auto_home.py"
+    pybin = str(Path.home() / "miniconda3/envs/lemonkey/bin/python")
     home_pose = "/tmp/run_rollout_freeplay_home.json"
 
     print("=" * 72)
-    print(f"  Eval 2 free-play rollout (you choose the arrangement, camera-frame v2 model)")
+    print(f"  Eval 2 free-play rollout (you choose the arrangement, camera-frame model)")
     print(f"  policy      : {policy}")
     print(f"  ood_prob    : {args.ood_prob:.0%}")
     print(f"  rollouts to : {args.rollout_dir}")

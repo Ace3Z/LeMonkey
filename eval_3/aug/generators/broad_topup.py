@@ -1,16 +1,10 @@
 #!/usr/bin/env python3
 """Top-up generator: produce ~22 variants per previously-missing celeb.
 
-Background. The main run (generate_aug_broad.py, 5/15) used a 181-celeb bank
-because load_photo_bank dropped 13 celebs whose only photos were
-landscape or B&W. We dropped Eastwood + Brando (intrinsically B&W) and
-backfilled the remaining 11 with face-cropped landscape + sat-boosted
-ETH portraits, so the bank is now 192 celebs.
-
-This script generates 22 extra variants per missing celeb, using NEW
-variant indices (>=25) so the existing variants 0-24 stay untouched.
-Distractors are drawn from the full 192-celeb pool automatically by
-assign_celebs_for_variant.
+Generates top-up variants for celebrities whose photos were dropped by
+the main run's portrait/color filter. Uses variant indices starting at
+START_VAR_IDX so existing variants are not overwritten. Distractors are
+drawn from the full photo bank automatically by assign_celebs_for_variant.
 """
 from __future__ import annotations
 
@@ -32,7 +26,7 @@ _v4 = importlib.util.module_from_spec(spec); spec.loader.exec_module(_v4)
 load_photo_bank = _v4.load_photo_bank
 
 
-# Identified from datasets/eval3_aug_v3/_run_summary.json audit (5/15):
+# Identified from datasets/eval3_aug_v3/_run_summary.json audit:
 # 13 celebs had zero renders. Two (Eastwood, Brando) intentionally dropped.
 MISSING_CELEBS = [
     "andrej_karpathy", "clement_delangue", "drake",
@@ -46,13 +40,16 @@ START_VAR_IDX = 25     # variants 0..24 already rendered by the main run
 
 def main() -> int:
     p = argparse.ArgumentParser()
-    p.add_argument("--root", required=True, help="datasets/eval3")
+    p.add_argument("--root", required=True,
+                   help="Root containing base teleop episodes")
     p.add_argument("--photo-bank", required=True,
-                   help="datasets/eval3_celebs/scraped")
+                   help="Root of the verified scraped celebrity photo bank")
     p.add_argument("--out-root", required=True,
-                   help="datasets/eval3_aug_v3 (will add new variants here)")
-    p.add_argument("--seed", type=int, default=42)
-    p.add_argument("--fps", type=int, default=30)
+                   help="Where new top-up variants will be written")
+    p.add_argument("--seed", type=int, default=42,
+                   help="Base random seed for distractor sampling")
+    p.add_argument("--fps", type=int, default=30,
+                   help="Output mp4 frame rate; must match the source episode fps")
     args = p.parse_args()
 
     # 1. Load bank — should be 192 celebs after backfill

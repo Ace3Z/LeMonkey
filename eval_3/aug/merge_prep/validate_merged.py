@@ -23,7 +23,6 @@ from __future__ import annotations
 import argparse
 import json
 import random
-import sys
 from pathlib import Path
 
 import numpy as np
@@ -31,6 +30,7 @@ import pandas as pd
 
 
 def discover_merge_order(base_root: Path, aug_root: Path) -> list[Path]:
+    """Return the merge order: base teleops followed by augmented variants."""
     base = sorted(p for p in base_root.iterdir()
                     if p.is_dir() and (p / "meta" / "info.json").is_file()
                     and (p / "reference.json").is_file()) if base_root.is_dir() else []
@@ -41,6 +41,7 @@ def discover_merge_order(base_root: Path, aug_root: Path) -> list[Path]:
 
 
 def correct_prompt_for(ep_dir: Path) -> str:
+    """Return the canonical prompt for `ep_dir` from augmentation.json or reference.json."""
     aug_json = ep_dir / "augmentation.json"
     if aug_json.is_file():
         return json.loads(aug_json.read_text())["prompt"]
@@ -50,10 +51,14 @@ def correct_prompt_for(ep_dir: Path) -> str:
 
 def main() -> int:
     p = argparse.ArgumentParser()
-    p.add_argument("--merged", type=Path, default=Path("datasets/eval3_merged"))
-    p.add_argument("--base-root", type=Path, default=Path("datasets/eval3"))
-    p.add_argument("--aug-root", type=Path, default=Path("datasets/eval3_aug_v3"))
-    p.add_argument("--seed", type=int, default=42)
+    p.add_argument("--merged", type=Path, default=Path("datasets/eval3_merged"),
+                   help="Path to the merged LeRobot v3 dataset to validate")
+    p.add_argument("--base-root", type=Path, default=Path("datasets/eval3"),
+                   help="Root containing the base teleop directories")
+    p.add_argument("--aug-root", type=Path, default=Path("datasets/eval3_aug_v3"),
+                   help="Root containing the augmented variant directories")
+    p.add_argument("--seed", type=int, default=42,
+                   help="Random seed for the video-sample selection")
     p.add_argument("--n-video-samples", type=int, default=30,
                    help="how many random episodes to load videos for")
     args = p.parse_args()

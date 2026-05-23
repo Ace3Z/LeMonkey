@@ -26,17 +26,22 @@ from pathlib import Path
 
 
 def main() -> int:
+    """Merge per-episode Eval 2 datasets into a single LeRobot v3 dataset."""
     p = argparse.ArgumentParser(description=__doc__,
                                 formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("--src", type=Path,
-                   default=Path("/home/lemonkey/LeMonkey/datasets/eval2"))
+                   default=Path(str(Path.home() / "LeMonkey/datasets/eval2")),
+                   help="Directory containing the per-episode dataset dirs (ep_*)")
     p.add_argument("--dst", type=Path,
-                   default=Path("/home/lemonkey/LeMonkey/datasets/eval2_merged"))
+                   default=Path(str(Path.home() / "LeMonkey/datasets/eval2_merged")),
+                   help="Output directory for the merged LeRobot v3 dataset")
     p.add_argument("--repo-id", default="local/so101_eval2",
                    help="Made-up local repo_id for the merged dataset")
     p.add_argument("--lerobot-bin",
-                   default="/home/lemonkey/miniconda3/envs/lerobot/bin/lerobot-edit-dataset")
-    p.add_argument("--dry-run", action="store_true")
+                   default=str(Path.home() / "miniconda3/envs/lemonkey/bin/lerobot-edit-dataset"),
+                   help="Path to the lerobot-edit-dataset CLI binary")
+    p.add_argument("--dry-run", action="store_true",
+                   help="Print the merge command without executing it")
     args = p.parse_args()
 
     # 1. Discover episode dirs (skip non-eval dirs like merged outputs)

@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Generate Pi0.5 VL cotrain's bbox-grounded face VQA pairs from the 193-celeb scraped bank.
 
-This is the deliverable per the ObjectVLA spec , but written so a teammate
-can run it on a CPU host directly when Darius is unavailable.
+This is the deliverable per the ObjectVLA spec. Standalone CPU-friendly
+fallback in case the GPU bbox-generation path is unavailable.
 
 For each photo in `eval3_celebs/scraped/<slug>/<photo>`:
   1. Run InsightFace RetinaFace → bbox of largest face.
@@ -27,13 +27,12 @@ Output parquet has columns:
     celeb        (str)  — slug like "barack_obama"
     caption_type (str)  — "location_explicit" | "qa_grounded" | "qa_open" | "caption"
 
-Per the ObjectVLA spec: ObjectVLA's +45pp OOD lift depends on the BBOX
-GROUNDING being present in the supervision. The 50/30/10/10 mix is from the
-canonical spec — do not improvise.
+ObjectVLA's +45pp OOD lift depends on the BBOX GROUNDING being present in the
+supervision. The 50/30/10/10 mix is from the canonical spec, do not improvise.
 
-Per: photos without a detected face are skipped with [WARN].
-Per: no Claude attribution anywhere in output.
-Per the triple-source-defaults rule: numerical defaults inline-cited.
+Photos without a detected face are skipped with [WARN].
+No Claude attribution anywhere in output.
+Numerical defaults inline-cited.
 
 USAGE
 =====
@@ -58,7 +57,7 @@ import sys
 import time
 from pathlib import Path
 
-import numpy as np
+import pandas as pd
 
 
 # Caption mix per canonical the ObjectVLA spec.
@@ -136,8 +135,11 @@ def _largest_face(faces):
     return max(faces, key=lambda f: (f.bbox[2] - f.bbox[0]) * (f.bbox[3] - f.bbox[1]))
 
 
-def detect_bbox_normalized(app, img_bgr) -> tuple[float, float, float, float] | None:
-    """RetinaFace on a BGR image; return (x1, y1, x2, y2) normalized to [0,1]."""
+def detect_bbox_normalized(app: "FaceAnalysis", img_bgr: "np.ndarray") -> tuple[float, float, float, float] | None:
+    """Return (xyxy_normalized_bbox, retinaface_confidence) for the largest face in the image; None if no face.
+
+    RetinaFace on a BGR image; returns (x1, y1, x2, y2) normalized to [0,1].
+    """
     faces = app.get(img_bgr)
     face = _largest_face(faces)
     if face is None:
@@ -208,6 +210,7 @@ def emit_captions(name: str, bbox: tuple[float, float, float, float],
 
 
 def main() -> int:
+    """Walk the scraped celeb bank, detect a face bbox per photo, emit a multi-caption VQA parquet, and optionally push to HF."""
     parser = argparse.ArgumentParser()
     parser.add_argument("--scraped-root", type=Path, required=True,
                         help="Directory containing <celeb_slug>/<photo>.{jpg,png}")
@@ -232,7 +235,6 @@ def main() -> int:
 
     try:
         import cv2
-        import pandas as pd
     except ImportError as e:
         print(f"[ERR] missing dependency: {e}", file=sys.stderr)
         return 2
@@ -326,7 +328,7 @@ def main() -> int:
               f"Output parquet excludes these.", flush=True)
 
     # Caption-type distribution sanity check.
-    df = __import__("pandas").DataFrame(rows)
+    df = pd.DataFrame(rows)
     print(f"\n[summary] caption-type distribution:")
     for ct, count in df["caption_type"].value_counts().items():
         print(f"  {ct:18s}: {count:6d} ({count/len(df)*100:.1f}%)")

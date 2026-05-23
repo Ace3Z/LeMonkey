@@ -17,14 +17,13 @@ The script:
   - 'q' quits, 's' skips this prompt and resamples
 
 Usage:
-    run_rollout_structured.py                        # default: v2/025000, random
+    run_rollout_structured.py                        # default: 025000, random
     run_rollout_structured.py 020000                 # use a different intermediate ckpt
     run_rollout_structured.py --ood-prob 0.3         # 30% OOD instead of default 50%
 """
 from __future__ import annotations
 
 import argparse
-import os
 import random
 import subprocess
 import sys
@@ -232,25 +231,33 @@ def random_pick(ood_prob: float) -> tuple[str, str, str, int, str]:
 # ─── Main loop ───────────────────────────────────────────────────────────────
 
 def main() -> int:
+    """Random-prompt Eval 2 rollout loop: script picks both the arrangement and the prompt."""
     p = argparse.ArgumentParser(description=__doc__,
                                 formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("ckpt_step", nargs="?", default="025000",
-                   help="Eval 2 v2 checkpoint step under train/smolvla_eval2_v2/checkpoints/ (default 025000, camera-frame retrain)")
+                   help="Eval 2 checkpoint step under train/smolvla_eval2_v2/checkpoints/ (default 025000, camera-frame retrain)")
     p.add_argument("--ood-prob", type=float, default=0.5,
                    help="Probability of drawing from OOD phrasings (default 0.5)")
-    p.add_argument("--episode-time-s", type=float, default=40.0)
-    p.add_argument("--reset-time-s",   type=float, default=10.0)
-    p.add_argument("--rollout-dir", default="/home/lemonkey/LeMonkey/eval_2/rollouts")
-    p.add_argument("--follower-port", default="/dev/so101-follower")
-    p.add_argument("--follower-id",   default="my_follower")
-    p.add_argument("--cam-path",      default="/dev/video0")
-    p.add_argument("--home-drive-s",  type=float, default=2.0)
+    p.add_argument("--episode-time-s", type=float, default=40.0,
+                   help="Maximum length of each rollout in seconds")
+    p.add_argument("--reset-time-s",   type=float, default=10.0,
+                   help="Pause between rollouts for re-arranging the scene")
+    p.add_argument("--rollout-dir", default=str(Path.home() / "LeMonkey/eval_2/rollouts"),
+                   help="Directory where per-rollout dataset dirs are written")
+    p.add_argument("--follower-port", default="/dev/so101-follower",
+                   help="Serial device of the SO-101 follower arm")
+    p.add_argument("--follower-id",   default="my_follower",
+                   help="Calibration id for the follower arm")
+    p.add_argument("--cam-path",      default="/dev/video0",
+                   help="OpenCV camera path (USB wrist cam)")
+    p.add_argument("--home-drive-s",  type=float, default=2.0,
+                   help="Seconds to spend driving the arm back to the home pose")
     args = p.parse_args()
 
     # No seed: every invocation is fully random.
     random.seed(time.time_ns())
 
-    policy = Path(f"/home/lemonkey/LeMonkey/eval_2/train/smolvla_eval2_v2/checkpoints/{args.ckpt_step}/pretrained_model")
+    policy = Path(str(Path.home() / f"LeMonkey/eval_2/train/smolvla_eval2_v2/checkpoints/{args.ckpt_step}/pretrained_model"))
     if not policy.is_dir():
         print(f"ERROR: checkpoint not found: {policy}", file=sys.stderr)
         return 1
@@ -258,12 +265,12 @@ def main() -> int:
     Path(args.rollout_dir).mkdir(parents=True, exist_ok=True)
 
     # Helper: capture/drive home pose. We reuse scripts/auto_home.py.
-    auto_home = Path("/home/lemonkey/LeMonkey/scripts/auto_home.py")
-    pybin = "/home/lemonkey/miniconda3/envs/lemonkey/bin/python"
+    auto_home = Path.home() / "LeMonkey/scripts/auto_home.py"
+    pybin = str(Path.home() / "miniconda3/envs/lemonkey/bin/python")
     home_pose = "/tmp/run_rollout_eval2_home.json"
 
     print("=" * 72)
-    print(f"  Eval 2 random-prompt rollout (camera-frame v2 model)")
+    print(f"  Eval 2 random-prompt rollout (camera-frame model)")
     print(f"  policy      : {policy}")
     print(f"  ood_prob    : {args.ood_prob:.0%}  (trained vs out-of-distribution)")
     print(f"  rollouts to : {args.rollout_dir}")

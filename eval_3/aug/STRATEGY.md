@@ -312,7 +312,7 @@ heldout/                  ← 4–5 photos per IID celeb that were PRINTED at re
   swift/   {5 jpgs}
   obama/   {4 jpgs}
   lecun/   {5 jpgs}
-web/                      ← reference photos used by record_eval3*.py at teleop time
+web/                      ← reference photos used by record_quick.py at teleop time
   swift/   {5 jpgs}
   obama/   {12 jpgs}
   lecun/   {20 jpgs}
@@ -340,8 +340,8 @@ style discriminator. We therefore **draw augmentation photos
 exclusively from the `scraped/` (now-merged) pool**, never from
 `heldout/`.
 
-Mention in the implementation: `4_inpaint_video.py` accepts
-`--photo-bank` - point it at `eval3_celebs/scraped/` for all
+Mention in the implementation: `eval_3/aug/stages/inpaint_video.py`
+accepts `--photo-bank`; point it at `eval3_celebs/scraped/` for all
 production augmentation runs.
 
 ---

@@ -14,10 +14,12 @@ import glob
 import os
 import sys
 from collections import defaultdict
+from pathlib import Path
 
 
 def main() -> int:
-    base = sys.argv[1] if len(sys.argv) > 1 else "/home/lemonkey/LeMonkey/eval_1/evals"
+    """Aggregate per-session eval CSVs and report the best-performing checkpoint."""
+    base = sys.argv[1] if len(sys.argv) > 1 else str(Path.home() / "LeMonkey/eval_1/evals")
     files = sorted(glob.glob(os.path.join(base, "ckpt*_*.csv")))
     if not files:
         print(f"No CSVs found under {base}")

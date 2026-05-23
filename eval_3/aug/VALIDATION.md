@@ -87,7 +87,7 @@ Cambridge-in-Colour / community-standard "after resize, sharpen". Currently we *
 
 ### 8b. Laplacian-pyramid blend as an alternative to Poisson - DEFERRED
 
-Pérez/Poisson alone can introduce subtle DC colour shifts ("Laplacian-Membrane Modulation" S0097849316300176). A 3-level Laplacian-pyramid blend with a 3-px-feathered mask is a published alternative. **Defer:** add behind `--blend=poisson|pyramid|hybrid` only if the visual gates from `dbg/dbg_compare_gif.py` show seam issues that Poisson alone can't fix.
+Pérez/Poisson alone can introduce subtle DC colour shifts ("Laplacian-Membrane Modulation" S0097849316300176). A 3-level Laplacian-pyramid blend with a 3-px-feathered mask is a published alternative. **Defer:** add behind `--blend=poisson|pyramid|hybrid` only if the visual gates from `dbg/compare_gif.py` show seam issues that Poisson alone can't fix.
 
 ### 8c. Per-frame ArcFace gate during inpainting - DEFERRED
 

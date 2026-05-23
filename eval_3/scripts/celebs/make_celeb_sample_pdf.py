@@ -53,6 +53,7 @@ def slug_to_name(slug: str) -> str:
 
 
 def is_portrait_and_color(p: Path, min_mean_sat: float = 60.0) -> bool:
+    """Return True if the image at `p` is taller than wide AND has mean HSV-saturation >= min_mean_sat."""
     img = cv2.imread(str(p), cv2.IMREAD_COLOR)
     if img is None:
         return False
@@ -78,7 +79,7 @@ def pick_photo(d: Path, rng: random.Random, *, strict: bool = True) -> Path | No
     return rng.choice(pool)
 
 
-def crop_to_aspect(img, target_aspect: float):
+def crop_to_aspect(img: "np.ndarray", target_aspect: float) -> "np.ndarray":
     """Center-crop `img` (H, W, 3) to exactly `target_aspect` = W/H.
     No padding, no stretching — loses small slivers from top/bottom or
     left/right depending on which dimension is over-long."""
@@ -116,15 +117,21 @@ def draw_page(pdf: PdfPages, photo: Path) -> None:
 
 
 def main() -> int:
+    """Build the eval-day A5 sample-celebrity PDF, the per-page index, and a sidecar zip with sources + manifest."""
     p = argparse.ArgumentParser()
     p.add_argument("--scraped-root", type=Path,
-                   default=Path("datasets/eval3_celebs/scraped"))
+                   default=Path("datasets/eval3_celebs/scraped"),
+                   help="Root of the scraped celebrity bank (one subdir per celeb slug).")
     p.add_argument("--heldout-root", type=Path,
-                   default=Path("datasets/eval3_celebs/heldout"))
+                   default=Path("datasets/eval3_celebs/heldout"),
+                   help="Root of the held-out IID celebrity dir (3 mandatory slugs).")
     p.add_argument("--out", type=Path,
-                   default=Path("Eval_3_Sample_Celebrity_Images.pdf"))
-    p.add_argument("--seed", type=int, default=42)
-    p.add_argument("--n-random", type=int, default=47)
+                   default=Path("Eval_3_Sample_Celebrity_Images.pdf"),
+                   help="Output PDF path (.index.txt and .zip sidecars are written next to it).")
+    p.add_argument("--seed", type=int, default=42,
+                   help="RNG seed; selection is reproducible across runs with the same seed.")
+    p.add_argument("--n-random", type=int, default=47,
+                   help="How many random scraped celebs to add on top of the 3 mandatory IID celebs.")
     args = p.parse_args()
 
     rng = random.Random(args.seed)
@@ -192,7 +199,7 @@ def main() -> int:
     # (so a downstream consumer can recrop / relabel without re-running
     # selection logic). Image filenames in the zip are `NN_<slug>.<ext>`
     # where NN is the alphabetized 1-based page number (matches the PDF).
-    import csv, shutil, zipfile
+    import csv, zipfile
     zip_path = args.out.with_suffix(".zip")
     name_to_slug = {n: s for s, n in HELDOUT_MAP.items()}
     for d in chosen:

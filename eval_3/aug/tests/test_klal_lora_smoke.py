@@ -7,8 +7,8 @@ Covers, with real torch:
            KLAL hookset, and (best-effort) run one real forward to confirm the
            hooks fire and KLAL's gradient reaches the LoRA adapters.
 
-The full 200-step cotrain smoke (datasets + flow/vqa/klal losses) is a
-separate GPU-box run — see 2026-05-20_klal_lora_smolvla_cotrain.md.
+Full integration smoke runs are gated on the GPU box; this file covers
+the unit-level checks.
 
 Run:  <lemonkey-env-python> eval_3/aug/tests/test_klal_lora_smoke.py
 """

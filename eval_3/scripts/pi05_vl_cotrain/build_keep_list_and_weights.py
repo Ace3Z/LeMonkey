@@ -4,15 +4,15 @@
 Two artifacts for the Pi0.5 VL cotrain enhanced training run:
 
 1. `keep_episodes.txt` — episode indices whose mean target_cos >= keep_threshold.
-   Used via `--dataset.episodes_file=` in lerobot-train (Enhancement B-2).
+   Used via `--dataset.episodes_file=` in lerobot-train.
 
 2. `hardneg_weights.npy` — per-episode sampling weight; episodes with low mean
    `hardneg_gap` (confusable distractors present) get HARD_WEIGHT (default 2.0),
-   others get 1.0.  Used via `--dataset.sample_weights=` (Enhancement B-3).
+   others get 1.0.  Used via `--dataset.sample_weights=`.
 
 Run AFTER `arcface_audit_200celeb.py` has produced the audit parquet.
 
-Per no silent fallbacks. Per the triple-source-defaults rule: triple-source defaults.
+No silent fallbacks. Triple-source defaults.
 
 Usage:
 
@@ -40,6 +40,7 @@ DEFAULT_HARD_WEIGHT = 2.0        # standard hard-negative oversampling weight
 
 
 def main() -> int:
+    """Aggregate the per-frame ArcFace audit into per-episode keep decisions and hard-negative sampling weights."""
     parser = argparse.ArgumentParser()
     parser.add_argument("--audit-parquet", type=Path, required=True,
                         help="Output of arcface_audit_200celeb.py")
@@ -106,7 +107,7 @@ def main() -> int:
 
     if retention < args.min_retention:
         print(f"[WARN] retention {retention*100:.1f}% < min_retention "
-              f"{args.min_retention*100:.0f}%: expected>=85% kept, "
+              f"{args.min_retention*100:.0f}%: expected>={args.min_retention*100:.0f}% kept, "
               f"got={retention*100:.1f}%, fallback=abort - rerun with lower "
               f"--keep-threshold or investigate data quality",
               flush=True)

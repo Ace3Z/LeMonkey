@@ -1,11 +1,11 @@
 """
 Multi-source celebrity headshot scraper for Eval 3 (LeMonkey, ETH RC FS26).
 
-WHY THIS REPLACES head_shot.py:
+DESIGN NOTES:
   The old scraper used a single source (Bing via icrawler) with a weak Haar
   filter. No identity verification, mixed quality, missed AI / robotics
   academics entirely. As of 2025-2026 the Bing Search API is retired and
-  Google CSE is closed to new customers, so we can't just swap engines —
+  Google CSE is closed to new customers, so we can't just swap engines,
   the right answer is a multi-source cascade with proper face / identity
   filtering, which is what published face datasets (VGGFace2, WebFace260M,
   IMDB-Face) all do.
@@ -70,7 +70,7 @@ import numpy as np
 import requests
 from PIL import Image
 
-# ─── Tuning (every threshold cited inline;) ──────────────────
+# ─── Tuning (every threshold cited inline) ──────────────────
 TARGET_N           = 10        # kept images per celeb
 CANDIDATE_CAP      = 60        # at most this many per celeb before filter
 MIN_SHORT_SIDE_PX  = 512       # min(w, h) — covers any reasonable headshot
@@ -106,6 +106,7 @@ def slugify(name: str) -> str:
 
 @dataclasses.dataclass
 class Candidate:
+    """One image candidate (URL + metadata + lazily-filled bytes/embedding)."""
     source: str                       # "wikidata_p18" | "wikipedia_lead" | "commons" | "tmdb" | "ddg"
     url: str
     width: int = 0
@@ -170,6 +171,7 @@ def wikidata_lookup(name: str) -> dict:
 
 
 def wikipedia_summary_lead(name: str) -> dict | None:
+    """Fetch the Wikipedia article's lead image (original or thumbnail) for `name`."""
     url = f"https://en.wikipedia.org/api/rest_v1/page/summary/{urllib.parse.quote(name)}"
     j = _http_get_json(url)
     if not j:
@@ -184,6 +186,7 @@ def wikipedia_summary_lead(name: str) -> dict | None:
 
 
 def wikipedia_page_image_titles(name: str, limit: int = 30) -> list[str]:
+    """Return up to `limit` File: titles linked from the Wikipedia article for `name`."""
     j = _http_get_json(
         "https://en.wikipedia.org/w/api.php",
         params={"action": "query", "titles": name, "prop": "images",
@@ -195,6 +198,7 @@ def wikipedia_page_image_titles(name: str, limit: int = 30) -> list[str]:
 
 
 def commons_category_files(category: str, limit: int = 50) -> list[str]:
+    """List File: titles in the given Wikimedia Commons category (up to `limit`)."""
     cat = category if category.lower().startswith("category:") else f"Category:{category}"
     j = _http_get_json(
         "https://commons.wikimedia.org/w/api.php",
@@ -208,6 +212,7 @@ def commons_category_files(category: str, limit: int = 50) -> list[str]:
 
 
 def commons_resolve_file(file_title: str) -> Candidate | None:
+    """Resolve a Commons File: title to a downloadable Candidate (URL + license + size)."""
     j = _http_get_json(
         "https://commons.wikimedia.org/w/api.php",
         params={"action": "query", "titles": file_title, "prop": "imageinfo",
@@ -234,6 +239,7 @@ def commons_resolve_file(file_title: str) -> Candidate | None:
 
 # ─── 2. TMDB ───────────────────────────────────────────────────────────────
 def tmdb_find_person(name: str) -> int | None:
+    """Look up the TMDB person ID for `name` (returns None without a TMDB bearer token or no match)."""
     if not TMDB_BEARER:
         return None
     j = _http_get_json(
@@ -265,6 +271,7 @@ def tmdb_find_person(name: str) -> int | None:
 
 
 def tmdb_person_images(person_id: int) -> list[Candidate]:
+    """Fetch the TMDB curated profile-image list for a person ID, as Candidates."""
     if not TMDB_BEARER:
         return []
     try:
@@ -293,6 +300,7 @@ def tmdb_person_images(person_id: int) -> list[Candidate]:
 
 # ─── 3. DuckDuckGo fallback (no key) ──────────────────────────────────────
 def ddg_image_urls(query: str, n: int = 30) -> list[str]:
+    """DuckDuckGo image search fallback (no API key); returns up to `n` direct image URLs."""
     try:
         from duckduckgo_search import DDGS
     except ImportError:
@@ -440,7 +448,7 @@ def passes_post_download_filters(cand: Candidate, face_app) -> tuple[bool, str, 
         return False, f"decode_err_{type(e).__name__}", 0.0
     if len(faces) == 0:
         return False, "n_faces_0", 0.0
-    # v2: drop the "exactly 1 face" rule. For famous people, many photos are
+    # drop the "exactly 1 face" rule. For famous people, many photos are
     # group/event shots with the subject's face being the largest. Pick the
     # largest face — the ArcFace anchor filter downstream verifies identity
     # so a wrong-person largest-face gets rejected there.
@@ -472,7 +480,7 @@ def identity_scores(cands: list[Candidate]) -> tuple[np.ndarray, str]:
     mode where Bing returns mostly wrong-person hits and the modal cluster
     is NOT the real celeb. Triple-sourced: VGGFace2 paper §3 uses the
     Wikipedia portrait as a 'reference probe'; IMDB-Face §3.3 same; our own
-    eval_3/aug/1_mine_celeb_photos.py uses Wikipedia ArcFace reference."""
+    our own scraper here also anchors on the Wikipedia portrait, same approach."""
     n = len(cands)
     if n == 0:
         return np.zeros(0, dtype=np.float32), "anchor_self"
@@ -490,6 +498,7 @@ def identity_scores(cands: list[Candidate]) -> tuple[np.ndarray, str]:
 
 
 def phash_of(cand: Candidate) -> "imagehash.ImageHash":
+    """Compute the perceptual hash of a Candidate's already-downloaded bytes (for dedup)."""
     import imagehash
     with Image.open(io.BytesIO(cand.raw_bytes)) as im:
         return imagehash.phash(im)
@@ -578,6 +587,7 @@ def collect_candidates(name: str) -> tuple[list[Candidate], dict]:
 
 
 def process_celeb(name: str, out_root: Path, force: bool = False) -> dict:
+    """Full per-celeb pipeline: collect candidates, filter, identity-verify, dedup, write images + provenance."""
     slug = slugify(name)
     out_dir = out_root / slug
     if out_dir.exists() and not force:
@@ -657,7 +667,7 @@ def process_celeb(name: str, out_root: Path, force: bool = False) -> dict:
     # ── ArcFace identity gate (anchored on Wikipedia/Commons/TMDB when available)
     cosines, method = identity_scores(post_pass)
     # ArcFace canonical threshold: 0.40 is the InsightFace + DeepFace
-    # consensus for "same identity" (verified in our eval_3/aug v9.3 work).
+    # consensus for "same identity" (verified against our inpainted-photo distribution in eval_3/aug/).
     # We use 0.40 when anchor is trusted (it's the real celeb), and a
     # looser 0.25 when anchor is just the candidate centroid (anchor itself
     # may be off).
@@ -776,12 +786,13 @@ def _load_celebs_dict() -> dict[str, list[str]]:
 
 
 def main() -> int:
+    """CLI entry point: iterate over the celeb list and run process_celeb for each, then write a run summary."""
     global TARGET_N
     p = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("--out-root", default="./celeb_headshots_v2")
     p.add_argument("--only", nargs="+", default=None,
-                   help="Restrict to these CELEBS categories (see head_shot.py)")
+                   help="Restrict to these CELEBS categories (defined in _archive/head_shot_legacy.py)")
     p.add_argument("--names", nargs="+", default=None,
                    help="Ad-hoc celeb names to scrape (overrides --only)")
     p.add_argument("--force", action="store_true")

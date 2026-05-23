@@ -86,6 +86,7 @@ def load_vggface2_names(csv_path: Path | None,
 def collect_vggface2(root: Path, id_to_name: dict[str, str],
                       max_per_identity: int, rng: random.Random,
                       ) -> list[dict]:
+    """Walk a VGGFace2 root, emit one VQA row per sampled image (capped at max_per_identity), tagged with the canonical celeb name."""
     rows: list[dict] = []
     n_no_name = 0
     n_identities = 0
@@ -155,6 +156,7 @@ def collect_scraped(root: Path, max_per_identity: int,
 
 
 def main() -> int:
+    """Build the PaliGemma VQA training manifest by collecting VGGFace2 (+ optionally our scraped bank), shuffling, and writing a parquet."""
     ap = argparse.ArgumentParser(description=__doc__,
                                   formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--vggface2-root", type=Path,
@@ -172,8 +174,8 @@ def main() -> int:
     ap.add_argument("--seed", type=int, default=42)
     ap.add_argument("--out", type=Path, required=True,
                      help="Output parquet path (.parquet)")
-    ap.add_argument("--shuffle", action="store_true", default=True,
-                     help="Shuffle row order before write (default True)")
+    ap.add_argument("--shuffle", action=argparse.BooleanOptionalAction, default=True,
+                     help="Shuffle row order before write (default True; pass --no-shuffle to keep insertion order)")
     args = ap.parse_args()
 
     if args.vggface2_root is None and args.scraped_root is None:

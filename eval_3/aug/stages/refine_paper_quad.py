@@ -72,17 +72,16 @@ import numpy as np
 # Default parameters — every value triple-sourced; deviations flagged.
 DILATE_PX = 8       # Edge band outer offset. Empirically SAM 2 hiera-L is
                     # tight to ±3 px on rigid planar targets in our setup
-                    # (user-verified 2026-05-13). 8 px outward gives a 5 px
-                    # margin for the worst-case SAM error while keeping the
-                    # band tight enough that Canny CAN'T reach internal
-                    # photo-content edges (which sit 20–40 px inside the
-                    # SAM boundary in our 640×480 frames).
+                    # (verified visually on real episodes). 8 px outward gives
+                    # a 5 px margin for the worst-case SAM error while keeping
+                    # the band tight enough that Canny CAN'T reach internal
+                    # photo-content edges (which sit 20-40 px inside the
+                    # SAM boundary in our 640x480 frames).
 ERODE_PX = 8        # Inner offset, symmetric. Total band width = 16 px ring
                     # centred on SAM boundary. The previous 50/20 ring was
                     # letting Canny lock onto the celeb's silhouette inside
                     # the paper instead of the paper-vs-table edge just
-                    # outside it (verified visually on swift_OLS_ep01 +
-                    # lecun_LSO_ep01 refit debug PNGs 2026-05-13).
+                    # outside it (verified visually on real episodes).
 HOUGH_RHO = 1       # OpenCV docs default for high-resolution edges.
 HOUGH_THETA = np.pi / 180   # 1° angular resolution.
 HOUGH_THRESH = 15   # Min Hough vote count. Lower than my earlier 30 because
@@ -92,12 +91,12 @@ MIN_LINE_FRAC = 0.15        # min_length = 0.15 × min(side_w, side_h).
                             # Loosened — short paper-edge fragments are OK,
                             # the SAM-prior filter rejects misleads anyway.
 MAX_LINE_GAP = 15           # Bridge small Canny gaps from shadow seams.
-SAM_PRIOR_DIST_PX = 15.0    # v10c: max perpendicular distance from a Hough
+SAM_PRIOR_DIST_PX = 15.0    # max perpendicular distance from a Hough
                             # line to its candidate SAM edge for the line
                             # to be considered an inlier. Anything farther
                             # is rejected. 15 px gives margin for ±5 px
                             # SAM error + ±5 px Hough quantization.
-SAM_PRIOR_ANGLE_DEG = 15.0  # v10c: max angular delta between a Hough line
+SAM_PRIOR_ANGLE_DEG = 15.0  # max angular delta between a Hough line
                             # and its candidate SAM edge. 15° is generous;
                             # paper sides are rigid so the angular error
                             # should be < 5° in practice.
@@ -116,17 +115,17 @@ EDGE_CONTRAST_MIN = 12.0    # Min grayscale Δ between the two sides of an
                             # edge. Real paper-table contrast ≥ 50 GL on
                             # clean frames, but shadowed/occluded segments
                             # can drop to ~20. Loosened from 25 to 12.
-QUAD_OUTSET_PX = 2.0        # v10d: after refit, push each corner ~2 px
+QUAD_OUTSET_PX = 2.0        # after refit, push each corner ~2 px
                             # radially outward (away from quad centroid).
                             # Compensates for Canny edge thickness (1-2 px)
-                            # + cornerSubPix→fillConvexPoly int rounding
+                            # + cornerSubPix to fillConvexPoly int rounding
                             # (~0.5 px) + JPEG block artifact at the paper
                             # boundary (1-2 px). Without this outset, the
                             # augmented photo sat 2-3 px inside the printed
                             # paper edge and the outermost ring of the
-                            # original photo bled through (user-spotted
-                            # 2026-05-13: "some little parts of the original
-                            # photo show beneath the augmented photos").
+                            # original photo bled through ("some little
+                            # parts of the original photo show beneath
+                            # the augmented photos").
 
 
 def _line_perp_dist(line: np.ndarray, pt: np.ndarray) -> float:
@@ -366,12 +365,12 @@ def refine_paper_quad_to_edges(
         return None
     lines = lines_raw[:, 0, :]  # (N, 4)
 
-    # 4. SAM-prior line matching (v10c). Build the 4 SAM-quad edges as
+    # 4. SAM-prior line matching. Build the 4 SAM-quad edges as
     # reference lines and assign each Hough line to its CLOSEST SAM edge.
     # Lines whose perp-distance > SAM_PRIOR_DIST_PX or whose angular delta
     # > SAM_PRIOR_ANGLE_DEG are rejected (RANSAC-style with a strong SAM
-    # prior — per user 2026-05-13: "only lines close to the SAM bbox are
-    # real; anything else should be eliminated with RANSAC").
+    # prior: only lines close to the SAM bbox are real; anything else is
+    # eliminated by the inlier filter).
     edge_names = ["top", "right", "bottom", "left"]
     # Coarse_corners are TL/TR/BR/BL after _order_tl_tr_br_bl.
     # Edges: 0→1 = TL→TR (top), 1→2 = TR→BR (right), 2→3 = BR→BL (bottom),
@@ -498,10 +497,10 @@ def refine_paper_quad_to_edges(
     # bottom∩left). The sum/diff-based _order_tl_tr_br_bl call we used
     # to do here was buggy for rectangles rotated > ~22.5°: it computes
     # TR=argmin(x-y) and BL=argmax(x-y), which swaps TR and BL on
-    # heavily-tilted papers (verified on Obama portrait in
-    # quick_lecun_LSO_ep01, ~30° rotation). Result was a bowtie quad
-    # that failed _is_convex even though all 4 selected lines were
-    # correct. Trust the construction order.
+    # heavily-tilted papers (verified on real episodes with ~30°
+    # rotation). Result was a bowtie quad that failed _is_convex even
+    # though all 4 selected lines were correct. Trust the construction
+    # order.
 
     # 8. Sanity gates.
     if not _is_convex(refined):

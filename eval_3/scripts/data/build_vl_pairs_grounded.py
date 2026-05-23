@@ -6,23 +6,24 @@ the robot action stream. Each record carries the wrist-cam frame-0 JPEG, the
 reference-cam frame-0 JPEG, and a portrait quad (normalized [x,y]x4 in image
 coords) for one of the three printed portraits visible in the frame.
 
-History note — the canonical-name-keyed lookup below:
-  An earlier builder keyed `ep_to_videos` by the MERGED dataset's episode_index
-  (positional, defined by `data/merge_episodes.discover_episode_dirs()` =
-  sorted(base) + sorted(aug)) but indexed it with `ep_idx = enumeration position
-  in the builder's own filtered ep_metadata list`. The builder's filter
-  (requires portrait_corners + portrait_seeds + valid target) selects fewer
-  episodes than the merger, shifting every subsequent index — so ~98% of rows
-  had a frame from a different episode than the labels described. The current
-  builder replicates the merger's discovery exactly and looks up by episode
-  NAME, so the mispairing cannot recur.
-
 Outputs:
   - Refined sub-pixel corners at frame 0, with degenerate-quad detection +
     coarse fallback.
   - Quad-corner geometry (no axis-aligned bbox).
   - Two caption types per record: location_explicit, qa_grounded.
   - Reference-camera frame extracted once per episode.
+
+## Background
+
+The canonical-name-keyed lookup below exists because an earlier builder keyed
+`ep_to_videos` by the MERGED dataset's episode_index (positional, defined by
+`data/merge_episodes.discover_episode_dirs()` = sorted(base) + sorted(aug))
+but indexed it with `ep_idx = enumeration position in the builder's own
+filtered ep_metadata list`. The builder's filter (requires portrait_corners +
+portrait_seeds + valid target) selects fewer episodes than the merger, shifting
+every subsequent index, so ~98% of rows had a frame from a different episode
+than the labels described. The current builder replicates the merger's
+discovery exactly and looks up by episode NAME, so the mispairing cannot recur.
 """
 from __future__ import annotations
 
@@ -49,23 +50,26 @@ LETTER_TO_SHORT = {"S": "swift", "O": "obama", "L": "lecun"}
 LAYOUTS = ["SOL", "OSL", "OLS", "SLO", "LSO", "LOS"]
 
 
-def slug_to_name(slug):
+def slug_to_name(slug: str) -> str:
+    """Format a slug like 'barack_obama' into the human-readable display name 'Barack Obama' (LeCun is special-cased)."""
     if slug in ("yann_lecun", "lecun"):
         return "Yann LeCun"
     return " ".join(w.capitalize() for w in slug.replace("-", "_").split("_"))
 
 
-def format_quad(quad):
+def format_quad(quad) -> str:
     """Flat 8-float string: '[x1, y1, x2, y2, x3, y3, x4, y4]'."""
     return "[" + ", ".join(f"{v:.3f}" for xy in quad for v in xy) + "]"
 
 
-def physical_slot(layout, celeb_short):
+def physical_slot(layout: str, celeb_short: str) -> int:
+    """Return the L/M/R slot index (0/1/2) of celeb_short in the layout string."""
     inv = {v: k for k, v in LETTER_TO_SHORT.items()}
     return layout.index(inv[celeb_short])
 
 
-def pid_position_camera_lmr(corners_data):
+def pid_position_camera_lmr(corners_data: dict) -> dict:
+    """Map per-portrait pid -> camera L/M/R slot index, ranked by mean x-coordinate of frame-0 corners."""
     means = {}
     for pid, frames in corners_data["portraits"].items():
         for fi, rec in frames.items():
@@ -77,7 +81,8 @@ def pid_position_camera_lmr(corners_data):
     return {pid: idx for idx, pid in enumerate(sorted_pids)}
 
 
-def load_track3_bank(bank_root):
+def load_cotrain_photo_bank(bank_root: "Path") -> "dict[str, list[Path]]":
+    """Walk bank_root and collect per-celeb photo lists keyed by full slug."""
     bank = {}
     for full in SHORT_TO_FULL.values():
         photos = sorted(p for p in (bank_root / full).iterdir()
@@ -86,7 +91,8 @@ def load_track3_bank(bank_root):
     return bank
 
 
-def enumerate_tuples_track3(bank):
+def enumerate_target_photo_layout_tuples(bank: "dict[str, list[Path]]"):
+    """Enumerate every (target_short, target_photo, layout) tuple the cotrain augmentation expects to cover."""
     tuples = []
     for short in ("swift", "obama", "lecun"):
         full = SHORT_TO_FULL[short]
@@ -96,7 +102,8 @@ def enumerate_tuples_track3(bank):
     return tuples
 
 
-def build_distractor_combos(layout, target_short, bank, K, rng):
+def build_distractor_combos(layout: str, target_short: str, bank: "dict[str, list[Path]]", K: int, rng):
+    """Sample up to K (distractor1_photo, distractor2_photo) combinations for the two non-target slots in `layout`."""
     target_pos = physical_slot(layout, target_short)
     d1_short = LETTER_TO_SHORT[layout[(target_pos + 1) % 3]]
     d2_short = LETTER_TO_SHORT[layout[(target_pos + 2) % 3]]
@@ -108,8 +115,8 @@ def build_distractor_combos(layout, target_short, bank, K, rng):
     return rng.sample(combos, K)
 
 
-def discover_base_for_aug_pool(root):
-    """Replicate eval_3/aug/generators/cotrain.discover_base_teleops — the pool
+def discover_base_for_aug_pool(root: "Path") -> dict:
+    """Replicate eval_3/aug/generators/cotrain.discover_base_teleops, the pool
     that aug variants were assigned to via slot_cursor round-robin. Uses the
     same filter as the original generator (requires all 4 caches)."""
     groups = {0: [], 1: [], 2: []}
@@ -139,7 +146,7 @@ def discover_base_for_aug_pool(root):
     return groups
 
 
-def merger_discover_base(base_root):
+def merger_discover_base(base_root: "Path") -> list:
     """Replicate eval_3/scripts/data/merge_episodes.discover_episode_dirs base
     filter: has meta/info.json AND reference.json. No cache requirement."""
     return sorted(p for p in base_root.iterdir()
@@ -148,11 +155,11 @@ def merger_discover_base(base_root):
                     and (p / "reference.json").is_file())
 
 
-def re_derive_aug_variant_names(base_root, bank_root, seed=42, K=64):
+def re_derive_aug_variant_names(base_root: "Path", bank_root: "Path", seed: int = 42, K: int = 64):
     """Replicate eval_3/aug/generators/cotrain.py to get the EXACT list of
     variant names that were generated. These names match what the merger sees."""
-    bank = load_track3_bank(bank_root)
-    tuples = enumerate_tuples_track3(bank)
+    bank = load_cotrain_photo_bank(bank_root)
+    tuples = enumerate_target_photo_layout_tuples(bank)
     base_groups = discover_base_for_aug_pool(base_root)
     slot_cursor = {0: 0, 1: 0, 2: 0}
     out = []  # (var_name, base_ep, target_short, layout, d1_short, d2_short)
@@ -179,14 +186,16 @@ DEGEN_DUP_PX = 1.5
 DEGEN_AREA_PX = 100
 
 
-def shoelace_area(q):
+def shoelace_area(q) -> float:
+    """Polygon area of a 4-corner quad via the shoelace formula."""
     q = np.asarray(q, dtype=np.float32)
     x = q[:, 0]; y = q[:, 1]
     return 0.5 * abs((x[0]*y[1] - x[1]*y[0]) + (x[1]*y[2] - x[2]*y[1]) +
                        (x[2]*y[3] - x[3]*y[2]) + (x[3]*y[0] - x[0]*y[3]))
 
 
-def is_degenerate(corners):
+def is_degenerate(corners) -> bool:
+    """True if the quad collapses (duplicate corners within DEGEN_DUP_PX or area < DEGEN_AREA_PX)."""
     q = np.asarray(corners, dtype=np.float32)
     if q.shape[0] != 4: return True
     for i in range(4):
@@ -198,7 +207,7 @@ def is_degenerate(corners):
     return False
 
 
-def load_clean_corners(base_ep_dir):
+def load_clean_corners(base_ep_dir: "Path") -> dict:
     """Returns {pid_str: {"corners": [[x,y]x4], "refit_ok": bool}} per portrait.
 
     Prefers refine_paper_quad_to_edges output when 4-distinct-corner valid;
@@ -223,9 +232,9 @@ def load_clean_corners(base_ep_dir):
 
 
 # ── Per-worker frame extraction ──
-def find_camera1_video_path(ep_dir):
+def find_camera1_video_path(ep_dir: "Path"):
     """For base teleops in datasets/eval3/, find their wrist-cam mp4 (prefer
-    H.264 sidecar). This is the ORIGINAL recording — same content as merger."""
+    H.264 sidecar). This is the ORIGINAL recording, same content as merger."""
     cam1 = ep_dir / "videos" / "observation.images.camera1" / "chunk-000"
     if not cam1.is_dir():
         return None
@@ -235,13 +244,15 @@ def find_camera1_video_path(ep_dir):
     return next(iter(cam1.glob("file-*.mp4")), None)
 
 
-def find_reference_video_path(ep_dir):
+def find_reference_video_path(ep_dir: "Path"):
+    """Return the reference-camera mp4 for a base teleop episode, or None if missing."""
     ref = ep_dir / "videos" / "observation.images.reference" / "chunk-000"
     if not ref.is_dir(): return None
     return next(iter(ref.glob("file-*.mp4")), None)
 
 
 def process_episode(args):
+    """Per-worker: decode the wrist + reference frame 0, write JPEGs, and emit one VL record per portrait + caption-type."""
     (ep_idx, ep_name, video_path_str, ref_video_path_str, base_ep_dir_str,
      pid_to_celeb_full_str, out_root_str) = args
     out_root = Path(out_root_str)
@@ -313,6 +324,7 @@ def process_episode(args):
 
 
 def main() -> int:
+    """Driver: discover the canonical episode list, map episode_index -> mp4 paths, dispatch per-episode workers, then write the manifest parquet."""
     p = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("--base-root", type=Path,
@@ -487,7 +499,7 @@ def main() -> int:
         "n_canonical_skipped_no_meta": n_skipped_no_meta,
         "n_canonical_skipped_no_video": n_skipped_no_video,
         "wall_seconds": round(time.time() - t0, 1),
-        "bug_fix": "v3 — image↔label mispairing fixed via NAME-keyed video lookup",
+        "note": "image-label pairing uses NAME-keyed video lookup (fixes a positional-index drift bug present in earlier builders)",
     }
     (args.out_root / "_stats.json").write_text(json.dumps(stats, indent=2))
     print(json.dumps(stats, indent=2))

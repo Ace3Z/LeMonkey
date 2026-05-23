@@ -128,7 +128,7 @@ fi
 echo
 echo "=== the training VM (VQA warm-start) setup complete ==="
 echo "Next:"
-echo "  1. Get VGGFace2 raw images from Hans (or use CASIA-WebFace from HF)."
+echo "  1. Obtain VGGFace2 raw images (via the dataset's official request page) or use CASIA-WebFace from HF."
 echo "  2. Build manifest via eval_3/scripts/warmstart/prepare_vggface2_vqa.py"
 echo "  3. Smoke test: bash eval_3/scripts/brev/train_paligemma_warmstart.sh after setting"
 echo "     MANIFEST_PATH=... in env, with python eval_3/scripts/warmstart/train_paligemma_vqa.py --smoke"

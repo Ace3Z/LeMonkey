@@ -6,13 +6,12 @@ Saves <episode_dir>/dbg_overlay_frame0.png with semi-transparent coloured
 polygons drawn over each portrait.
 
 Usage:
-    python dbg_mask_overlay.py /path/to/episode_dir
-    python dbg_mask_overlay.py --root ~/LeMonkey/datasets/eval3_quick
+    python eval_3/aug/dbg/mask_overlay.py /path/to/episode_dir
+    python eval_3/aug/dbg/mask_overlay.py --root ~/LeMonkey/datasets/eval3_quick
 """
 from __future__ import annotations
 
 import argparse
-import json
 import pickle
 import sys
 from pathlib import Path
@@ -26,6 +25,8 @@ COLORS = [(0, 255, 0), (255, 0, 0), (0, 0, 255)]   # BGR: green, blue, red
 
 
 def overlay_one(ep_dir: Path) -> dict:
+    """Render a frame-0 PNG with portrait masks overlaid; return
+    ``{ep, saved, n_portraits}`` (or ``{ep, error}`` on failure)."""
     masks_pkl = ep_dir / "portrait_masks.pkl"
     if not masks_pkl.is_file():
         return {"ep": ep_dir.name, "error": "portrait_masks.pkl missing"}
@@ -69,8 +70,10 @@ def overlay_one(ep_dir: Path) -> dict:
 def main() -> int:
     p = argparse.ArgumentParser(description=__doc__,
                                 formatter_class=argparse.RawDescriptionHelpFormatter)
-    p.add_argument("episode_dir", nargs="?", default=None)
-    p.add_argument("--root", default=None)
+    p.add_argument("episode_dir", nargs="?", default=None,
+                   help="Path to a single episode directory to overlay")
+    p.add_argument("--root", default=None,
+                   help="Root containing many episode directories to overlay")
     args = p.parse_args()
 
     if (args.episode_dir is None) == (args.root is None):

@@ -55,7 +55,7 @@ PRETRAINED="${PRETRAINED:-lerobot/smolvla_base}"
 OUT_DIR="${OUT_DIR:-outputs/smolvla_klal_lora_25k}"
 # KLAL + LoRA
 KLAL_LAYERS="${KLAL_LAYERS:-10,12,14}"
-KLAL_LAMBDA="${KLAL_LAMBDA:-1.0}"   # KLAL is on the VL step (vs the VQA loss) - see handover
+KLAL_LAMBDA="${KLAL_LAMBDA:-1.0}"   # KLAL is on the VL step (vs the VQA loss) - see eval_3/aug/training/klal_smolvla_vl.py for the loss definition
 KLAL_SIGMA="${KLAL_SIGMA:-1.0}"
 LORA_R="${LORA_R:-16}"
 LORA_ALPHA="${LORA_ALPHA:-32}"
@@ -77,7 +77,7 @@ nvidia-smi --query-gpu=index,name,memory.total --format=csv,noheader
 
 # ── preflight ────────────────────────────────────────────────────────────────
 python -c "import lerobot.policies.smolvla.modeling_smolvla" 2>/dev/null \
-    || { echo "[ERROR] cannot import lerobot SmolVLA - is the env active / installed? See RUN_ON_CLUSTER.md" >&2; exit 1; }
+    || { echo "[ERROR] cannot import lerobot SmolVLA - is the env active / installed? See README.md" >&2; exit 1; }
 command -v torchrun >/dev/null 2>&1 \
     || { echo "[ERROR] torchrun not on PATH - is the python env active?" >&2; exit 1; }
 

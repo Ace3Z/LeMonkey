@@ -23,8 +23,8 @@ Why not just use lerobot-record:
 
 Usage:
     dagger_record.py \\
-      --policy-path /home/lemonkey/LeMonkey/eval_1/train/so101_smolvla_eval1/checkpoints/020000/pretrained_model \\
-      --dataset-root /home/lemonkey/LeMonkey/datasets/eval1_dagger/blue \\
+      --policy-path ~/LeMonkey/eval_1/train/smolvla_eval1_v2/checkpoints/020000/pretrained_model \\
+      --dataset-root ~/LeMonkey/datasets/eval1_dagger/blue \\
       --dataset-repo-id HBOrtiz/so101_eval1_dagger_blue \\
       --task "Put the banana in the blue colored bowl." \\
       --num-episodes 5 \\
@@ -48,7 +48,7 @@ from pynput import keyboard
 # from lerobot.robots.utils.ensure_safe_goal_position. We're intentionally
 # clamping via max_relative_target — it's expected, not a problem to flag every frame.
 class _DropClampWarning(logging.Filter):
-    def filter(self, record):
+    def filter(self, record: logging.LogRecord) -> bool:
         return "Relative goal position magnitude had to be clamped" not in record.getMessage()
 
 
@@ -70,25 +70,40 @@ from lerobot.utils.control_utils import predict_action
 
 # ─── Args ────────────────────────────────────────────────────────────────────
 
-DEFAULT_POLICY = "/home/lemonkey/LeMonkey/eval_1/train/so101_smolvla_eval1/checkpoints/020000/pretrained_model"
+DEFAULT_POLICY = str(Path.home() / "LeMonkey/eval_1/train/smolvla_eval1_v2/checkpoints/020000/pretrained_model")
 
 p = argparse.ArgumentParser()
-p.add_argument("--policy-path", default=DEFAULT_POLICY)
-p.add_argument("--dataset-root", required=True)
-p.add_argument("--dataset-repo-id", required=True)
+p.add_argument("--policy-path", default=DEFAULT_POLICY,
+               help="Pretrained SmolVLA checkpoint directory to load the policy from")
+p.add_argument("--dataset-root", required=True,
+               help="Filesystem path where the new LeRobotDataset will be created")
+p.add_argument("--dataset-repo-id", required=True,
+               help="Hub-style repo_id stamped into the dataset metadata (no push by default)")
 p.add_argument("--task", required=True, help="Single task string for the prompt")
-p.add_argument("--follower-port", default="/dev/so101-follower")
-p.add_argument("--leader-port",   default="/dev/so101-leader")
-p.add_argument("--follower-id",   default="my_follower")
-p.add_argument("--leader-id",     default="my_leader")
-p.add_argument("--cam-path",      default="/dev/video0")
-p.add_argument("--cam-width",     type=int, default=640)
-p.add_argument("--cam-height",    type=int, default=480)
-p.add_argument("--fps",           type=int, default=30)
-p.add_argument("--num-episodes",  type=int, default=5)
-p.add_argument("--episode-time-s", type=float, default=30)
-p.add_argument("--reset-time-s",  type=float, default=10)
-p.add_argument("--device",        default="cuda")
+p.add_argument("--follower-port", default="/dev/so101-follower",
+               help="Serial device of the SO-101 follower arm")
+p.add_argument("--leader-port",   default="/dev/so101-leader",
+               help="Serial device of the SO-101 leader arm (teleop)")
+p.add_argument("--follower-id",   default="my_follower",
+               help="Calibration id used to look up the follower's calibration JSON")
+p.add_argument("--leader-id",     default="my_leader",
+               help="Calibration id used to look up the leader's calibration JSON")
+p.add_argument("--cam-path",      default="/dev/video0",
+               help="OpenCV camera path (USB wrist cam)")
+p.add_argument("--cam-width",     type=int, default=640,
+               help="Camera capture width in pixels")
+p.add_argument("--cam-height",    type=int, default=480,
+               help="Camera capture height in pixels")
+p.add_argument("--fps",           type=int, default=30,
+               help="Camera and recording frame rate")
+p.add_argument("--num-episodes",  type=int, default=5,
+               help="Number of HG-DAgger episodes to record in this session")
+p.add_argument("--episode-time-s", type=float, default=30,
+               help="Maximum length of a single episode in seconds")
+p.add_argument("--reset-time-s",  type=float, default=10,
+               help="Pause between episodes for re-arranging the scene")
+p.add_argument("--device",        default="cuda",
+               help="Torch device for policy inference (e.g. cuda or cpu)")
 p.add_argument("--max-relative-target", type=float, default=8.0,
                help="Per-frame joint motion cap (degrees). Smooths sudden "
                     "policy-output jumps when transitioning back from teleop. "
@@ -112,6 +127,7 @@ _space_down = False
 
 
 def on_press(key):
+    """pynput key-press handler: SPACE toggles teleop, ESC quits, r/n/d/a fire requests."""
     global _space_down
     if key == keyboard.Key.space:
         # Only toggle on the press-down edge, not while holding
@@ -140,6 +156,7 @@ def on_press(key):
 
 
 def on_release(key):
+    """pynput key-release handler: clears the SPACE edge-detection latch."""
     global _space_down
     if key == keyboard.Key.space:
         _space_down = False
@@ -185,7 +202,7 @@ print("OK robot+teleop connected (bilateral mode: leader will mirror follower).\
 # ─── Clean shutdown: disable follower torque on Ctrl+C / exit ────────────────
 
 _shutdown_done = False
-def _shutdown(reason: str = ""):
+def _shutdown(reason: str = "") -> None:
     """Release follower torque so the arm can be moved by hand back to home."""
     global _shutdown_done
     if _shutdown_done:
@@ -210,7 +227,8 @@ def _shutdown(reason: str = ""):
         pass
 
 
-def _sigint_handler(signum, frame):
+def _sigint_handler(signum, frame) -> None:
+    """SIGINT/SIGTERM handler that releases torque before exiting."""
     _shutdown("Ctrl+C received")
     sys.exit(130)
 
@@ -219,7 +237,7 @@ signal.signal(signal.SIGINT, _sigint_handler)
 signal.signal(signal.SIGTERM, _sigint_handler)
 
 
-def rest_arms_interactive():
+def rest_arms_interactive() -> None:
     """Release follower torque, wait for user to manually home both arms, re-engage."""
     rest_request.clear()
     intervene.clear()
@@ -326,7 +344,8 @@ def drive_leader_to(state_arr: np.ndarray) -> None:
     leader.bus.sync_write("Goal_Position", target)
 
 
-def array_to_action_dict(arr) -> dict:
+def array_to_action_dict(arr: np.ndarray | torch.Tensor) -> dict:
+    """Convert a (6,) action array or tensor into the canonical SO-101 action dict."""
     if torch.is_tensor(arr):
         arr = arr.cpu().numpy()
     arr = np.asarray(arr).reshape(-1)

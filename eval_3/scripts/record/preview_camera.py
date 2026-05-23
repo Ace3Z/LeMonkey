@@ -3,7 +3,7 @@
 
 Useful for composing the workspace before recording — set up your portrait
 semicircle, place the can, check that everything's framed and well-lit
-through the wrist camera before you press ENTER on record_eval3_quick.py.
+through the wrist camera before you press ENTER on `record_quick.py`.
 
 Usage:
     python preview_camera.py                           # /dev/video0, no rotation
@@ -24,12 +24,17 @@ import rerun as rr
 
 
 def main() -> int:
+    """Open a V4L2 camera, log frames to rerun (native viewer or web server), and report rolling FPS."""
     p = argparse.ArgumentParser(description=__doc__,
                                 formatter_class=argparse.RawDescriptionHelpFormatter)
-    p.add_argument("--device-path", default="/dev/video0")
-    p.add_argument("--width", type=int, default=640)
-    p.add_argument("--height", type=int, default=480)
-    p.add_argument("--fps", type=int, default=30)
+    p.add_argument("--device-path", default="/dev/video0",
+                   help="V4L2 video device node to open (default: /dev/video0).")
+    p.add_argument("--width", type=int, default=640,
+                   help="Requested capture width in pixels (default: 640).")
+    p.add_argument("--height", type=int, default=480,
+                   help="Requested capture height in pixels (default: 480).")
+    p.add_argument("--fps", type=int, default=30,
+                   help="Requested capture frame rate (default: 30).")
     p.add_argument("--rotate", type=int, default=0, choices=[0, 90, 180, 270],
                    help="Rotate frames CCW by N degrees before logging")
     p.add_argument("--serve", action="store_true",
@@ -48,7 +53,7 @@ def main() -> int:
     if args.serve:
         rr.serve_web(open_browser=False)
         print("\n* rerun web server running. Open this in a browser:")
-        print("    http://<thor-ip-or-localhost>:9090\n")
+        print("    http://<host-or-localhost>:9090\n")
     else:
         rr.spawn()
 

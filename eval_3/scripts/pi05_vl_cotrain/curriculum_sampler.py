@@ -1,4 +1,4 @@
-"""Curriculum learning sampler for Pi0.5 VL cotrain (Enhancement B-5).
+"""Curriculum learning sampler for Pi0.5 VL cotrain.
 
 Step < switch_step:  sample only "easy" episodes (mean hardneg_gap >= 0.10)
 Step >= switch_step: sample from the full keep_list distribution
@@ -11,11 +11,10 @@ Integration point: drop-in replacement for the lerobot dataloader's sampler.
 The training loop calls `set_step(step)` once per step; the sampler internally
 flips its weight tensor at the switch point.
 
-Per no silent fallbacks — emit [WARN] if config is inconsistent.
+No silent fallbacks: emit [WARN] if config is inconsistent.
 """
 from __future__ import annotations
 
-import json
 from pathlib import Path
 
 import numpy as np
@@ -89,6 +88,7 @@ class CurriculumWeightedSampler(Sampler[int]):
 
     @property
     def in_phase_1(self) -> bool:
+        """True if the sampler is still in phase 1 (easy-only)."""
         return self._step < self.switch_step
 
     def __iter__(self):

@@ -6,18 +6,18 @@ between their centroids. Output a dense 192×192 matrix + a per-celeb
 "top-K most confusable" list.
 
 Why we need this (face-binding focus):
-- Enhancement B-3 (hard-negative oversampling) needs to identify which
-  variants have visually-confusable distractors visible.
-- Enhancement B-5 (curriculum) needs a notion of "difficulty" per celeb.
+- Hard-negative oversampling needs to identify which variants have
+  visually-confusable distractors visible.
+- The curriculum sampler needs a notion of "difficulty" per celeb.
 - At training-data-prep time, we look up: "for target celeb X, which other
-  celebs are visually similar (high centroid cosine)?" — those are the
+  celebs are visually similar (high centroid cosine)?", those are the
   confusers we want to oversample variants for.
 
-Run ONCE after pulling celeb_embeddings.json — output is static and
+Run ONCE after pulling celeb_embeddings.json, output is static and
 reusable across all data audits.
 
-Per no silent fallbacks (broken centroids logged).
-Per the triple-source-defaults rule: triple-source defaults.
+No silent fallbacks (broken centroids logged).
+Triple-source defaults.
 """
 from __future__ import annotations
 
@@ -41,23 +41,30 @@ DEFAULT_CONFUSABLE_THRESHOLD = 0.30
 # Top-K most confusable celebs per target (for hard-neg mining lookup).
 DEFAULT_TOP_K = 5
 
-# Known broken centroid (from the M2 audit) — flag but don't drop here.
+# Known broken centroid (this celeb's photos failed face matching during dataset audit), flag but don't drop here.
 BROKEN_SLUGS = {"oier_mees"}
 
 
 def main() -> int:
+    """Read the celeb centroid manifest, write the all-pairs ArcFace cosine matrix, slug ordering, and per-celeb top-K confusables."""
     parser = argparse.ArgumentParser()
     parser.add_argument("--celeb-manifest", type=Path,
-                        default=Path("data/arcface_toolkit/celeb_embeddings.json"))
+                        default=Path("data/arcface_toolkit/celeb_embeddings.json"),
+                        help="Path to celeb_embeddings.json (per-slug 512-d ArcFace centroid).")
     parser.add_argument("--output-matrix", type=Path,
-                        default=Path("eval_3/scripts/pi05_vl_cotrain/confusion_matrix.npy"))
+                        default=Path("eval_3/scripts/pi05_vl_cotrain/confusion_matrix.npy"),
+                        help="Output .npy for the dense NxN cosine matrix (diagonal set to -1.0).")
     parser.add_argument("--output-slugs", type=Path,
-                        default=Path("eval_3/scripts/pi05_vl_cotrain/confusion_slugs.json"))
+                        default=Path("eval_3/scripts/pi05_vl_cotrain/confusion_slugs.json"),
+                        help="Output JSON with slug ordering aligned to the matrix rows/cols.")
     parser.add_argument("--output-topk", type=Path,
-                        default=Path("eval_3/scripts/pi05_vl_cotrain/confusable_topk.json"))
+                        default=Path("eval_3/scripts/pi05_vl_cotrain/confusable_topk.json"),
+                        help="Output JSON mapping each slug to its top-K most-confusable peers.")
     parser.add_argument("--threshold", type=float,
-                        default=DEFAULT_CONFUSABLE_THRESHOLD)
-    parser.add_argument("--top-k", type=int, default=DEFAULT_TOP_K)
+                        default=DEFAULT_CONFUSABLE_THRESHOLD,
+                        help="Pairwise cosine above which two centroids count as confusable (default: 0.30).")
+    parser.add_argument("--top-k", type=int, default=DEFAULT_TOP_K,
+                        help="Number of nearest-neighbour confusables to record per celeb (default: 5).")
     args = parser.parse_args()
 
     if not args.celeb_manifest.is_file():

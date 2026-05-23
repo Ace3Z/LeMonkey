@@ -82,14 +82,15 @@ Two structured variants live under `scripts/`:
 
 | Script | Mode |
 |---|---|
-| `scripts/run_rollout_structured.py` | Script picks the arrangement; samples a random prompt each iteration. |
+| `scripts/run_rollout_structured.py` | Script picks the arrangement and samples a random prompt each iteration. |
 | `scripts/run_rollout_freeplay.py` | You fix the arrangement once; the script samples a random prompt each iteration. |
+| `scripts/filter_prompt.py` | Normalises eval-day prompts by stripping the OOD "from the robot perspective" qualifier before it reaches the policy (used by `run_eval_2.sh`). |
 
 ## Recording the dataset
 
 `scripts/record_episodes.py` drives a fixed, balanced 180-episode recording plan
 (persisted to `state/plan.json`, so progress survives restarts). It minimises
-physical work by grouping episodes so the bowls only need to be reshuffled five
+physical work by grouping episodes so the bowls only need to be reshuffled six
 times across the whole collection. It announces each arrangement change, shows
 the prompt and target bowl, and records one 20 s teleop episode per step.
 

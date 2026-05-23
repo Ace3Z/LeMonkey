@@ -1,9 +1,9 @@
-"""Video I/O helpers — handle AV1-encoded LeRobot videos on Thor.
+"""Video I/O helpers: handle AV1-encoded LeRobot videos.
 
 Why this module exists:
-  - lerobot-record on thor encodes camera videos with libsvtav1 by default.
-  - Thor's bundled OpenCV cannot decode AV1 (the system ffmpeg has dav1d
-    but the OpenCV-bundled ffmpeg does not).
+  - Some lerobot-record installs default to libsvtav1, and the OpenCV
+    bundled with certain Python wheels cannot decode AV1 (the system
+    ffmpeg has dav1d but the OpenCV-bundled ffmpeg does not).
   - Workaround: lazy-transcode each AV1 mp4 to a sidecar H.264 file the
     first time we need to open it, then return the H.264 path. Original
     file is never touched. cv2 / SAM 2 / everything downstream then reads
@@ -11,17 +11,19 @@ Why this module exists:
   - The sidecar is named `<original-stem>__h264.mp4` and lives next to
     the original. Subsequent runs detect it and skip the transcode.
 
-The transcode is fast: ~1.5 s for a 20 s 640×480 30 fps clip on Thor's
-ARM Neoverse cores using libx264. Total cost across the 5 quick episodes:
-~7 s. For the future 144-ep main collection: ~3.5 min, one-time.
+The transcode is fast: ~1.5 s for a 20 s 640x480 30 fps clip using
+libx264. Total cost across the 5 quick episodes: ~7 s. For the future
+144-ep main collection: ~3.5 min, one-time.
 
 Usage:
-    from _video_io import ensure_h264, read_frame_zero, iter_frames
+    The canonical import is via ``importlib.util.spec_from_file_location``,
+    because this module is loaded both as a script and as a sibling-file
+    spec by other stages. Once loaded::
 
-    h264_path = ensure_h264(av1_path)
-    cap = cv2.VideoCapture(str(h264_path))     # works
-    frame0 = read_frame_zero(av1_path)          # handles AV1 + h264 alike
-    for frame in iter_frames(av1_path): ...     # ditto
+        h264_path = ensure_h264(av1_path)
+        cap = cv2.VideoCapture(str(h264_path))     # works
+        frame0 = read_frame_zero(av1_path)          # handles AV1 + h264 alike
+        for frame in iter_frames(av1_path): ...     # ditto
 """
 from __future__ import annotations
 
@@ -128,7 +130,7 @@ def ensure_h264(video_path: Path | str, *, force: bool = False) -> Path:
     # `-nostdin` is critical when this runs inside a bash while-read loop:
     # without it, ffmpeg consumes characters from the parent shell's stdin,
     # corrupting the next iteration's input AND can return non-zero on the
-    # garbage. Diagnosed 2026-05-12 during the 60-sample batch.
+    # garbage.
     rc = subprocess.run(cmd, check=False, stdin=subprocess.DEVNULL)
     if rc.returncode != 0 or not sidecar.is_file():
         raise RuntimeError(f"ffmpeg transcode failed for {video_path}")
@@ -169,9 +171,9 @@ def ensure_frame_dir(video_path: Path | str, *, force: bool = False) -> Path:
     """Extract `video_path` to a sibling dir of zero-padded JPEG frames.
 
     SAM 2's video predictor accepts either an mp4 path (decoded via decord,
-    which has no aarch64 wheel on Thor) OR a directory of JPEG frames named
-    in lexicographic-sortable order. We use the latter to bypass the decord
-    requirement.
+    which lacks wheels on some platforms) OR a directory of JPEG frames
+    named in lexicographic-sortable order. We use the latter to bypass the
+    decord requirement.
 
     Returns the path to the frames dir (e.g. <video>.parent / `<stem>__frames/`).
     Caches between runs — re-running is a no-op unless `force=True`.

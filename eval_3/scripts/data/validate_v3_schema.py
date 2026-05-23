@@ -40,19 +40,23 @@ REQUIRED_INFO_KEYS = {
 
 
 def fail(msg: str) -> None:
+    """Print a [FATAL] message and exit with status 1."""
     print(f"[FATAL] {msg}", flush=True)
     sys.exit(1)
 
 
 def warn(msg: str) -> None:
+    """Print a [WARN] message (does not exit)."""
     print(f"[WARN] {msg}", flush=True)
 
 
 def info(msg: str) -> None:
+    """Print an [ok] info message."""
     print(f"[ok] {msg}", flush=True)
 
 
 def validate(root: Path) -> None:
+    """Run the 8-step LeRobot v3 structural check on `root` (info.json, stats, episodes, tasks, data parquets, videos, spot-check, semantic load)."""
     if not root.is_dir():
         fail(f"root not a directory: {root}")
 
@@ -186,6 +190,7 @@ def validate(root: Path) -> None:
 
 
 def main() -> int:
+    """CLI entry point: validate the dataset root passed via --root, exit non-zero on any FATAL."""
     p = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("--root", type=Path, required=True,

@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 # One-time pre-download of the VL pairs dataset with max_workers=1.
+# Workaround for the HF Hub multi-worker 429-rate-limit when the VL
+# dataset's ~30k JPEGs are downloaded in parallel.
 # Run with HF_TOKEN exported: bash eval_3/scripts/smolvla_cotrain/predl_vl.sh
 set -euo pipefail
 source ~/miniconda3/etc/profile.d/conda.sh

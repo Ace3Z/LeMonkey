@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""STAGE 2 v6 — static-camera pipeline (the simplest correct design).
+"""STAGE 2: static-camera pipeline (the simplest correct design).
 
-REPLACES the v5 SAM-2-video-propagator + Kalman+RTS pipeline. Premise:
+REPLACES the SAM-2-video-propagator + Kalman+RTS pipeline. Premise:
 the wrist camera does NOT move during a 20-second teleop episode, and the
 printed portraits do NOT move on the table. The only things that change
-between frames are the gripper, the Coke can, and the user's hand — all
+between frames are the gripper, the Coke can, and the user's hand, all
 of which are *occluders* on top of static paper.
 
 Given that, the right pipeline is:
@@ -24,25 +24,25 @@ Given that, the right pipeline is:
   byte-identical to the original because they're outside visible_paper_i.
 
 Why this is correct + fast:
-  - Corners are CONSTANT across all frames — no tracking, no Kalman, no
+  - Corners are CONSTANT across all frames, no tracking, no Kalman, no
     RTS, no jitter. The augmented photo is pixel-locked to the static paper.
-  - Change-detection per frame is ~3 ms (absdiff + morphology) — total
-    stage-2 cost ~5 s per episode (vs ~628 s for v5 SAM-2-video).
+  - Change-detection per frame is ~3 ms (absdiff + morphology), total
+    stage-2 cost ~5 s per episode (vs ~628 s for the SAM-2-video pipeline).
   - Shadows show up as moderate-difference pixels and (by design) get
     excluded from the paste, so the original shadow is preserved through
     the composite where the paper itself shows through.
 
 CLI:
-    python 2_detect_static.py /path/to/episode_dir
-    python 2_detect_static.py --root ~/LeMonkey/datasets/eval3_quick
-    python 2_detect_static.py /path/to/ep --diff-threshold 25 --pre-blur-sigma 1.0
+    python eval_3/aug/stages/detect_static.py /path/to/episode_dir
+    python eval_3/aug/stages/detect_static.py --root ~/LeMonkey/datasets/eval3_quick
+    python eval_3/aug/stages/detect_static.py /path/to/ep --diff-threshold 25 --pre-blur-sigma 1.0
 
-Defaults — see VALIDATION.md v6 §:
+Defaults:
     --diff-threshold 25   per-channel BGR diff above which a pixel is
                           declared occluded (typical camera noise is 5-10;
                           slight shadows ~20-40; objects 50+).
     --pre-blur-sigma 1.0  Gaussian blur σ applied to both frames before
-                          differencing — suppresses sub-pixel jitter from
+                          differencing, suppresses sub-pixel jitter from
                           any negligible camera shake.
     --morph-radius 2      morphological open + close radius on the
                           occluder mask, removes 1-2 px speckle noise.
@@ -91,9 +91,9 @@ def _import_heavy():
 SAM2_CFG = "configs/sam2.1/sam2.1_hiera_l.yaml"
 SAM2_CKPT_DEFAULT = Path.home() / "checkpoints/sam2.1_hiera_large.pt"
 GDINO_MODEL = "IDEA-Research/grounding-dino-tiny"
-PHOTO_BANK_DEFAULT = Path("/home/lemonkey/LeMonkey/datasets/eval3_celebs/web")
+PHOTO_BANK_DEFAULT = Path.home() / "LeMonkey/datasets/eval3_celebs/web"
 
-# ─── v8: occluder text prompts (Grounded-SAM-2) ──────────────────────────────
+# ─── occluder text prompts (Grounded-SAM-2) ──────────────────────────────────
 # Period-separated multi-class prompt is the canonical Grounding DINO format
 # for multi-object detection. The three classes are everything that can
 # physically occlude the paper portraits in our scene.
@@ -105,18 +105,18 @@ PHOTO_BANK_DEFAULT = Path("/home/lemonkey/LeMonkey/datasets/eval3_celebs/web")
 # centers inside a paper mask at frame 0 before the can has been placed,
 # it's a false positive).
 OCCLUDER_TEXT_PROMPTS = ["robot gripper", "coca cola can"]
-OCCLUDER_BOX_SCORE_MIN = 0.40    # v10b: raised from 0.20 → 0.40. The 0.20
+OCCLUDER_BOX_SCORE_MIN = 0.40    # raised from 0.20 to 0.40. The 0.20
                                   # default let through 0.27-confidence "human"
                                   # detections that GroundingDINO was firing
                                   # diffusely on celebrity photos in frame.
                                   # 0.40 matches the IDEA-Research/GroundingDINO
                                   # official BOX_THRESHOLD default (0.35) with
                                   # a small margin. Legit gripper/can detections
-                                  # score 0.70–0.80 so they're well above.
-                                  # Verified visually 2026-05-13 on swift_OLS_ep01:
-                                  # the FP "human" at 0.27 on Swift's portrait
-                                  # is now dropped at the score gate.
-OCCLUDER_DILATE_PX = 0            # v9.1: was 3 — created a halo ring of original
+                                  # score 0.70-0.80 so they're well above.
+                                  # Verified visually on real episodes:
+                                  # the FP "human" at 0.27 on a portrait is
+                                  # now dropped at the score gate.
+OCCLUDER_DILATE_PX = 0            # was 3; created a halo ring of original
                                   # photo visible around occluders. The classifier
                                   # (chroma + dark-on-bright) catches anything SAM
                                   # 2 leaks at thin edges, so dilation is no longer
@@ -177,7 +177,7 @@ def detect_portraits_grounding_dino(processor, model, frame_bgr: np.ndarray, thr
     return [(boxes[i][0], boxes[i][1], boxes[i][2], boxes[i][3], float(scores[i])) for i in keep]
 
 
-# ─── v8: Occluder detection via Grounding DINO ───────────────────────────────
+# ─── Occluder detection via Grounding DINO ───────────────────────────────────
 def detect_occluders_grounding_dino(
     processor, model, frame_bgr: np.ndarray, *, threshold: float = 0.20,
 ) -> list[dict]:
@@ -235,9 +235,9 @@ def filter_occluders_against_paper(
         SAM 2 propagates them; we don't typically need an additional hand
         seed mid-clip to track the placement act.
 
-    v9.2: was center-inside-paper; that mis-handled the corner case where
-    a real hand entered the workspace late in the episode with its center
-    happening to land inside a paper. Fraction is more robust."""
+    Previously this used center-inside-paper, which mis-handled the corner
+    case where a real hand entered the workspace late in the episode with
+    its center happening to land inside a paper. Fraction is more robust."""
     keep = []
     for d in occluder_dets:
         x0, y0, x1, y1 = [int(v) for v in d["box"]]
@@ -254,7 +254,7 @@ def filter_occluders_against_paper(
             in_paper = M[y0c:y1c, x0c:x1c] > 0
             frac = float(in_paper.sum()) / max(box_area, 1)
             max_frac = max(max_frac, frac)
-        # v10b: also reject when the box CENTER lies inside any portrait.
+        # also reject when the box CENTER lies inside any portrait.
         # Catches the "giant bbox that covers Swift's paper plus a lot of
         # surrounding table" case where in_paper_fraction is small
         # (because box is huge) but the box is centered on a portrait so
@@ -287,7 +287,7 @@ def filter_occluders_against_paper(
     return keep
 
 
-# ─── v8: SAM 2 video propagation for occluders ───────────────────────────────
+# ─── SAM 2 video propagation for occluders ───────────────────────────────────
 def track_occluders_through_video(
     video_predictor, frame_dir: Path, n_frames: int, H_img: int, W_img: int,
     occluder_dets_per_frame: dict[int, list[dict]],
@@ -329,10 +329,10 @@ def track_occluders_through_video(
     return per_frame, obj_id_to_label
 
 
-# ─── Paper rectangle detection (the v7 fix) ──────────────────────────────────
+# ─── Paper rectangle detection ───────────────────────────────────────────────
 #
 # Two-stage with safe fallbacks. We need M_0 to be the FULL RECTANGULAR PAPER,
-# not the person on the paper (the bug v6 had: SAM picked the most salient
+# not the person on the paper (an earlier bug: SAM picked the most salient
 # object inside the GDINO box, which for portrait photos is the *person*, so
 # the augmented photo only filled a person-shaped region instead of the
 # rectangular paper).
@@ -366,19 +366,18 @@ SAM_MULTIMASK = True       # request all 3 SAM candidates so we can rank them.
 def sam_box_to_mask(image_predictor, frame_bgr: np.ndarray, box) -> tuple[np.ndarray, float, int]:
     """Return (boolean mask, box_fill_fraction, idx_of_chosen).
 
-    v10: keeps SAM's 3-candidate "argmax(area)" ranking (which empirically
-    picks the paper-as-whole when the GDINO box is set to the paper —
+    Keeps SAM's 3-candidate "argmax(area)" ranking (which empirically
+    picks the paper-as-whole when the GDINO box is set to the paper:
     SAM's candidates are nested whole/part/sub-part, so the largest valid
-    candidate IS the paper). Adds a new spillover gate (in_box_frac ≥
+    candidate IS the paper). Adds a spillover gate (in_box_frac ≥
     SAM_IN_BOX_MIN) to reject "whole" candidates that bleed into the
-    surrounding table — these were the F1 failure mode (defect #1 in the
-    2026-05-13 bottleneck diagnosis).
+    surrounding table.
 
     Why area-argmax and not iou_pred-argmax:
       - SAM 2's pred_iou score rates mask *quality* (boundary sharpness,
         coherence), NOT which candidate is "paper" vs "face within photo".
-        Empirically on swift_OLS_ep01 (smoke test 2026-05-13), iou-pred
-        argmax picked the face-content candidate over the paper
+        Empirically on real episodes, iou-pred argmax picked the
+        face-content candidate over the paper
         (verification dropped from cos=0.399 to cos=-0.058).
       - SAM 1's AMG uses pred_iou_thresh=0.88 as a *filter*, then a
         custom NMS — it doesn't rank candidates by score for instance
@@ -533,9 +532,9 @@ def _order_tl_tr_br_bl(box4x2: np.ndarray) -> np.ndarray:
     Old impl used ideal angles ±45°/±135° from centroid; for papers tilted
     near 45° the four corners sit at the cardinals (0°/±90°/180°), and the
     greedy nearest-ideal match put diagonally-opposite corners into
-    adjacent slots — producing a self-intersecting (bowtie) polygon. Warp
+    adjacent slots, producing a self-intersecting (bowtie) polygon. Warp
     into a bowtie quadrilateral renders as two solid triangles meeting at
-    the center (Obama-as-black-diamond bug, 2026-05-11).
+    the center.
 
     Fix: pick the actual "top" edge as the one with smallest midpoint y,
     then TL is its left endpoint. Adjacency comes for free from
@@ -566,12 +565,11 @@ def mask_to_corners_and_filled_rect(
     we want the augmented photo to fill the FULL paper rectangle, not just
     whatever SAM happened to segment.
 
-    NOTE (2026-05-13 bottleneck diagnosis, defect #3): minAreaRect inherits
-    SAM-mask noise. A morph-open here was tried (v10 first attempt) but did
-    not help on the dominant failure case (swift_OLS_ep01) because that
-    case's oversizing is upstream of SAM — a too-generous GroundingDINO
-    box that SAM faithfully fills. The right fix is a classical sub-pixel
-    rectangle refit constrained to the paper boundary (planned next).
+    NOTE: minAreaRect inherits SAM-mask noise. A morph-open here was tried
+    but did not help on the dominant failure case because that case's
+    oversizing is upstream of SAM: a too-generous GroundingDINO box that
+    SAM faithfully fills. The right fix is a classical sub-pixel
+    rectangle refit constrained to the paper boundary.
     """
     contours, _ = cv2.findContours(mask.astype(np.uint8), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     if not contours: return None, None
@@ -590,7 +588,7 @@ def corners_to_filled_rect(corners: np.ndarray, frame_shape: tuple) -> np.ndarra
     return filled
 
 
-# v10: classical sub-pixel rectangle refinement (Hough+contrast+subpix corner).
+# classical sub-pixel rectangle refinement (Hough+contrast+subpix corner).
 # Imported lazily so existing imports still work if the module is missing.
 try:
     from refine_paper_quad import refine_paper_quad_to_edges
@@ -622,12 +620,12 @@ REFINE_PAPER_EDGES = True  # toggle classical sub-pixel refit on the paper quad
 
 def find_paper_mask_for_box(image_predictor, frame_bgr: np.ndarray, box,
                               refit_debug_dir = None):
-    """Apply the v7 strategy: SAM multimask → Canny → box-axis-aligned,
-    then a v10 classical sub-pixel rectangle refit on the result.
+    """Apply the strategy: SAM multimask → Canny → box-axis-aligned,
+    then a classical sub-pixel rectangle refit on the result.
 
     Returns: (corners 4×2, filled_rect_mask uint8, source: str)
     where `source` ∈ {"sam_multimask", "canny_edges", "gdino_box"} plus an
-    optional "+edge_refined" suffix when the v10 refit succeeded.
+    optional "+edge_refined" suffix when the refit succeeded.
     The filled_rect_mask is what should be stored as M_0.
 
     If `refit_debug_dir` is set, the refit module saves per-step diagnostic
@@ -667,7 +665,7 @@ def find_paper_mask_for_box(image_predictor, frame_bgr: np.ndarray, box,
               f"(sam_fill={fill:.2f})", flush=True)
         source = f"gdino_box_axis_aligned (sam_fill={fill:.2f})"
 
-    # v10 sub-pixel rectangle refit (snap each side to the true paper edge).
+    # sub-pixel rectangle refit (snap each side to the true paper edge).
     # Skips silently when the module isn't loadable; logs [WARN] when the
     # refit fails any sanity gate.
     if REFINE_PAPER_EDGES and _REFINE_AVAILABLE:
@@ -738,7 +736,7 @@ def identify_portraits(face_app, frame_bgr: np.ndarray, corners_per_pid: dict[in
     return out
 
 
-# ─── Per-frame OBJECT detection — LAB classifier (v7.1) ──────────────────────
+# ─── Per-frame OBJECT detection: LAB classifier ──────────────────────────────
 # Two binary criteria, OR'd together; everything else is paper-with-shadow.
 #
 #   (a) chroma_diff > CHROMA_T
@@ -756,15 +754,14 @@ def identify_portraits(face_app, frame_bgr: np.ndarray, corners_per_pid: dict[in
 #         - dark photo content (Swift's hair, suit lapels — L_0 already low,
 #           so the second clause `L_0 > L_LIGHT_T` is false).
 #
-# Why v7's prior `|L_i - L_0| > LUM_OBJECT_T` criterion was wrong:
+# Why the prior `|L_i - L_0| > LUM_OBJECT_T` criterion was wrong:
 #   Strong shadows on bright paper (the cola can casts a sharp shadow on
 #   the table-side of each portrait) routinely produce |ΔL| ≈ 70-100. With
-#   LUM_OBJECT_T=55 these shadow pixels were mis-classified as "object" →
-#   alpha=0 → the original photo showed through everywhere a shadow fell.
-#   The user reported this as: "the augmented image gets transparent and
-#   the real photo beneath starts to appear". The new criterion lets all
-#   shadow pixels through; stage 4's L_i/L_0 luminance modulation then
-#   darkens the new photo to match the shadow visually.
+#   LUM_OBJECT_T=55 these shadow pixels were mis-classified as "object",
+#   alpha=0, the original photo showed through everywhere a shadow fell.
+#   The new criterion lets all shadow pixels through; stage 4's L_i/L_0
+#   luminance modulation then darkens the new photo to match the shadow
+#   visually.
 #
 # Thresholds (OpenCV LAB: L,a,b each in [0,255]):
 #   CHROMA_T   = 18   ≈ ΔE76 7 in standard [-128,127] LAB; "just noticeable"
@@ -777,9 +774,9 @@ CHROMA_T = 18
 L_DARK_T = 70
 L_LIGHT_T = 130
 
-# v8.1: Cucchiara 2003 shadow detection (per-channel BGR ratio invariant).
+# Cucchiara 2003 shadow detection (per-channel BGR ratio invariant).
 # A pixel is SHADOW iff: r_min > SHADOW_ALPHA AND r_max < SHADOW_BETA AND ratio_spread < SHADOW_TAU.
-# This is the *rescue* test — we use it to UN-EXCLUDE pixels that SAM 2 or the
+# This is the *rescue* test, we use it to UN-EXCLUDE pixels that SAM 2 or the
 # classifier wrongly marked as object but which are actually shadows on paper.
 # Refs (cross-checked):
 #   - Cucchiara, Grana, Piccardi, Prati 2003 (TPAMI 25:10) "Detecting Moving
@@ -805,10 +802,10 @@ def detect_object(
     pre_blur_sigma: float = 1.0,
     morph_radius: int = 2,
 ) -> np.ndarray:
-    """v8.1 classifier — restored to v7.1 criteria (chroma + dark_on_bright).
-    Bright/specular and asymmetric-channel cases are now caught by SAM 2 video
-    tracking; the over-aggressive v7.2 criteria were causing shadow pixels in
-    textured photo regions to be falsely classified as objects."""
+    """LAB classifier (chroma + dark_on_bright).
+    Bright/specular and asymmetric-channel cases are caught by SAM 2 video
+    tracking; an earlier over-aggressive criterion was causing shadow
+    pixels in textured photo regions to be falsely classified as objects."""
     if pre_blur_sigma > 0:
         a = cv2.GaussianBlur(frame_i, (0, 0), sigmaX=pre_blur_sigma)
         b = cv2.GaussianBlur(frame_0, (0, 0), sigmaX=pre_blur_sigma)
@@ -840,7 +837,7 @@ def detect_shadow_cucchiara(
     chroma_max: int = SHADOW_CHROMA_MAX,
     pre_blur_sigma: float = 1.0,
 ) -> np.ndarray:
-    """v8.1: Cucchiara 2003 per-channel ratio shadow test.
+    """Cucchiara 2003 per-channel ratio shadow test.
 
     A pixel is SHADOW iff all four hold (within M_0):
       (1) chroma_diff < SHADOW_CHROMA_MAX  — hue preserved
@@ -894,7 +891,7 @@ def process_episode(
 ) -> dict:
     """Detect the three portrait quads in one teleop episode and persist them.
 
-    Runs the static-camera v6 detection pipeline on the episode's first
+    Runs the static-camera detection pipeline on the episode's first
     frame:
 
     1. GroundingDINO open-vocabulary detection finds candidate portrait
@@ -1017,25 +1014,27 @@ def process_episode(
     print(f"    mask sources: pid0={mask_sources[0]}, pid1={mask_sources[1]}, pid2={mask_sources[2]}")
 
     # 3. ArcFace identification.
-    # Identification policy (validated empirically on ep04):
+    # Identification policy (validated empirically on real episodes):
     #   - ArcFace at 2× upscale on the full frame is RELIABLE here: when all 3
     #     faces are detected inside their portrait polygons and each best-match
-    #     cosine ≥ ARCFACE_MIN_COS (we use 0.40 — the buffalo_l "same-identity"
+    #     cosine ≥ ARCFACE_MIN_COS (we use 0.40, the buffalo_l "same-identity"
     #     threshold from the InsightFace docs and the ArcFace paper §4.3), use
     #     ArcFace. Each cosine independently exceeding 0.40 against three
     #     orthogonal prototypes is a strong joint signal.
-    #   - Otherwise, fall back to the layout sidecar — the operator-recorded
-    #     order. But the sidecar can be wrong (ep04: operator typed "SOL" but
-    #     placed L-S-O), so we log a [WARN] and surface the disagreement.
+    #   - Otherwise, fall back to the layout sidecar (the operator-recorded
+    #     order). The sidecar can be wrong (operator may type one layout but
+    #     place a different one), so we log a [WARN] and surface the
+    #     disagreement.
     ARCFACE_MIN_COS = 0.40
-    ARCFACE_MIN_GAP = 0.15        # v9.3: best - 2nd-best ≥ this is "confident enough"
+    ARCFACE_MIN_GAP = 0.15        # best - 2nd-best ≥ this is "confident enough"
                                   # even if absolute cosine < ARCFACE_MIN_COS.
-                                  # Justification: on ep01, swift was correctly
-                                  # identified at cos=0.366 but rejected by the
-                                  # absolute threshold; the 2nd-best (obama=0.151)
-                                  # was 0.215 below — an unambiguous win. The
-                                  # gap test catches these confident-but-low
-                                  # matches without admitting noise.
+                                  # Justification: on real episodes, a celeb
+                                  # was correctly identified at cos=0.366 but
+                                  # rejected by the absolute threshold; the
+                                  # 2nd-best (0.151) was 0.215 below, an
+                                  # unambiguous win. The gap test catches
+                                  # these confident-but-low matches without
+                                  # admitting noise.
     print("    ArcFace identify each portrait...", end=" ")
     t0 = time.time()
     id_results = identify_portraits(face_app, frame_0, initial_corners, celeb_protos)
@@ -1113,7 +1112,7 @@ def process_episode(
     # Save frame_0 for stage 4's shadow-aware luminance modulation.
     cv2.imwrite(str(ep_dir / "frame_0.png"), frame_0)
 
-    # 4.5. v8: Grounded-SAM-2 occluder tracking through the video.
+    # 4.5. Grounded-SAM-2 occluder tracking through the video.
     #   - Grounding DINO on frame 0 + last frame → bounding boxes for
     #     {gripper, can, hand}. Frame 0 catches gripper+can (always
     #     present from t=0); last frame catches the hand (typically only
@@ -1136,14 +1135,14 @@ def process_episode(
     occluder_dets_per_frame: dict[int, list[dict]] = {}
     dets_frame0_raw = detect_occluders_grounding_dino(gd_proc, gd_model, frame_0)
     dets_frame0 = dets_frame0_raw
-    # v10: at frame 0 the recording convention is "workspace clear of
-    # occluders" — gripper above, no can placed yet. ANY GDINO detection
+    # at frame 0 the recording convention is "workspace clear of
+    # occluders": gripper above, no can placed yet. ANY GDINO detection
     # of {gripper, can, hand} that lands ≥20% inside a portrait paper at
-    # frame 0 is photo content (Swift's hand in her photo, LeCun adjusting
-    # glasses, red dress matching "coca cola can"). Drop aggressively.
-    # Verified visually 2026-05-13 — at 0.60 the filter was letting Swift
-    # photos through as "human hand" and SAM 2 propagated them across
-    # the whole clip, covering Swift's face with a yellow occluder mask.
+    # frame 0 is photo content (a hand in a photo, someone adjusting
+    # glasses, a red dress matching "coca cola can"). Drop aggressively.
+    # Verified visually on real episodes: at 0.60 the filter was letting
+    # portrait photos through as "human hand" and SAM 2 propagated them
+    # across the whole clip, covering a face with a yellow occluder mask.
     dets_frame0 = filter_occluders_against_paper(
         dets_frame0, list(M0_per_pid.values()), max_in_paper_fraction=0.20,
         drop_if_center_in_paper=True,
@@ -1168,7 +1167,7 @@ def process_episode(
     print(f"({time.time()-t0:.1f}s, {n_seeds} occluder seeds: "
           f"{[(fi, [d['label'] for d in v]) for fi, v in sorted(occluder_dets_per_frame.items())]})")
 
-    # v10: save debug PNGs of GroundingDINO occluder detections (KEPT in green,
+    # save debug PNGs of GroundingDINO occluder detections (KEPT in green,
     # DROPPED in red) on frame 0 and last frame, with portrait outlines for
     # context. So we can SEE every bbox that's being considered.
     def _draw_occluder_dbg(img, raw_dets, kept_dets, m0_per_pid, label_title):
@@ -1260,7 +1259,7 @@ def process_episode(
                 pre_blur_sigma=pre_blur_sigma,
                 morph_radius=morph_radius,
             )
-            # v9: simple union (drop the Cucchiara shadow rescue).
+            # simple union (drop the Cucchiara shadow rescue).
             # Per the LIBERO-Plus / Pumacay decomposition, lighting/shadow is
             # the smallest-impact perturbation axis for VLAs (8-11 pp vs 45-72
             # pp for camera/state). The entire VLA augmentation field (ROSIE,
@@ -1344,14 +1343,22 @@ def process_episode(
 # ─── Main ────────────────────────────────────────────────────────────────────
 def main() -> int:
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    p.add_argument("episode_dir", nargs="?", default=None)
-    p.add_argument("--root", default=None)
-    p.add_argument("--pre-blur-sigma", type=float, default=1.0)
-    p.add_argument("--morph-radius", type=int, default=2)
-    p.add_argument("--ckpt", default=str(SAM2_CKPT_DEFAULT))
-    p.add_argument("--cfg", default=SAM2_CFG)
-    p.add_argument("--photo-bank", default=str(PHOTO_BANK_DEFAULT))
-    p.add_argument("--force", action="store_true")
+    p.add_argument("episode_dir", nargs="?", default=None,
+                   help="Path to a single episode directory to process")
+    p.add_argument("--root", default=None,
+                   help="Root containing many episode directories to process")
+    p.add_argument("--pre-blur-sigma", type=float, default=1.0,
+                   help="Gaussian sigma applied to both frames before per-frame diff")
+    p.add_argument("--morph-radius", type=int, default=2,
+                   help="Open/close kernel radius applied to the occluder mask")
+    p.add_argument("--ckpt", default=str(SAM2_CKPT_DEFAULT),
+                   help="Path to the SAM 2.1 hiera-large checkpoint")
+    p.add_argument("--cfg", default=SAM2_CFG,
+                   help="Hydra config name for the SAM 2.1 model")
+    p.add_argument("--photo-bank", default=str(PHOTO_BANK_DEFAULT),
+                   help="Root of the verified celebrity photo bank used for ArcFace prototypes")
+    p.add_argument("--force", action="store_true",
+                   help="Re-run even when portrait_corners.json/portrait_masks.pkl already exist")
     args = p.parse_args()
 
     if (args.episode_dir is None) == (args.root is None):

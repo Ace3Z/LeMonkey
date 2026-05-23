@@ -128,8 +128,10 @@ def patch_episodes_parquet(ep_dir: Path) -> str:
 
 def main() -> int:
     p = argparse.ArgumentParser()
-    p.add_argument("--aug-root", type=Path, default=Path("datasets/eval3_aug_v3"))
-    p.add_argument("--base-root", type=Path, default=Path("datasets/eval3"))
+    p.add_argument("--aug-root", type=Path, default=Path("datasets/eval3_aug_v3"),
+                   help="Root containing the augmented variant directories to patch")
+    p.add_argument("--base-root", type=Path, default=Path("datasets/eval3"),
+                   help="Root containing the base teleop directories to patch")
     args = p.parse_args()
 
     targets = []

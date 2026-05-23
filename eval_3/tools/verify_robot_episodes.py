@@ -1,14 +1,11 @@
 #!/usr/bin/env python3
-"""Visually verify Track-3 robot episodes: prompt <-> target portrait <-> trajectory.
+"""Visually verify augmented robot episodes (highlights the target portrait in green, distractors in red).
 
-Renders N randomly sampled augmented episodes as annotated videos — the full
+Renders N randomly sampled augmented episodes as annotated videos, the full
 trajectory with all 3 portrait quads drawn per-frame, each quad labelled with
 its celeb, the prompt + target shown in a banner, the target quad highlighted
 green and distractors red. Lets a human confirm the can lands on the labelled
 target portrait.
-
-Used 2026-05-21 to verify the Track-3 co-training robot dataset (20/20 correct).
-See 2026-05-21_robot_dataset_visual_verify.md
 
 Usage:
     python eval_3/tools/verify_robot_episodes.py
@@ -31,6 +28,7 @@ FULL_TO_DISP = {"taylor_swift": "Taylor Swift", "barack_obama": "Barack Obama",
 
 
 def main() -> int:
+    """Sample N augmented episodes and render annotated mp4s + a keyframe montage."""
     p = argparse.ArgumentParser(description=__doc__,
                                 formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("--aug-root", default="datasets/eval3_aug_cotrain",
@@ -61,9 +59,13 @@ def main() -> int:
     montage_rows = []
     for ei, (name, vdir, aj, pc_path, vid) in enumerate(picks):
         corners = json.loads(open(pc_path).read())["portraits"]
+        # Note: p2c (pid_to_celeb_full) JSON keys are strings ("0", "1", "2"), not ints.
         p2c = aj["pid_to_celeb_full"]
         target_full = SHORT_TO_FULL[aj["new_target_short"]]
         target_pid = next((pid for pid, c in p2c.items() if c == target_full), None)
+        if target_pid is None:
+            print(f"[WARN] {name}: target celeb {target_full} not found in pid_to_celeb_full={p2c}; skipping")
+            continue
         prompt = aj["prompt"]
 
         cap = cv2.VideoCapture(vid)

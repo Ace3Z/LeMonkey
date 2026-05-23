@@ -1,39 +1,37 @@
 #!/usr/bin/env python3
 """Quick smoke-record for Eval 3 — record N episodes of the full task.
 
-This is the Phase-2a script: collect a handful of episodes (default 5) of the
-full Eval 3 task — pick up the Coke can, place it on a target celebrity's
-portrait — so we can iterate on the inpainting augmentation pipeline before
-committing to the 144-episode balanced collection (record_eval3.py).
+This script collects a handful of episodes (default 5) of the full Eval 3
+task — pick up the Coke can, place it on a target celebrity's portrait —
+so we can iterate on the inpainting augmentation pipeline.
 
 NOT a balanced-plan recorder — this is single-config, ad-hoc, you specify
 the celeb / layout / prompt at the CLI.
 
 Usage:
     # minimal — defaults to swift, layout SOL, default prompt, 5 episodes
-    record_eval3_quick.py --target swift --layout SOL
+    record_quick.py --target swift --layout SOL
 
     # custom prompt
-    record_eval3_quick.py --target obama --layout OLS \\
+    record_quick.py --target obama --layout OLS \\
                          --prompt "Put the coke can on Barack Obama."
 
     # arbitrary celeb (e.g. for the supplementary extra-celeb demos)
-    record_eval3_quick.py --target federer --layout - \\
+    record_quick.py --target federer --layout - \\
                          --prompt "Place the coke on Roger Federer." \\
                          --target-name "Roger Federer" \\
                          --reference-photo /path/to/federer_ref.jpg
 
     # dry-run (no robot needed, walks the loop)
-    record_eval3_quick.py --target swift --layout SOL --dry-run
+    record_quick.py --target swift --layout SOL --dry-run
 
 Controls during recording:
     ENTER   record next episode (subprocess: lerobot-record for 20 s)
     d       delete the LAST recorded episode
     q       quit (state auto-saved)
 
-Output schema is identical to record_eval3.py — produces a LeRobot v3 dataset
-dir per episode plus a sidecar reference.json so the augmentation pipeline can
-treat both quick-recorded and full-plan-recorded episodes uniformly.
+Output schema produces a LeRobot v3 dataset dir per episode plus a sidecar
+reference.json so the augmentation pipeline can treat episodes uniformly.
 """
 from __future__ import annotations
 
@@ -75,11 +73,13 @@ def target_idx_in_layout(layout: str, target_key: str) -> int | None:
 
 
 def write_reference_sidecar(run_path: Path, payload: dict) -> None:
+    """Write the per-episode reference.json sidecar (target celeb, layout, prompt, etc.)."""
     sidecar = run_path / "reference.json"
     sidecar.write_text(json.dumps(payload, indent=2))
 
 
 def main() -> int:
+    """Loop through N quick-recording episodes, invoking lerobot-record per episode and writing the reference sidecar."""
     p = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
     )
@@ -99,14 +99,19 @@ def main() -> int:
     p.add_argument("--num-episodes", type=int, default=5)
     p.add_argument("--episode-time-s", type=float, default=20.0)
     p.add_argument("--reset-time-s", type=float, default=10.0)
-    p.add_argument("--root", default="/home/lemonkey/LeMonkey/datasets/eval3_quick",
+    p.add_argument("--root", default=str(Path.home() / "LeMonkey/datasets/eval3_quick"),
                    help="Output dir for episode subdirs. Separate from the main eval3/ dir so the "
                         "smoke-record episodes can't accidentally pollute the main collection.")
-    p.add_argument("--leader-port", default="/dev/so101-leader")
-    p.add_argument("--leader-id", default="my_leader")
-    p.add_argument("--follower-port", default="/dev/so101-follower")
-    p.add_argument("--follower-id", default="my_follower")
-    p.add_argument("--cam-path", default="/dev/video0")
+    p.add_argument("--leader-port", default="/dev/so101-leader",
+                   help="udev path to the SO-101 leader arm serial device (default: /dev/so101-leader).")
+    p.add_argument("--leader-id", default="my_leader",
+                   help="lerobot-record teleop ID for the leader arm (default: my_leader).")
+    p.add_argument("--follower-port", default="/dev/so101-follower",
+                   help="udev path to the SO-101 follower arm serial device (default: /dev/so101-follower).")
+    p.add_argument("--follower-id", default="my_follower",
+                   help="lerobot-record robot ID for the follower arm (default: my_follower).")
+    p.add_argument("--cam-path", default="/dev/video0",
+                   help="V4L2 device node for the wrist camera (default: /dev/video0).")
     p.add_argument("--dry-run", action="store_true",
                    help="Walk the loop without invoking lerobot-record (no robot needed)")
     args = p.parse_args()
@@ -212,7 +217,7 @@ def main() -> int:
                       f"if you want to remove a partial dataset on disk.")
                 continue
 
-        # Sidecar — same schema as record_eval3.py so downstream tooling is uniform
+        # Sidecar — same schema as record_quick.py so downstream tooling is uniform
         write_reference_sidecar(run_path, {
             "episode_idx": ep_no,
             "target_celeb": target_key,
