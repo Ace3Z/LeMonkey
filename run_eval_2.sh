@@ -3,7 +3,7 @@
 #
 # Compositional instruction following. The model was trained with CAMERA-FRAME
 # spatial language - "leftmost" means image-left in the wrist-camera view.
-# Single-camera contract: wrist USB cam on /dev/video0 at 480x640 / 30 fps.
+# Single-camera contract: wrist USB cam on /dev/video0 at 640x480, 30 fps.
 #
 # Downloads the final 25k checkpoint from HF on first use.
 #

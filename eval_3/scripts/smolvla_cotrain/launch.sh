@@ -21,7 +21,7 @@ set -euo pipefail
 ROBOT_DATASET="${ROBOT_DATASET:-HBOrtiz/so101_eval3_cotrain}"
 VL_MANIFEST="${VL_MANIFEST:-HBOrtiz/so101_eval3_broad_grounding}"
 VL_IMAGE_ROOT="${VL_IMAGE_ROOT:-}"          # leave empty to auto-download
-PRETRAINED="${PRETRAINED:-lerobot/smolvla_base}"   # or HansOrtiz/smolvlm2_celeb_warm
+PRETRAINED="${PRETRAINED:-lerobot/smolvla_base}"   # or HBOrtiz/smolvlm2_celeb_warm
 VLM_OVERRIDE="${VLM_OVERRIDE:-}"            # set to a warm VLM repo to swap inner VLM
 
 STEPS="${STEPS:-30000}"

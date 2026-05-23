@@ -4,7 +4,7 @@
 # SmolVLA-450M trained for direct color-conditioned pick-and-place: pick up the
 # banana, place it in the bowl named by the prompt ("Put the banana in the
 # <colour> colored bowl."). Single-camera contract: wrist USB cam on
-# /dev/video0 at 480x640 / 30 fps.
+# /dev/video0 at 640x480, 30 fps.
 #
 # Downloads the final 25k checkpoint from HF on first use.
 #

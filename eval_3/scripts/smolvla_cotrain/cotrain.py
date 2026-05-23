@@ -97,7 +97,7 @@ def parse_args() -> argparse.Namespace:
                         "If None, snapshot_download the whole VL repo (~1 GB).")
     # Model
     p.add_argument("--pretrained_path", default="lerobot/smolvla_base",
-                   help="SmolVLA starting checkpoint. Use HansOrtiz/smolvlm2_celeb_warm "
+                   help="SmolVLA starting checkpoint. Use HBOrtiz/smolvlm2_celeb_warm "
                         "for warm-VLM, or lerobot/smolvla_base for cold.")
     p.add_argument("--vlm_model_name", default=None,
                    help="Optional override for the inner VLM checkpoint. "

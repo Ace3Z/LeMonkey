@@ -46,7 +46,7 @@ plan is balanced along two axes at once:
   the prompt.
 
 **2. Wide phrasing diversity.** Each family draws from a pool of phrasings, so
-the 180 episodes carry 120+ distinct prompt strings. The policy sees the
+the 180 episodes carry 123 distinct prompt strings. The policy sees the
 *concept* expressed many ways, not one template to memorise.
 
 **3. Fine tune from the base model, not from Eval 1.** Training starts from

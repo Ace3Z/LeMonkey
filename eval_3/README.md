@@ -26,7 +26,7 @@ model or external VLM is allowed at inference.
 - Three printed celebrity portraits are placed on the workspace.
 - An empty coke can sits in front of the robot.
 - Prompt: `"Put the coke on <celebrity name>."`
-- 20 s per rollout. The policy places the can on the matching portrait.
+- 25 s per rollout. The policy places the can on the matching portrait.
 - Three tiers of increasing difficulty:
   1. **In distribution**: the three celebrities seen in training (Taylor Swift, Barack Obama, Yann LeCun).
   2. **Held-out photos**: the same three people, different photos.
@@ -120,13 +120,17 @@ onto the videos to confirm correctness, lives in [`tools/`](tools/).
 
 ```
 eval_3/
-├── README.md          this file
-├── aug/               identity-preserving portrait augmentation pipeline
+├── README.md             this file
+├── aug/                  identity-preserving portrait augmentation pipeline
 ├── scripts/
-│   ├── smolvla_cotrain/   SmolVLA robot plus vision-language co-training trainer
-│   ├── run_rollout_*      eval-day rollout runners
-│   ├── warmstart/         PaliGemma VQA warm-start (Pi0.5 Pi0.5 path)
-│   └── brev/              training-VM launch scripts
-├── tools/             dataset-verification renderers
+│   ├── rollout/             eval-day rollout runners (one per deployed policy)
+│   ├── record/              teleop recording session scripts
+│   ├── data/                dataset merge + push helpers
+│   ├── celebs/              celebrity-photo bank builders
+│   ├── smolvla_cotrain/     deployed SmolVLA cotrain trainer
+│   ├── pi05_vl_cotrain/     Pi0.5 + VL cotrain (published variant)
+│   ├── warmstart/           PaliGemma VQA warm-start (init for Pi0.5)
+│   └── brev/                cloud-VM (Brev) launcher kit
+├── tools/                dataset-verification renderers
 └── train/, rollouts/, state/   gitignored: checkpoints, recordings, state
 ```
