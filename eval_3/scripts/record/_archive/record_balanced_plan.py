@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Record Eval 3 teleop episodes against a balanced 144-episode plan.
 
-Per PROJECT.md §2 (Eval 3) and eval_3/README.md (Path A: image-as-prompt
+Per the internal task brief (Eval 3) and eval_3/README.md (Path A: image-as-prompt
 + co-train, decided after Phase 1 PaliGemma probe yielded 0% name recall):
 
   - Workspace shows 3 A5 portraits (Swift / Obama / LeCun) arranged
@@ -13,7 +13,7 @@ Per PROJECT.md §2 (Eval 3) and eval_3/README.md (Path A: image-as-prompt
     sidecar  reference.json  next to the LeRobot dataset, so the data loader
     at training time can read it.
   - Prompt phrasing varies across episodes to combat phrasing-overfit.
-  - 20 s per rollout (matches Eval 2 / PROJECT.md §2).
+  - 20 s per rollout (matches Eval 2).
 
 Design:
   • Plan = 3 targets × 6 layouts × 8 reps = 144 episodes.

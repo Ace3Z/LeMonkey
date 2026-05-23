@@ -22,7 +22,7 @@ Hypothesis 3 above is the load-bearing finding. Reframed: SmolVLA's action exper
 Why this is the right read:
 
 - **Positional bias confirmed empirically** on the deploy machine (2026-05-17): rotating Swift through L/M/R positions produced the same wrong spot.
-- **The visual sub-task is hard** ([`VLA_ARCHITECTURES.md` §3 Eval 3](../../VLA_ARCHITECTURES.md)): "*The bottleneck is celebrity world-knowledge AND visual face-grounding. The policy must compare faces across the two streams (often very different photo styles - a magazine portrait vs a printed cutout from the TOY PDF).*"
+- **The visual sub-task is hard**: "*The bottleneck is celebrity world-knowledge AND visual face-grounding. The policy must compare faces across the two streams (often very different photo styles - a magazine portrait vs a printed cutout from the TOY PDF).*"
 - **SmolVLM-500M's vision tower** uses a 64-token-per-image pixel-shuffle bottleneck ([SmolVLM, arxiv 2504.05299, §3.1](https://arxiv.org/html/2504.05299v1)). For an 224×224 image with a face occupying ~30% of pixels, only ~10–20 visual tokens carry face identity. That's a thin channel for identity-discriminative information.
 - **No published VLA at the 450M scale demonstrates identity-discriminative reasoning across heterogeneous photos.** Interleave-VLA's 2× OOD gain ([arxiv 2505.02152](https://arxiv.org/abs/2505.02152)) is on π0 (3.3B), and even there the gain is from the *protocol* not the size - the visual reasoning still depends on the backbone's face-discriminative inductive bias.
 
@@ -41,9 +41,9 @@ These are **orthogonal**. They compound - fixing the domain gap without fixing t
 
 ### 2.1 Pi0.5 economic argument
 
-The smallest-model bonus is +20 (rank 1, SmolVLA) vs +16 (rank 3 if 1 OpenVLA team and 1 smaller-than-Pi0.5 team exist) (per [`PROJECT.md` §2 Eval 3](../../PROJECT.md)). That **+4 differential = 0.72 rollouts** of slack on the 5.55-pt-per-rollout scale. Pi0.5 has to beat SmolVLA by **strictly more than 1 rollout** to come out ahead.
+The smallest-model bonus is +20 (rank 1, SmolVLA) vs +16 (rank 3 if 1 OpenVLA team and 1 smaller-than-Pi0.5 team exist). That **+4 differential = 0.72 rollouts** of slack on the 5.55-pt-per-rollout scale. Pi0.5 has to beat SmolVLA by **strictly more than 1 rollout** to come out ahead.
 
-Bonus-economics agent verdict (synthesized from [`PROJECT.md`](../../PROJECT.md), [`eval_3/README.md`](../README.md), and 2026 VLA pretraining-budget surveys):
+Bonus-economics agent verdict (synthesized from the eval brief, [`eval_3/README.md`](../README.md), and 2026 VLA pretraining-budget surveys):
 
 > SmolVLA can be exactly one rollout behind Pi0.5 and still win when its bonus advantage is +4. With only +2 (Pi0.5 is rank 2), the gap must be ≤ 0.36 rollouts → effectively must tie. The bonus is **never** worth more than one rollout's worth of failure.
 
@@ -116,7 +116,7 @@ Expected: 192 celebs → ~140–170 keep ≥1 enrollment-grade photo. For celebs
 
 Head + shoulders crop, margin = 0.5 × inter-eye on each side and 1 × inter-eye on top, then resize to 224×224. NOT a tight face crop - HFR literature ([arxiv 2404.14247 §4.1](https://arxiv.org/abs/2404.14247), [arxiv 2307.07032 §3.2](https://arxiv.org/abs/2307.07032)) confirms broader head box matches what FR encoders were trained on and preserves hair/jaw cues that the printed cutouts retain.
 
-**Compliance check (PROJECT.md §3):** the crop is computed *offline once per celeb* and shipped as a static asset table. No face detector runs at inference. Rule respected.
+**Compliance check (internal task brief):** the crop is computed *offline once per celeb* and shipped as a static asset table. No face detector runs at inference. Rule respected.
 
 ### 3.5 Recipe - print-domain forward augmentation
 
@@ -354,12 +354,12 @@ The 7 research agents triangulated to a stable recommendation:
 
 ### Local source pointers
 
-- [`PROJECT.md`](../../PROJECT.md) - eval rubric, smallest-model bonus
-- [`VLA_ARCHITECTURES.md`](../../VLA_ARCHITECTURES.md) - original architecture decision, knob inventory
-- [`RELATED_WORK.md`](../../RELATED_WORK.md) - prior public work survey
+- the eval brief - eval rubric, smallest-model bonus
+- the internal architecture notes - original architecture decision, knob inventory
+- the internal related-work survey - prior public work survey
 - [`eval_3/README.md`](../README.md) - Eval 3 project plan + 2026-05-09 PaliGemma probe results
 - [`eval_3/aug/STRATEGY.md`](STRATEGY.md) - current augmentation strategy
-- [`eval_3/aug/RESEARCH_v2.md`](RESEARCH_v2.md) - detection + temporal-stability research
+- [`eval_3/aug/_legacy/RESEARCH_v2.md`](_legacy/RESEARCH_v2.md) - detection + temporal-stability research
 - [`third_party/lerobot/src/lerobot/policies/smolvla/modeling_smolvla.py`](../../third_party/lerobot/src/lerobot/policies/smolvla/modeling_smolvla.py) - SmolVLA training forward + image plumbing
 - [`third_party/lerobot/src/lerobot/policies/smolvla/smolvlm_with_expert.py`](../../third_party/lerobot/src/lerobot/policies/smolvla/smolvlm_with_expert.py) - vision encoder hook point
 - [`third_party/lerobot/src/lerobot/datasets/factory.py`](../../third_party/lerobot/src/lerobot/datasets/factory.py) - MultiLeRobotDataset blocker for VQA co-train

@@ -43,7 +43,7 @@ if [ ! -d "$CONDA_DIR" ]; then
   rm /tmp/miniconda.sh
 
   # First-time bootstrap: hook conda into bash + don't auto-activate base.
-  # (Per SETUP.md §1.)
+  #
   "$CONDA_DIR/bin/conda" init bash >/dev/null 2>&1 || \
     echo "[WARN] conda init bash failed - manual ~/.bashrc edit may be required" >&2
   "$CONDA_DIR/bin/conda" config --set auto_activate_base false || \
@@ -82,9 +82,9 @@ case "$PYBIN" in
 esac
 
 # ─── 3. pip install lerobot[smolvla] + extras ────────────────────────────────
-# Version-pinned to match SETUP.md §3 (lerobot==0.5.1). DON'T use the
+# lerobot==0.5.1 is the deployed version. DON'T use the
 # third_party/lerobot submodule in this repo - it's missing
-# `lerobot.datasets` and friends (see SETUP.md §12).
+# `lerobot.datasets` and friends (see the install note in brev_setup.sh).
 echo "=== pip install lerobot[smolvla]==0.5.1 ==="
 pip install --quiet --upgrade pip
 pip install --quiet 'lerobot[smolvla]==0.5.1' 2>&1 | tail -5

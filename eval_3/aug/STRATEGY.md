@@ -1,11 +1,10 @@
 # Eval 3 - Augmentation Strategy v3 (Path A, 200-celeb bank)
 
-> **Status:** Locked 2026-05-14 after 4-agent literature synthesis.
-> **Supersedes:** `STRATEGY.md` (May 10 - pre-Path-A pipeline).
-> **Companion:** `RESEARCH_v2.md` (May 10 - older research review of inpaint
+> **Supersedes:** [`_legacy/STRATEGY_v1.md`](_legacy/STRATEGY_v1.md) (pre-Path-A pipeline).
+> **Companion:** [`_legacy/RESEARCH_v2.md`](_legacy/RESEARCH_v2.md) (older research review of inpaint
 > primitives; algorithmic choices there are still current, but the slot
 > strategy and prompt mixture below override anything inconsistent).
-> **Quality bar:** - every numerical default is triple-sourced;
+> **Quality bar:** every numerical default is triple-sourced;
 > §11 "Cross-check" appendix shows the verification.
 
 ---
@@ -579,13 +578,9 @@ Each load-bearing decision verified against ≥ 3 independent sources.
 
 ### Project-internal
 - `eval_3/aug/STRATEGY.md` - superseded by this doc
-- `eval_3/aug/RESEARCH_v2.md` - older research notes; inpaint primitives still current
+- `eval_3/aug/_legacy/RESEARCH_v2.md` - older research notes; inpaint primitives still current
 - `eval_3/aug/VALIDATION.md` - triple-source audit of v1 numerical defaults; still applies to MTF blur σ, Reinhard, etc.
 - `eval_3/scripts/celebs/scrape_headshots.py` - multi-source bank builder
 - `eval_3/scripts/record/record_guided.sh` - 180-ep recording structure
-- `PROJECT.md` - Eval 3 task brief
 
----
 
-*Doc locked 2026-05-14. Any change requires re-validating the four
-convergent-source tables in §10.*
