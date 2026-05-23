@@ -49,7 +49,15 @@ def render_one(ep_dir: Path, *, fps: int = 30) -> dict:
 
     with open(masks_pkl, "rb") as f:
         cache = pickle.load(f)
-    src_video = Path(cache["video_path"])
+    # Prefer the local episode's video over the cache's stale absolute path,
+    # which may point at a teleop-time location that no longer exists.
+    local_cands = sorted(ep_dir.glob("videos/observation.images.camera1/chunk-*/file-*.mp4"))
+    local_cands = [p for p in local_cands if "__h264" not in p.name] + \
+                  [p for p in local_cands if "__h264" in p.name]
+    if local_cands:
+        src_video = local_cands[0]
+    else:
+        src_video = Path(cache["video_path"])
     h264 = ensure_h264(src_video)
     cap = cv2.VideoCapture(str(h264))
 

@@ -33,7 +33,17 @@ def overlay_one(ep_dir: Path) -> dict:
 
     with open(masks_pkl, "rb") as f:
         cache = pickle.load(f)
-    video = cache["video_path"]
+    # Prefer the local h264 sidecar over the cache's stale absolute path,
+    # and over the original mp4 (which is often AV1 and not cv2-decodable).
+    local_cands = sorted(ep_dir.glob("videos/observation.images.camera1/chunk-*/file-*.mp4"))
+    h264 = [p for p in local_cands if "__h264" in p.name]
+    plain = [p for p in local_cands if "__h264" not in p.name]
+    if h264:
+        video = str(h264[0])
+    elif plain:
+        video = str(plain[0])
+    else:
+        video = cache["video_path"]
     cap = cv2.VideoCapture(video)
     ok, frame = cap.read()
     cap.release()

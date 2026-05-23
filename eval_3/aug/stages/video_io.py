@@ -52,18 +52,19 @@ _REMAP_LOGGED: set = set()
 
 
 def resolve_lemonkey_path(p) -> Path:
-    """Rewrite a /home/lemonkey/LeMonkey/... path to its local equivalent when
-    running outside Thor. No-op if the path exists, doesn't start with the
-    legacy prefix, or no local LeMonkey root is detectable.
+    """Rewrite a stale absolute video path to its local equivalent.
+
+    Handles two cases of "not found here, but a sibling layout exists locally":
+      1. Legacy `/home/lemonkey/LeMonkey/...` prefix (teleop machine).
+      2. Any path that contains `datasets/<dataset>/quick_*/...` somewhere
+         (covers ad-hoc smoke roots like `/tmp/smoke60/...`).
 
     Override the auto-detected root by setting the LEMONKEY_ROOT env var.
-    Logs once per remapped path so the fallback is never silent.
+    No-op if the path exists. Logs once per remapped path so the fallback is
+    never silent.
     """
     p = Path(p)
     if p.exists():
-        return p
-    s = str(p)
-    if not s.startswith(_LEGACY_DATASET_PREFIX + "/"):
         return p
 
     if not _LOCAL_ROOT_CACHE:
@@ -73,7 +74,27 @@ def resolve_lemonkey_path(p) -> Path:
     if root is None:
         return p
 
-    rewritten = root / s[len(_LEGACY_DATASET_PREFIX) + 1 :]
+    s = str(p)
+    rewritten: Path | None = None
+
+    # Case 1: legacy /home/lemonkey/LeMonkey/<anything> prefix.
+    if s.startswith(_LEGACY_DATASET_PREFIX + "/"):
+        rewritten = root / s[len(_LEGACY_DATASET_PREFIX) + 1 :]
+
+    # Case 2: path contains datasets/<dataset>/quick_*/... — splice the
+    # subpath onto the local root.
+    if rewritten is None or not rewritten.exists():
+        parts = p.parts
+        for i, part in enumerate(parts):
+            if part == "datasets" and i + 1 < len(parts):
+                candidate = root.joinpath(*parts[i:])
+                if candidate.exists():
+                    rewritten = candidate
+                    break
+
+    if rewritten is None:
+        return p
+
     if str(rewritten) not in _REMAP_LOGGED:
         _REMAP_LOGGED.add(str(rewritten))
         print(
