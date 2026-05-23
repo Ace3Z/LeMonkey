@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Eval 3 — interactive SmolVLA rollout runner.
+# Eval 3 - interactive SmolVLA rollout runner.
 #
 # Two deployed policies, selectable via a flag:
 #

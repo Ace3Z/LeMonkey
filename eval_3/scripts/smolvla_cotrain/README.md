@@ -11,7 +11,7 @@ Both are SmolVLA-450M from `lerobot/smolvla_base` with the SmolVLM2 backbone tra
 
 ## What the trainer does
 
-Every `vl_ratio + 1`-th step is a vision-language VQA batch with CE loss on the SmolVLM2 LM head; the rest are robot batches with SmolVLA's flow-matching action loss. Both gradients flow into the same VLM body — the mechanism that keeps the celebrity-name prior alive across the action fine-tune. The two streams come from paired HF datasets: `HBOrtiz/so101_eval3_cotrain` (robot) and `HBOrtiz/so101_eval3_cotrain_grounding` (vision-language).
+Every `vl_ratio + 1`-th step is a vision-language VQA batch with CE loss on the SmolVLM2 LM head; the rest are robot batches with SmolVLA's flow-matching action loss. Both gradients flow into the same VLM body - the mechanism that keeps the celebrity-name prior alive across the action fine-tune. The two streams come from paired HF datasets: `HBOrtiz/so101_eval3_cotrain` (robot) and `HBOrtiz/so101_eval3_cotrain_grounding` (vision-language).
 
 ## File layout
 
@@ -55,7 +55,7 @@ pip install torch torchvision --index-url https://download.pytorch.org/whl/cu124
 pip install -e "third_party/lerobot[smolvla,dataset,av-dep]" zstandard
 ```
 
-HF token + push target (write access required — checkpoints are pushed every `SAVE_FREQ` steps). `.hf_token` is gitignored:
+HF token + push target (write access required - checkpoints are pushed every `SAVE_FREQ` steps). `.hf_token` is gitignored:
 
 ```bash
 export HF_TOKEN=hf_...                              # or echo to .hf_token
@@ -114,7 +114,7 @@ For a multi-node job, replace `--standalone` in `run_cluster.sh` with your clust
 | `vqa_loss` plateaued > 3.0 after step 5k | abort; check VL collator label masking |
 | GPU OOM | halve `BATCH_SIZE`, restart |
 | Random NaN losses | confirm `DTYPE=bfloat16`; SmolVLM2 weights are bf16, fp16 NaN-outs |
-| `vqa_loss` count not approximately `flow_loss / VL_RATIO` | VL batches not actually firing — check log routing |
+| `vqa_loss` count not approximately `flow_loss / VL_RATIO` | VL batches not actually firing - check log routing |
 
 ## Known caveats
 
@@ -122,11 +122,11 @@ For a multi-node job, replace `--standalone` in `run_cluster.sh` with your clust
 - **bf16 only.** SmolVLM2 weights are bf16; fp16 NaN-outs the loss.
 - **`torch.compile` off by default.** Flaky over SmolVLA's custom forward in some lerobot versions; enable only after smoke passes.
 - **VL collator runs the SmolVLM2 processor twice per batch** (prompt-only and prompt+target) to get correct label-masking around the `<image>` tokens. If `vqa_loss` plateaus at an elevated floor, dump a couple of `labels` rows and verify the `-100` boundary lands exactly where the target starts; tokenizer leading-special drift would shift the boundary by 1-2 tokens.
-- **Action-head dim mismatch (low-probability).** If checkpoint `action_in_proj` / `action_out_proj` dims disagree with the config's `max_action_dim`, lerobot's `strict=False` silently keeps random-init projections — step 0-10 `flow_loss` will be very large.
-- **HF push failures are non-fatal** — they emit `[WARN]` and continue; the local checkpoint under `OUT_DIR` is kept.
+- **Action-head dim mismatch (low-probability).** If checkpoint `action_in_proj` / `action_out_proj` dims disagree with the config's `max_action_dim`, lerobot's `strict=False` silently keeps random-init projections - step 0-10 `flow_loss` will be very large.
+- **HF push failures are non-fatal** - they emit `[WARN]` and continue; the local checkpoint under `OUT_DIR` is kept.
 
 ## Troubleshooting
 
-- `third_party/lerobot` empty → `git submodule update --init --recursive`.
-- `cannot import lerobot SmolVLA` → env not active or pip install incomplete.
-- `nvidia-smi not found` → run on a GPU node.
+- `third_party/lerobot` empty -> `git submodule update --init --recursive`.
+- `cannot import lerobot SmolVLA` -> env not active or pip install incomplete.
+- `nvidia-smi not found` -> run on a GPU node.

@@ -21,14 +21,14 @@ echo "    detected: $GPU_NAME"
 NEEDS_CU128=0
 case "$GPU_NAME" in
     *Blackwell*|*RTX\ PRO\ 6000*|*RTX\ 5090*|*B100*|*B200*)
-        echo "    -> Blackwell architecture (sm_120) — will force cu128 PyTorch"
+        echo "    -> Blackwell architecture (sm_120) - will force cu128 PyTorch"
         NEEDS_CU128=1
         ;;
     *H100*|*A100*|*L40*|*A10*)
-        echo "    -> Hopper/Ampere (sm_90/sm_80) — stock PyTorch fine"
+        echo "    -> Hopper/Ampere (sm_90/sm_80) - stock PyTorch fine"
         ;;
     *)
-        echo "    [WARN] unknown GPU model — assuming stock PyTorch works; verify cuda.is_available() below"
+        echo "    [WARN] unknown GPU model - assuming stock PyTorch works; verify cuda.is_available() below"
         ;;
 esac
 echo
@@ -61,7 +61,7 @@ conda activate "$ENV_NAME"
 REPO_ROOT="$(cd "$(dirname "$0")/../../.." && pwd)"
 LEROBOT_DIR="$REPO_ROOT/third_party/lerobot"
 if [ ! -d "$LEROBOT_DIR" ]; then
-    echo "[FATAL] third_party/lerobot not found at $LEROBOT_DIR — did rsync run?" >&2
+    echo "[FATAL] third_party/lerobot not found at $LEROBOT_DIR - did rsync run?" >&2
     exit 1
 fi
 echo "=== [3/6] pip install -e $LEROBOT_DIR[smolvla,pi] ==="
@@ -92,7 +92,7 @@ print(f"  python  : {sys.version.split()[0]}")
 print(f"  torch   : {torch.__version__}")
 print(f"  cuda    : available={torch.cuda.is_available()}  device={torch.cuda.get_device_name(0) if torch.cuda.is_available() else 'n/a'}")
 if not torch.cuda.is_available():
-    print("  [FATAL] torch.cuda.is_available()=False — re-run with cu128 install")
+    print("  [FATAL] torch.cuda.is_available()=False - re-run with cu128 install")
     sys.exit(1)
 import lerobot, transformers, peft, datasets, PIL
 print(f"  lerobot     : {getattr(lerobot, '__version__', 'editable')}  ({inspect.getfile(lerobot)})")
@@ -102,11 +102,11 @@ print(f"  datasets    : {datasets.__version__}")
 print(f"  Pillow      : {PIL.__version__}")
 # VQA-critical imports
 from lerobot.policies.pi05.modeling_pi05 import PI05Policy
-print("  ✓ PI05Policy importable")
+print("  [OK] PI05Policy importable")
 from transformers import AutoProcessor, Trainer
-print("  ✓ AutoProcessor + Trainer importable")
+print("  [OK] AutoProcessor + Trainer importable")
 from peft import LoraConfig, get_peft_model, TaskType
-print("  ✓ peft.LoraConfig + get_peft_model importable")
+print("  [OK] peft.LoraConfig + get_peft_model importable")
 PY
 
 # ── 7. HF auth
@@ -114,10 +114,10 @@ echo
 echo "=== HF auth ==="
 TOKEN_FILE="$REPO_ROOT/secrets/huggingface/token_hbortiz"
 if [ ! -f "$TOKEN_FILE" ]; then
-    echo "[WARN] token file missing: $TOKEN_FILE — re-run rsync from dev box"
+    echo "[WARN] token file missing: $TOKEN_FILE - re-run rsync from dev box"
 else
     if hf auth whoami >/dev/null 2>&1; then
-        echo "  ✓ already logged in: $(hf auth whoami 2>&1 | head -1)"
+        echo "  [OK] already logged in: $(hf auth whoami 2>&1 | head -1)"
     else
         echo "  logging in with token from $TOKEN_FILE ..."
         hf auth login --token "$(cat "$TOKEN_FILE")"

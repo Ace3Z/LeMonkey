@@ -70,7 +70,7 @@ untrained = [
 ]
 
 # Build all 30 prompts (3 colors × 10) and shuffle ALL of them so colors
-# are interleaved — no 10-of-the-same-color streaks.
+# are interleaved - no 10-of-the-same-color streaks.
 items = []
 for color in ["blue", "red", "green"]:
     for t in trained:
@@ -171,14 +171,14 @@ while IFS=$'\t' read -r COLOR KIND PROMPT; do
   fi
 
   echo "$i,$COLOR,$KIND,\"${PROMPT//,/;}\",$RES,$DUR_S,$DUR_MIN,\"${NOTE//,/;}\",$RUN_PATH" >> "$CSV"
-  echo "  → recorded: $([ $RES -eq 1 ] && echo SUCCESS || echo FAIL)  duration=${DUR_S}s"
+  echo "  -> recorded: $([ $RES -eq 1 ] && echo SUCCESS || echo FAIL)  duration=${DUR_S}s"
   i=$((i+1))
 done <<< "$PROMPT_LIST"
 
 # Summary
 echo
 echo "============================================================"
-echo "  RESULTS — $SESS"
+echo "  RESULTS - $SESS"
 echo "============================================================"
 "$PYBIN" - "$CSV" << 'PY'
 import csv, sys

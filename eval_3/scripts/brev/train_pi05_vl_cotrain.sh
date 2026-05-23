@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
-# Pi0.5 VL cotrain — ObjectVLA bbox-grounded VQA co-train on Pi0.5 (brev_instance2).
+# Pi0.5 VL cotrain - ObjectVLA bbox-grounded VQA co-train on Pi0.5 (brev_instance2).
 #
 # Mirrors train_pi05.sh + adds:
 #   - --vl_dataset.manifest  (Darius's VL pairs, HBOrtiz/so101_eval3_broad_grounding)
-#   - --vl_ratio=10          (10 robot batches : 1 VL batch — ObjectVLA published)
+#   - --vl_ratio=10          (10 robot batches : 1 VL batch - ObjectVLA published)
 #   - --policy.pretrained_path=HBOrtiz/pi05_paligemma_celeb_warm_v2  (Enhancement B-1)
-#   - --dataset.episodes_file (Enhancement B-2 keep_list — when ready)
-#   - --dataset.sample_weights (Enhancement B-3 hardneg weights — when ready)
+#   - --dataset.episodes_file (Enhancement B-2 keep_list - when ready)
+#   - --dataset.sample_weights (Enhancement B-3 hardneg weights - when ready)
 #   - --dataset.curriculum_switch_step=5000 (Enhancement B-5)
-#   - --peft.layer_rank_config (Enhancement B-4 — per-layer LoRA rank)
+#   - --peft.layer_rank_config (Enhancement B-4 - per-layer LoRA rank)
 #   - --train.use_ema (Enhancement B-7)
 #
 #
@@ -18,9 +18,9 @@
 #   3. ArcFace audit pipeline has run:
 #        python eval_3/scripts/pi05_vl_cotrain/arcface_audit_200celeb.py
 #        python eval_3/scripts/pi05_vl_cotrain/build_keep_list_and_weights.py
-#        → keep_episodes.txt + hardneg_weights.npy exist
+#        -> keep_episodes.txt + hardneg_weights.npy exist
 #   4. Brev VM has conda 'lemonkey' env, transformers + lerobot + peft installed.
-#   5. Smoke test passed (run with STEPS=200 first — see the ObjectVLA spec).
+#   5. Smoke test passed (run with STEPS=200 first - see the ObjectVLA spec).
 
 set -euo pipefail
 
@@ -53,7 +53,7 @@ CURRICULUM_SWITCH="${CURRICULUM_SWITCH:-5000}"
 USE_EMA="${USE_EMA:-true}"
 EMA_ALPHA="${EMA_ALPHA:-0.999}"
 
-# Pre-flight artifact checks — emit [WARN] not abort (some enhancements optional).
+# Pre-flight artifact checks - emit [WARN] not abort (some enhancements optional).
 if [ ! -f "$KEEP_LIST" ]; then
     echo "[WARN] keep_list missing: expected=$KEEP_LIST, got=missing, fallback=launch without B-2 filter" >&2
     KEEP_LIST_FLAG=""

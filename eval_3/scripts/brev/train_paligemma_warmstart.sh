@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Brev — PaliGemma VQA warm-start (LoRA on Pi0.5's PaliGemma, VGGFace2 data).
+# Brev - PaliGemma VQA warm-start (LoRA on Pi0.5's PaliGemma, VGGFace2 data).
 #
 # Designed to run on a SECOND Brev H100 80GB VM, parallel to the Pi0.5
 # vanilla LoRA run. See eval_3/scripts/warmstart/train_paligemma_vqa.py for
@@ -31,7 +31,7 @@ if [[ -z "${CONDA_DEFAULT_ENV:-}" || "${CONDA_DEFAULT_ENV:-}" != "lemonkey" ]]; 
         source "$HOME/miniconda3/etc/profile.d/conda.sh"
         conda activate lemonkey
     else
-        echo "[FATAL] conda.sh missing — install miniconda + create lemonkey env first" >&2
+        echo "[FATAL] conda.sh missing - install miniconda + create lemonkey env first" >&2
         exit 2
     fi
 fi

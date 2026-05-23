@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# Interactive Eval 1 rollout runner — adapted from run_rollout.sh for the
+# Interactive Eval 1 rollout runner - adapted from run_rollout.sh for the
 # Strix laptop (rohamzn@rohamzn-ROG-Strix-G533ZX-G533ZX).
 #
 # Differences vs the Thor original (eval_1/scripts/run_rollout.sh):
-#   - paths: /home/lemonkey/... → /home/rohamzn/ETH_Uni/...
-#   - python: ~/miniconda3 → ~/anaconda3
+#   - paths: /home/lemonkey/... -> /home/rohamzn/ETH_Uni/...
+#   - python: ~/miniconda3 -> ~/anaconda3
 #   - --policy.path points at the FINAL checkpoint at the repo root
 #     (HBOrtiz/so101_smolvla_eval1 was downloaded with only root-level
 #     files; the checkpoints/ subdir is empty here)
@@ -45,15 +45,15 @@ while true; do
   read -r -p "Prompt (or 'q' to quit): " PROMPT
   case "$PROMPT" in
     q|Q|quit|exit) echo "Bye."; exit 0 ;;
-    "") echo "Empty prompt — skipping."; continue ;;
+    "") echo "Empty prompt - skipping."; continue ;;
   esac
 
   TS=$(date +%Y%m%d_%H%M%S)
   RUN_NAME="run_${i}_${TS}"
   RUN_PATH="$ROLLOUT_DIR/$RUN_NAME"
 
-  echo "→ Running: $PROMPT"
-  echo "→ Saving to: $RUN_PATH"
+  echo "-> Running: $PROMPT"
+  echo "-> Saving to: $RUN_PATH"
   echo
 
   sg dialout -c "\"$PYBIN\" \"$HERE/auto_home.py\" capture \"$HOME_POSE\""
@@ -77,7 +77,7 @@ while true; do
   sg dialout -c "\"$PYBIN\" \"$HERE/auto_home.py\" drive \"$HOME_POSE\" \"$HOME_DRIVE_S\""
 
   echo
-  echo "✓ Rollout #$i complete: $RUN_PATH"
+  echo "[OK] Rollout #$i complete: $RUN_PATH"
   echo
   i=$((i+1))
 done

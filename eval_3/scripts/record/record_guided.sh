@@ -1,13 +1,13 @@
 #!/bin/bash
 # Guided teleop recording session for Eval 3.
 #
-# Plan (operator's revised design — 2026-05-11):
+# Plan (operator's revised design - 2026-05-11):
 #   3 target celebs × 3 PHOTO LAYOUTS × 20 episodes = 180 demos
 #   Each target rotates through Left / Middle / Right physical positions
 #   via 3 distinct photo arrangements. The other two celebs fill the
 #   remaining slots in a consistent secondary order.
 #
-# Can position: NOT prescribed — the operator places the coke can freely
+# Can position: NOT prescribed - the operator places the coke can freely
 # per episode for additional implicit diversity. We rely on operator
 # instinct to vary it across the 20 episodes within each layout-batch.
 #
@@ -15,19 +15,19 @@
 # (photo content, lighting noise, etc.).
 #
 # RESEARCH SOURCES (all 3 agents converged on this plan):
-#   • LeRobot SmolVLA docs        — 50/task floor
-#   • SmolVLA paper (2506.01844)  — 10×5 positions structure on SO-101
-#   • Gando SO-101 reproduction   — 75 demos with consistent grasp > 81 mixed
-#   • Pi0 LIBERO few-shot         — 40 trajectory floor for positive success
-#   • Lin et al. ICLR 2025        — K=50 per env-object pair before plateau
-#   • Pumacay 2023 (gen gap)      — position diversity > density (unanimous)
-#   • Pumacay + LIBERO-Plus 2025  — camera viewpoint is #1 fragility axis
+#   • LeRobot SmolVLA docs        - 50/task floor
+#   • SmolVLA paper (2506.01844)  - 10×5 positions structure on SO-101
+#   • Gando SO-101 reproduction   - 75 demos with consistent grasp > 81 mixed
+#   • Pi0 LIBERO few-shot         - 40 trajectory floor for positive success
+#   • Lin et al. ICLR 2025        - K=50 per env-object pair before plateau
+#   • Pumacay 2023 (gen gap)      - position diversity > density (unanimous)
+#   • Pumacay + LIBERO-Plus 2025  - camera viewpoint is #1 fragility axis
 #
 # NOTE on 3 vs 5 positions: SmolVLA tutorial uses 5; we use 3 because the user's
 # workspace only physically supports 3 can starting positions (left / middle /
-# right). We compensate by increasing episodes/position from 10 → 17 so total
+# right). We compensate by increasing episodes/position from 10 -> 17 so total
 # demos/celeb still hits the 50-demo floor. Effective position diversity is
-# lower than the published baseline — flag this as a known risk.
+# lower than the published baseline - flag this as a known risk.
 #
 # LOCKED (must NOT change during the session):
 #   • Wrist camera pose (camera mounted on arm, looking AT the workspace)
@@ -35,12 +35,12 @@
 #   • Gripper grasp strategy (Gando: consistency beats variety here)
 #   • Table surface
 #   • Robot home pose
-#   • Photo layout (Swift–Obama–LeCun left→right; printed PORTRAIT orientation)
+#   • Photo layout (Swift–Obama–LeCun left->right; printed PORTRAIT orientation)
 #
 # VARIED (diversity axes we explicitly want):
-#   • Can starting position — LEFT / MIDDLE / RIGHT (3 positions per celeb)
-#   • Target celebrity — alternates per phase (Swift → Obama → LeCun)
-#   • (photo content) — varied later via the v9.3 inpainting pipeline
+#   • Can starting position - LEFT / MIDDLE / RIGHT (3 positions per celeb)
+#   • Target celebrity - alternates per phase (Swift -> Obama -> LeCun)
+#   • (photo content) - varied later via the v9.3 inpainting pipeline
 
 set -euo pipefail
 
@@ -56,10 +56,10 @@ TARGETS=(swift obama lecun)
 # All targets land at exactly 20 eps per (target × layout) batch.
 declare -A PHOTOS_PER_TARGET=( [swift]=5 [obama]=4 [lecun]=5 )
 declare -A EPS_PER_PHOTO_FOR=( [swift]=4 [obama]=5 [lecun]=4 )
-EPISODES_PER_BATCH=20            # invariant — every target hits this
+EPISODES_PER_BATCH=20            # invariant - every target hits this
 
-# Per-target layouts that rotate the TARGET through L → M → R positions.
-# Layout string is 3 letters from {S,O,L} reading the photos left → middle → right
+# Per-target layouts that rotate the TARGET through L -> M -> R positions.
+# Layout string is 3 letters from {S,O,L} reading the photos left -> middle -> right
 # as the operator faces the table.
 declare -A LAYOUTS_FOR
 LAYOUTS_FOR[swift]="SOL OSL OLS"   # Swift at L (SOL), M (OSL), R (OLS)
@@ -69,7 +69,7 @@ N_LAYOUTS_PER_TARGET=3
 TOTAL_EPISODES=$(( EPISODES_PER_BATCH * N_LAYOUTS_PER_TARGET * ${#TARGETS[@]} ))
 EPISODES_PER_CELEB=$(( EPISODES_PER_BATCH * N_LAYOUTS_PER_TARGET ))
 
-# Map layout-letter → celeb name for the human-readable instruction
+# Map layout-letter -> celeb name for the human-readable instruction
 declare -A LETTER_TO_CELEB=( [S]="SWIFT" [O]="OBAMA" [L]="LECUN" )
 
 ROOT="${1:-$ROOT_DEFAULT}"
@@ -81,7 +81,7 @@ echo "════════════════════════�
 echo "  EVAL 3 GUIDED TELEOP RECORDING"
 echo "  Output: $ROOT"
 echo "  Plan: 3 celebs × 3 layouts × $EPISODES_PER_BATCH episodes = $TOTAL_EPISODES demos"
-echo "        ($EPISODES_PER_CELEB demos per celeb — matches LeRobot 50/task floor)"
+echo "        ($EPISODES_PER_CELEB demos per celeb - matches LeRobot 50/task floor)"
 echo "════════════════════════════════════════════════════════════"
 echo
 
@@ -90,28 +90,28 @@ echo "[1/5] Pre-flight checks…"
 
 # 1. Conda env
 if [[ -z "${CONDA_DEFAULT_ENV:-}" || "$CONDA_DEFAULT_ENV" != "lemonkey" ]]; then
-  echo "  ✗ Conda env not active. Run:"
+  echo "  [FAIL] Conda env not active. Run:"
   echo "      conda activate lemonkey"
   errors=$((errors + 1))
 else
-  echo "  ✓ conda env = $CONDA_DEFAULT_ENV"
+  echo "  [OK] conda env = $CONDA_DEFAULT_ENV"
 fi
 
 # 2. Arm ports (udev rules should be in place from earlier sessions)
 for port in /dev/so101-leader /dev/so101-follower; do
   if [[ -e "$port" ]]; then
-    echo "  ✓ $port present"
+    echo "  [OK] $port present"
   else
-    echo "  ✗ $port not found — check USB connections / udev rules"
+    echo "  [FAIL] $port not found - check USB connections / udev rules"
     errors=$((errors + 1))
   fi
 done
 
 # 3. Camera
 if [[ -e /dev/video0 ]]; then
-  echo "  ✓ /dev/video0 present"
+  echo "  [OK] /dev/video0 present"
 else
-  echo "  ✗ /dev/video0 not found — check USB camera"
+  echo "  [FAIL] /dev/video0 not found - check USB camera"
   errors=$((errors + 1))
 fi
 
@@ -120,9 +120,9 @@ CAL_DIR="$HOME/.cache/huggingface/lerobot/calibration"
 for arm in my_leader my_follower; do
   found=$(find "$CAL_DIR" -name "$arm*.json" 2>/dev/null | head -1)
   if [[ -n "$found" ]]; then
-    echo "  ✓ calibration found: $(basename "$found")"
+    echo "  [OK] calibration found: $(basename "$found")"
   else
-    echo "  ✗ calibration missing for $arm in $CAL_DIR"
+    echo "  [FAIL] calibration missing for $arm in $CAL_DIR"
     errors=$((errors + 1))
   fi
 done
@@ -130,9 +130,9 @@ done
 # 5. record_quick.py present
 RECORDER="$HOME/LeMonkey/eval_3/scripts/record/record_quick.py"
 if [[ -f "$RECORDER" ]]; then
-  echo "  ✓ recorder script: $RECORDER"
+  echo "  [OK] recorder script: $RECORDER"
 else
-  echo "  ✗ recorder script missing: $RECORDER"
+  echo "  [FAIL] recorder script missing: $RECORDER"
   errors=$((errors + 1))
 fi
 
@@ -141,9 +141,9 @@ BANK="$HOME/LeMonkey/datasets/eval3_celebs/web"
 for celeb in "${TARGETS[@]}"; do
   ref=$(ls -1 "$BANK/$celeb"/*.jpg 2>/dev/null | head -1)
   if [[ -n "$ref" ]]; then
-    echo "  ✓ ref photo for $celeb: $(basename "$ref")"
+    echo "  [OK] ref photo for $celeb: $(basename "$ref")"
   else
-    echo "  ✗ no photo bank entry for $celeb under $BANK/$celeb"
+    echo "  [FAIL] no photo bank entry for $celeb under $BANK/$celeb"
     errors=$((errors + 1))
   fi
 done
@@ -153,17 +153,17 @@ if (( errors > 0 )); then
   echo "❌ $errors pre-flight error(s). Fix them before recording. Exiting."
   exit 1
 fi
-echo "  ✓ all pre-flight checks passed"
+echo "  [OK] all pre-flight checks passed"
 echo
 
 # ────────────── STATIC SETUP INSTRUCTIONS ──────────────
 cat <<'BANNER'
-[2/5] STATIC SETUP — done ONCE before the session starts.
+[2/5] STATIC SETUP - done ONCE before the session starts.
 ─────────────────────────────────────────────────────────────────────────────
 
   Camera is mounted on the ARM and looks IN FRONT of it (toward workspace).
   Operator stands wherever the leader arm reaches; physical layout below is
-  shown FROM THE CAMERA'S VIEWPOINT — i.e. what the camera sees:
+  shown FROM THE CAMERA'S VIEWPOINT - i.e. what the camera sees:
 
    ┌──────────────────────────────────────────────┐
    │              CAMERA VIEW                      │
@@ -183,28 +183,28 @@ cat <<'BANNER'
    │     │                                │       │
    │     └────────────────────────────────┘       │
    │                                              │
-   │  ←camera-LEFT     camera-MIDDLE   camera-RIGHT→
+   │  ←camera-LEFT     camera-MIDDLE   camera-RIGHT->
    └──────────────────────────────────────────────┘
 
-✓ 3 PRINTED PHOTOS, PORTRAIT orientation (taller than wide), all upright.
-✓ Photo order LEFT→RIGHT in the camera view: SWIFT, OBAMA, LECUN.
-✓ Photos ~10 cm apart, roughly co-linear, in the BACK row of the workspace.
-✓ Camera mounted on the arm — DO NOT bump or re-aim it during the session.
-✓ Close blinds; lighting locked.
-✓ Coca-Cola can is the same can throughout.
+[OK] 3 PRINTED PHOTOS, PORTRAIT orientation (taller than wide), all upright.
+[OK] Photo order LEFT->RIGHT in the camera view: SWIFT, OBAMA, LECUN.
+[OK] Photos ~10 cm apart, roughly co-linear, in the BACK row of the workspace.
+[OK] Camera mounted on the arm - DO NOT bump or re-aim it during the session.
+[OK] Close blinds; lighting locked.
+[OK] Coca-Cola can is the same can throughout.
 
 WHEN THINGS CHANGE during the session:
-   • PHOTO LAYOUT         → script prompts you to physically rearrange the
+   • PHOTO LAYOUT         -> script prompts you to physically rearrange the
                              3 photos between every 20-episode batch.
                              3 layouts per target celeb × 3 target celebs
                              = 9 layout changes total over the session.
-   • TARGET CELEB         → script prompts you between every 60-episode phase
-                             (Swift → Obama → LeCun).
-   • CAN POSITION         → YOU decide per episode. Vary it freely.
-   • CAMERA / LIGHTING / GRIPPER / TABLE / ROBOT HOME → never (locked)
+   • TARGET CELEB         -> script prompts you between every 60-episode phase
+                             (Swift -> Obama -> LeCun).
+   • CAN POSITION         -> YOU decide per episode. Vary it freely.
+   • CAMERA / LIGHTING / GRIPPER / TABLE / ROBOT HOME -> never (locked)
 
 LAYOUT NOTATION:
-   3-letter code reading photos LEFT → MIDDLE → RIGHT in the camera view.
+   3-letter code reading photos LEFT -> MIDDLE -> RIGHT in the camera view.
    S = Swift, O = Obama, L = LeCun.
    e.g.  "OSL" means: Obama on the LEFT, Swift in the MIDDLE, LeCun on the RIGHT.
 
@@ -233,10 +233,10 @@ for celeb in "${TARGETS[@]}"; do
 
   echo
   echo "═══════════════════════════════════════════════════════════════"
-  echo "  PHASE $phase_num / ${#TARGETS[@]} — TARGET CELEB = $celeb"
+  echo "  PHASE $phase_num / ${#TARGETS[@]} - TARGET CELEB = $celeb"
   echo "  Prompt sent to policy: \"Place the coke on $celeb.\""
   echo "  Will record $N_LAYOUTS_PER_TARGET layouts × $EPISODES_PER_BATCH episodes = $EPISODES_PER_CELEB demos"
-  echo "  Layouts (target rotates L→M→R): ${layouts_for_celeb[*]}"
+  echo "  Layouts (target rotates L->M->R): ${layouts_for_celeb[*]}"
   echo "═══════════════════════════════════════════════════════════════"
   if (( phase_num > 1 )); then
     read -p "  Press ENTER when ready to start phase $phase_num (target = $celeb)... " _
@@ -252,9 +252,9 @@ for celeb in "${TARGETS[@]}"; do
     arrangement="${LETTER_TO_CELEB[$L0]} (LEFT)  |  ${LETTER_TO_CELEB[$L1]} (MIDDLE)  |  ${LETTER_TO_CELEB[$L2]} (RIGHT)"
     echo
     echo "════════════════════════════════════════════════════════════════"
-    echo "  ⚠ CHANGE LAYOUT — PHASE $phase_num, Layout $((i+1))/$N_LAYOUTS_PER_TARGET = ${layout}"
+    echo "  ⚠ CHANGE LAYOUT - PHASE $phase_num, Layout $((i+1))/$N_LAYOUTS_PER_TARGET = ${layout}"
     echo "════════════════════════════════════════════════════════════════"
-    echo "  ⚠ Re-arrange ALL 3 photos so they read LEFT → MIDDLE → RIGHT as:"
+    echo "  ⚠ Re-arrange ALL 3 photos so they read LEFT -> MIDDLE -> RIGHT as:"
     echo "       $arrangement"
     echo
     echo "  This layout will record $EPISODES_PER_BATCH episodes total, split as:"
@@ -286,7 +286,7 @@ for celeb in "${TARGETS[@]}"; do
     # The Python recorder (record_eval3_quick.py) already supports an in-loop
     # 'd' key to drop the LAST completed episode between episodes. The bash
     # wrapper handles the OUTER cases: the recorder crashed mid-episode (e.g.
-    # motor lost power, USB hiccup) — we count what's actually on disk and
+    # motor lost power, USB hiccup) - we count what's actually on disk and
     # offer retry/skip/delete-partial.
     while true; do
       n_before=$(ls -1d "$ROOT"/quick_${celeb}_${layout}_*/ 2>/dev/null | wc -l) || n_before=0
@@ -305,21 +305,21 @@ for celeb in "${TARGETS[@]}"; do
       recorded_this_batch=$(( n_after - n_before ))
 
       if (( rc == 0 )); then
-        # Clean exit — the python recorder might have quit early via 'q'.
+        # Clean exit - the python recorder might have quit early via 'q'.
         # Trust whatever ended up on disk.
         total_episodes_done=$((total_episodes_done + recorded_this_batch))
         elapsed=$(( $(date +%s) - start_time ))
-        echo "  ✓ Batch done. Recorded $recorded_this_batch episodes. Total so far: $total_episodes_done / $TOTAL_EPISODES (elapsed ${elapsed}s)"
+        echo "  [OK] Batch done. Recorded $recorded_this_batch episodes. Total so far: $total_episodes_done / $TOTAL_EPISODES (elapsed ${elapsed}s)"
         break
       fi
 
-      # rc != 0 — recorder crashed. Inspect on-disk state and offer options.
+      # rc != 0 - recorder crashed. Inspect on-disk state and offer options.
       echo
       echo "  ⚠ Recorder exited rc=$rc."
       echo "    Episodes completed this batch (saved to disk): $recorded_this_batch"
       echo "    Episodes intended this batch: $EPISODES_PER_BATCH"
 
-      # Identify the most-recent run dir — likely a partial if rc != 0.
+      # Identify the most-recent run dir - likely a partial if rc != 0.
       latest_dir=$(ls -1td "$ROOT"/quick_${celeb}_${LAYOUT}_*/ 2>/dev/null | head -1)
       if [[ -n "$latest_dir" ]]; then
         # A "partial" dir typically has empty data/ or videos/ subdirs.
@@ -337,35 +337,35 @@ for celeb in "${TARGETS[@]}"; do
 
   ─── recovery menu (batch: $celeb / layout=$layout) ──────────────
     r)  RETRY the entire $EPISODES_PER_BATCH-episode batch
-        (will append new episode dirs — already-recorded $recorded_this_batch are kept)
+        (will append new episode dirs - already-recorded $recorded_this_batch are kept)
     d)  DELETE the latest partial directory and RETRY
         partial detected: ${partial_dir:-none}
     s)  SKIP this batch (move on; accept $recorded_this_batch < $EPISODES_PER_BATCH)
-    p)  PAUSE — fix the issue (e.g. plug in arm power), then ENTER to retry
+    p)  PAUSE - fix the issue (e.g. plug in arm power), then ENTER to retry
     q)  QUIT the recording session entirely
   ───────────────────────────────────────────────────────
 MENU
       read -p "  Choice [r/d/s/p/q]: " choice
       case "${choice,,}" in
-        r) echo "  → retrying batch…"; continue ;;
+        r) echo "  -> retrying batch…"; continue ;;
         d)
           if [[ -n "$partial_dir" ]]; then
-            echo "  → deleting partial: $partial_dir"
+            echo "  -> deleting partial: $partial_dir"
             rm -rf "$partial_dir"
           else
-            echo "  → no partial dir to delete"
+            echo "  -> no partial dir to delete"
           fi
-          echo "  → retrying batch…"; continue ;;
+          echo "  -> retrying batch…"; continue ;;
         s)
           total_episodes_done=$((total_episodes_done + recorded_this_batch))
-          echo "  → skipping. Total so far: $total_episodes_done / $TOTAL_EPISODES"
+          echo "  -> skipping. Total so far: $total_episodes_done / $TOTAL_EPISODES"
           break ;;
         p)
-          read -p "  → paused. Fix the issue, then press ENTER to retry… " _
+          read -p "  -> paused. Fix the issue, then press ENTER to retry… " _
           continue ;;
-        q) echo "  → quitting"; exit 0 ;;
-        *) echo "  unknown choice — defaulting to pause"
-          read -p "  → press ENTER to retry… " _
+        q) echo "  -> quitting"; exit 0 ;;
+        *) echo "  unknown choice - defaulting to pause"
+          read -p "  -> press ENTER to retry… " _
           continue ;;
       esac
     done   # end of while-true retry loop
@@ -373,21 +373,21 @@ MENU
   done
 
   echo
-  echo "  ✓ Phase $celeb complete ($EPISODES_PER_CELEB demos)"
+  echo "  [OK] Phase $celeb complete ($EPISODES_PER_CELEB demos)"
 done
 
 # ────────────── POST-SESSION ──────────────
 elapsed=$(( $(date +%s) - start_time ))
 echo
 echo "═══════════════════════════════════════════════════════════════"
-echo "  ✓ ALL DONE: $total_episodes_done demos recorded in ${elapsed}s"
+echo "  [OK] ALL DONE: $total_episodes_done demos recorded in ${elapsed}s"
 echo "═══════════════════════════════════════════════════════════════"
 echo
-echo "[4/5] Sanity check — listing recorded episodes…"
+echo "[4/5] Sanity check - listing recorded episodes…"
 n_actual=$(ls -1d "$ROOT"/quick_*/ 2>/dev/null | wc -l) || n_actual=0
 echo "  Found $n_actual episode dirs under $ROOT"
 if (( n_actual < TOTAL_EPISODES )); then
-  echo "  ⚠ Less than $TOTAL_EPISODES — some episodes were skipped/deleted; that's OK if intentional."
+  echo "  ⚠ Less than $TOTAL_EPISODES - some episodes were skipped/deleted; that's OK if intentional."
 fi
 
 cat <<EOF
@@ -405,9 +405,9 @@ cat <<EOF
     • cap aug at N=5/demo (Lin et al. plateau analysis)
     • augmentation is a MULTIPLIER on real data, never a substitute
     • watch for failure signals during eval:
-        - succeeds on aug but fails on real photo → spectral artifact lock
-        - OOD < TOY/IID by >30 pp → spurious face-region cue
-        - seam-line at photo border affects grasp → boundary cue
+        - succeeds on aug but fails on real photo -> spectral artifact lock
+        - OOD < TOY/IID by >30 pp -> spurious face-region cue
+        - seam-line at photo border affects grasp -> boundary cue
 
   Then train SmolVLA-450M with Path A on the combined dataset (real + aug).
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Eval 1 — interactive SmolVLA rollout runner (HBOrtiz/so101_smolvla_eval1).
+# Eval 1 - interactive SmolVLA rollout runner (HBOrtiz/so101_smolvla_eval1).
 #
 # SmolVLA-450M trained for direct color-conditioned pick-and-place: pick up the
 # banana, place it in the bowl named by the prompt ("Put the banana in the
@@ -62,7 +62,7 @@ if [ ! -f "$POLICY_PATH/model.safetensors" ]; then
 fi
 
 mkdir -p "$ROLLOUT_DIR"
-echo "Eval 1 — so101_smolvla_eval1 — interactive rollout"
+echo "Eval 1 - so101_smolvla_eval1 - interactive rollout"
 echo "Policy : $POLICY_PATH"
 echo "Saving : $ROLLOUT_DIR"
 echo "Prompt : 'Put the banana in the <colour> colored bowl.'"

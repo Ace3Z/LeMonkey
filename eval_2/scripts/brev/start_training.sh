@@ -19,7 +19,7 @@ UID_NUM=$(id -u "$USER")
 export XDG_RUNTIME_DIR="/run/user/$UID_NUM"
 export DBUS_SESSION_BUS_ADDRESS="unix:path=$XDG_RUNTIME_DIR/bus"
 
-# 1. Verify lingering — without it, the user manager dies on logout and so
+# 1. Verify lingering - without it, the user manager dies on logout and so
 #    does this transient service.
 LINGER_STATE=$(loginctl show-user "$USER" --property=Linger 2>/dev/null | cut -d= -f2)
 if [ "$LINGER_STATE" != "yes" ]; then
@@ -76,7 +76,7 @@ if [ -n "$TRAIN_PID" ] && [ "$TRAIN_PID" != "0" ]; then
   CG=$(cat /proc/$TRAIN_PID/cgroup 2>/dev/null | head -1)
   echo "==> training cgroup: $CG"
   case "$CG" in
-    *user-*.slice*) echo "==> [OK] running in user slice — will survive disconnect" ;;
+    *user-*.slice*) echo "==> [OK] running in user slice - will survive disconnect" ;;
     *) echo "==> [WARN] unexpected cgroup; expected user-1001.slice" ;;
   esac
 fi

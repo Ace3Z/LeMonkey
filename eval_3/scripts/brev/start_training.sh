@@ -73,7 +73,7 @@ if [ -n "$TRAIN_PID" ] && [ "$TRAIN_PID" != "0" ]; then
   CG=$(cat /proc/$TRAIN_PID/cgroup 2>/dev/null | head -1)
   echo "==> training cgroup: $CG"
   case "$CG" in
-    *user-*.slice*) echo "==> [OK] running in user slice — will survive disconnect" ;;
+    *user-*.slice*) echo "==> [OK] running in user slice - will survive disconnect" ;;
     *) echo "==> [WARN] unexpected cgroup; expected user-1001.slice" ;;
   esac
 fi

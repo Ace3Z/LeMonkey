@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Bootstrap script for a fresh Brev H100 instance.
-# Idempotent — safe to re-run. Logs every fallback per CLAUDE.md §5.
+# Idempotent - safe to re-run. Logs every fallback per CLAUDE.md §5.
 #
 # What it does:
 #   1. Install Miniconda if missing
@@ -14,19 +14,19 @@ set -euo pipefail
 
 # ─── 0. Sanity: must be on a CUDA host ───────────────────────────────────────
 if ! command -v nvidia-smi >/dev/null 2>&1; then
-  echo "[WARN] nvidia-smi not found — script assumed a CUDA host. Continuing anyway." >&2
+  echo "[WARN] nvidia-smi not found - script assumed a CUDA host. Continuing anyway." >&2
 fi
 echo "=== GPU detect ==="
 nvidia-smi --query-gpu=name,memory.total --format=csv,noheader 2>&1 | head -3 || echo "[WARN] no GPUs"
 echo ""
 
-# ─── 0b. ffmpeg (provides libavutil etc. — needed by torchcodec) ─────────────
+# ─── 0b. ffmpeg (provides libavutil etc. - needed by torchcodec) ─────────────
 # lerobot reads video frames from the LeRobotDataset via torchcodec, which
 # ctypes-loads libavutil.so.X from the system. Ubuntu 22.04 base images don't
 # ship ffmpeg, so torchcodec.decoders.VideoDecoder fails on first dataset access
 # with: 'libavutil.so.60: cannot open shared object file' (and similar for 59..56).
 if ldconfig -p 2>/dev/null | grep -q libavutil; then
-  echo "=== ffmpeg already installed (libavutil found) — skipping ==="
+  echo "=== ffmpeg already installed (libavutil found) - skipping ==="
 else
   echo "=== Installing ffmpeg (provides libavutil for torchcodec) ==="
   sudo apt-get update -qq
@@ -45,11 +45,11 @@ if [ ! -d "$CONDA_DIR" ]; then
   # First-time bootstrap: hook conda into bash + don't auto-activate base.
   # (Per SETUP.md §1.)
   "$CONDA_DIR/bin/conda" init bash >/dev/null 2>&1 || \
-    echo "[WARN] conda init bash failed — manual ~/.bashrc edit may be required" >&2
+    echo "[WARN] conda init bash failed - manual ~/.bashrc edit may be required" >&2
   "$CONDA_DIR/bin/conda" config --set auto_activate_base false || \
     echo "[WARN] could not set auto_activate_base=false" >&2
 else
-  echo "=== Miniconda already present at $CONDA_DIR — skipping install ==="
+  echo "=== Miniconda already present at $CONDA_DIR - skipping install ==="
 fi
 
 source "$CONDA_DIR/etc/profile.d/conda.sh"
@@ -58,14 +58,14 @@ source "$CONDA_DIR/etc/profile.d/conda.sh"
 # (Without this, `conda create` fails with CondaToSNonInteractiveError.)
 echo "=== Accepting Anaconda channel ToS (idempotent) ==="
 conda tos accept --override-channels --channel https://repo.anaconda.com/pkgs/main >/dev/null 2>&1 || \
-  echo "[WARN] could not accept ToS for pkgs/main — channel may not be in use" >&2
+  echo "[WARN] could not accept ToS for pkgs/main - channel may not be in use" >&2
 conda tos accept --override-channels --channel https://repo.anaconda.com/pkgs/r >/dev/null 2>&1 || \
-  echo "[WARN] could not accept ToS for pkgs/r — channel may not be in use" >&2
+  echo "[WARN] could not accept ToS for pkgs/r - channel may not be in use" >&2
 
 # ─── 2. Conda env "lemonkey" ─────────────────────────────────────────────────
 ENV_NAME=lemonkey
 if conda env list 2>/dev/null | awk '{print $1}' | grep -qx "$ENV_NAME"; then
-  echo "=== conda env '$ENV_NAME' already exists — skipping create ==="
+  echo "=== conda env '$ENV_NAME' already exists - skipping create ==="
 else
   echo "=== Creating conda env '$ENV_NAME' (python 3.12) ==="
   conda create -y -n "$ENV_NAME" python=3.12
@@ -83,7 +83,7 @@ esac
 
 # ─── 3. pip install lerobot[smolvla] + extras ────────────────────────────────
 # Version-pinned to match SETUP.md §3 (lerobot==0.5.1). DON'T use the
-# third_party/lerobot submodule in this repo — it's missing
+# third_party/lerobot submodule in this repo - it's missing
 # `lerobot.datasets` and friends (see SETUP.md §12).
 echo "=== pip install lerobot[smolvla]==0.5.1 ==="
 pip install --quiet --upgrade pip
@@ -106,7 +106,7 @@ print(f'  transformers: {transformers.__version__}')
 print(f'  pandas      : {pandas.__version__}')
 print(f'  safetensors : installed')
 from lerobot.policies.smolvla.modeling_smolvla import SmolVLAPolicy
-print('  ✓ SmolVLA policy importable')
+print('  [OK] SmolVLA policy importable')
 "
 
 # ─── 5. HF auth reminder ─────────────────────────────────────────────────────
@@ -114,7 +114,7 @@ echo ""
 echo "=== Next: HF auth ==="
 if hf auth whoami >/dev/null 2>&1; then
   WHO=$(hf auth whoami 2>&1 | head -1)
-  echo "  ✓ already logged in: $WHO"
+  echo "  [OK] already logged in: $WHO"
 else
   echo "  ⚠️  not logged in. Run:"
   echo "      hf auth login    # paste your write token"

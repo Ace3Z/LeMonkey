@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Eval 3 rollout runner — HBOrtiz/so101_smolvla_eval3_cotrain.
+# Eval 3 rollout runner - HBOrtiz/so101_smolvla_eval3_cotrain.
 #
 # The in-distribution Eval 3 policy: SmolVLA-450M co-trained on robot episodes
 # + vision-language grounding pairs at a 5:1 robot-to-VL ratio. Single-camera
@@ -35,13 +35,13 @@ HOME_DRIVE_S=2.0
 export HF_HUB_OFFLINE=1
 export TRANSFORMERS_OFFLINE=1
 
-# Resolve $ARG → a local pretrained dir.
+# Resolve $ARG -> a local pretrained dir.
 if [ -d "$ARG" ] && [ -f "$ARG/model.safetensors" ]; then
   POLICY_PATH="$ARG"
 else
   POLICY_PATH="$CACHE/$ARG"
   if [ ! -f "$POLICY_PATH/model.safetensors" ]; then
-    echo "==> downloading ${REPO_ID} (${ARG}) → $CACHE"
+    echo "==> downloading ${REPO_ID} (${ARG}) -> $CACHE"
     unset HF_HUB_OFFLINE TRANSFORMERS_OFFLINE
     hf download "$REPO_ID" --include "$ARG/*" --local-dir "$CACHE"
     export HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1
@@ -54,7 +54,7 @@ if [ ! -f "$POLICY_PATH/model.safetensors" ]; then
 fi
 
 mkdir -p "$ROLLOUT_DIR"
-echo "Eval 3 — SmolVLA cotrain (in-distribution) — interactive rollout"
+echo "Eval 3 - SmolVLA cotrain (in-distribution) - interactive rollout"
 echo "Policy : $POLICY_PATH"
 echo "Saving : $ROLLOUT_DIR"
 echo "Schema : camera1 (live) + camera2/3 + empty_camera_0/1 auto-padded (empty_cameras=2)"
@@ -68,15 +68,15 @@ while true; do
   read -r -p "Prompt (or 'q' to quit): " PROMPT
   case "$PROMPT" in
     q|Q|quit|exit) echo "Bye."; exit 0 ;;
-    "") echo "Empty prompt — skipping."; continue ;;
+    "") echo "Empty prompt - skipping."; continue ;;
   esac
 
   TS=$(date +%Y%m%d_%H%M%S)
   RUN_NAME="smolvla_cotrain_${i}_${TS}"
   RUN_PATH="$ROLLOUT_DIR/$RUN_NAME"
 
-  echo "→ Running: $PROMPT"
-  echo "→ Saving to: $RUN_PATH"
+  echo "-> Running: $PROMPT"
+  echo "-> Saving to: $RUN_PATH"
 
   python "$AUTO_HOME" capture "$HOME_POSE" || true
 
@@ -97,7 +97,7 @@ while true; do
   python "$AUTO_HOME" drive "$HOME_POSE" "$HOME_DRIVE_S" || true
 
   echo
-  echo "✓ Rollout #$i complete: $RUN_PATH"
+  echo "[OK] Rollout #$i complete: $RUN_PATH"
   echo
   i=$((i+1))
 done

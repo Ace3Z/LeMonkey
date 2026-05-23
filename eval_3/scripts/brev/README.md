@@ -1,4 +1,4 @@
-# brev — cloud-VM launcher kit
+# brev - cloud-VM launcher kit
 
 These scripts run **on a Brev VM** (not on the dev box). They are the launchers that produced every Eval 3 training checkpoint published under [`HBOrtiz/`](https://huggingface.co/HBOrtiz) on the Hub.
 
@@ -79,7 +79,7 @@ SmolVLA broad:
 STEPS=200 BATCH_SIZE=8 bash train_smolvla_broad.sh > smoke.log 2>&1
 ```
 
-Gates: both `flow_loss` and `vqa_loss` lines appear; no host-RAM growth past 20 GB/worker in the first 10 minutes (that would be the torchcodec leak signature — confirm `--dataset.video_backend=pyav` is in the command line).
+Gates: both `flow_loss` and `vqa_loss` lines appear; no host-RAM growth past 20 GB/worker in the first 10 minutes (that would be the torchcodec leak signature - confirm `--dataset.video_backend=pyav` is in the command line).
 
 Pi0.5:
 

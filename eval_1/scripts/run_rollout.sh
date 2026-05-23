@@ -33,15 +33,15 @@ while true; do
   read -r -p "Prompt (or 'q' to quit): " PROMPT
   case "$PROMPT" in
     q|Q|quit|exit) echo "Bye."; exit 0 ;;
-    "") echo "Empty prompt — skipping."; continue ;;
+    "") echo "Empty prompt - skipping."; continue ;;
   esac
 
   TS=$(date +%Y%m%d_%H%M%S)
   RUN_NAME="run_${i}_${TS}"
   RUN_PATH="$ROLLOUT_DIR/$RUN_NAME"
 
-  echo "→ Running: $PROMPT"
-  echo "→ Saving to: $RUN_PATH"
+  echo "-> Running: $PROMPT"
+  echo "-> Saving to: $RUN_PATH"
   echo
 
   "$PYBIN" "$HERE/auto_home.py" capture "$HOME_POSE"
@@ -63,7 +63,7 @@ while true; do
   "$PYBIN" "$HERE/auto_home.py" drive "$HOME_POSE" "$HOME_DRIVE_S"
 
   echo
-  echo "✓ Rollout #$i complete: $RUN_PATH"
+  echo "[OK] Rollout #$i complete: $RUN_PATH"
   echo
   i=$((i+1))
 done

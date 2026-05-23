@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Interactive Pi0.5 VL cotrain rollout runner — Pi0.5 + ObjectVLA enhanced.
+# Interactive Pi0.5 VL cotrain rollout runner - Pi0.5 + ObjectVLA enhanced.
 #
 # Loads `HBOrtiz/so101_pi05_eval3` (Pi0.5 VL cotrain bbox-grounded
 # VQA co-train enhanced spec) from Hugging Face and feeds the typed
@@ -15,7 +15,7 @@
 # Pi0.5 expects 4 cameras; we feed only `camera1` and rely on the policy's
 # `--policy.empty_cameras=N` (baked into the checkpoint) to zero-pad the
 # rest. The `--dataset.rename_map` flag matches training-time naming
-# (`observation.images.camera1` → `observation.images.right_wrist_0_rgb`).
+# (`observation.images.camera1` -> `observation.images.right_wrist_0_rgb`).
 #
 # Usage:
 #   ./run_rollout_pi05_vl_cotrain.sh                       # default revision: main
@@ -26,7 +26,7 @@
 # Trained celebs: ~193 from the scraped bank + 3 IID (Swift/Obama/LeCun).
 # Recommended prompt: 'Place the can on the photo of <Name>.' or
 #                     'Place the coke on <Name>.'
-# Either prompt form should work — Pi0.5 VL cotrain trains on both (6 prompt patterns
+# Either prompt form should work - Pi0.5 VL cotrain trains on both (6 prompt patterns
 # per eval_3/scripts/pi05_vl_cotrain/task_index_to_centroid.json).
 #
 # Press right-arrow during a rollout to end it early.
@@ -45,7 +45,7 @@ ROLLOUT_DIR="${ROLLOUT_DIR:-$REPO_ROOT/eval_3/rollouts}"
 HOME_POSE="/tmp/run_rollout_eval3_pi05_vl_cotrain_home.json"
 HOME_DRIVE_S=2.0
 
-# Resolve $ARG → local pretrained_model dir.
+# Resolve $ARG -> local pretrained_model dir.
 if [ -d "$ARG" ] && [ -f "$ARG/model.safetensors" ]; then
   POLICY_PATH="$ARG"
   POLICY_DESC="local: $ARG"
@@ -54,7 +54,7 @@ else
   POLICY_PATH="$CACHE_BASE/pi05_vl_cotrain_$(echo "$ARG" | tr / _)"
   mkdir -p "$CACHE_BASE"
   if [ ! -f "$POLICY_PATH/model.safetensors" ]; then
-    echo "==> downloading ${REPO_ID}@${ARG} → ${POLICY_PATH}"
+    echo "==> downloading ${REPO_ID}@${ARG} -> ${POLICY_PATH}"
     huggingface-cli download "$REPO_ID" --revision "$ARG" --local-dir "$POLICY_PATH" \
       || hf download "$REPO_ID" --revision "$ARG" --local-dir "$POLICY_PATH"
   fi
@@ -68,7 +68,7 @@ if [ ! -f "$POLICY_PATH/model.safetensors" ]; then
 fi
 
 mkdir -p "$ROLLOUT_DIR"
-echo "Eval 3 (Pi0.5 VL cotrain — Pi0.5 ObjectVLA enhanced) — interactive rollout"
+echo "Eval 3 (Pi0.5 VL cotrain - Pi0.5 ObjectVLA enhanced) - interactive rollout"
 echo "Using checkpoint:  $POLICY_DESC"
 echo "Rollouts saved to: $ROLLOUT_DIR"
 echo
@@ -84,15 +84,15 @@ while true; do
   read -r -p "Prompt (or 'q' to quit): " PROMPT
   case "$PROMPT" in
     q|Q|quit|exit) echo "Bye."; exit 0 ;;
-    "") echo "Empty prompt — skipping."; continue ;;
+    "") echo "Empty prompt - skipping."; continue ;;
   esac
 
   TS=$(date +%Y%m%d_%H%M%S)
   RUN_NAME="pi05_vl_cotrain_${i}_${TS}"
   RUN_PATH="$ROLLOUT_DIR/$RUN_NAME"
 
-  echo "→ Running: $PROMPT"
-  echo "→ Saving to: $RUN_PATH"
+  echo "-> Running: $PROMPT"
+  echo "-> Saving to: $RUN_PATH"
   echo
 
   if [ -f "$AUTO_HOME" ]; then
@@ -122,7 +122,7 @@ while true; do
   fi
 
   echo
-  echo "✓ Rollout #$i complete: $RUN_PATH"
+  echo "[OK] Rollout #$i complete: $RUN_PATH"
   echo
   i=$((i+1))
 done

@@ -30,7 +30,7 @@ source "$HOME/miniconda3/etc/profile.d/conda.sh"
 
 # ── 2. Conda env
 if conda env list 2>/dev/null | awk '{print $1}' | grep -qx "$ENV_NAME"; then
-  echo "=== [2/5] conda env '$ENV_NAME' already exists — skipping create ==="
+  echo "=== [2/5] conda env '$ENV_NAME' already exists - skipping create ==="
 else
   echo "=== [2/5] Creating conda env '$ENV_NAME' (python 3.12) ==="
   conda create -y -n "$ENV_NAME" python=3.12
@@ -48,7 +48,7 @@ esac
 REPO_ROOT="$(cd "$(dirname "$0")/../../.." && pwd)"
 LEROBOT_DIR="$REPO_ROOT/third_party/lerobot"
 if [ ! -d "$LEROBOT_DIR" ]; then
-  echo "[FATAL] third_party/lerobot not found at $LEROBOT_DIR — did rsync run?" >&2
+  echo "[FATAL] third_party/lerobot not found at $LEROBOT_DIR - did rsync run?" >&2
   exit 1
 fi
 echo "=== [3/5] pip install -e $LEROBOT_DIR[smolvla,pi]  (editable, our fork) ==="
@@ -75,9 +75,9 @@ import pandas;      print(f'  pandas      : {pandas.__version__}')
 from lerobot.policies.pi05.modeling_pi05 import PI05Policy
 from lerobot.policies.pi05.configuration_pi05 import PI05Config
 from lerobot.configs.default import PeftConfig
-print('  ✓ Pi0.5 policy + config + PeftConfig importable')
+print('  [OK] Pi0.5 policy + config + PeftConfig importable')
 from lerobot.datasets.lerobot_dataset import LeRobotDataset
-print('  ✓ LeRobotDataset importable')
+print('  [OK] LeRobotDataset importable')
 "
 
 # ── 6. HF auth (one-time)
@@ -85,10 +85,10 @@ echo
 echo "=== HF auth ==="
 TOKEN_FILE="$REPO_ROOT/secrets/huggingface/token_hbortiz"
 if [ ! -f "$TOKEN_FILE" ]; then
-  echo "[WARN] token file missing: $TOKEN_FILE — re-run sync_to_brev.sh from dev box"
+  echo "[WARN] token file missing: $TOKEN_FILE - re-run sync_to_brev.sh from dev box"
 else
   if hf auth whoami >/dev/null 2>&1; then
-    echo "  ✓ already logged in: $(hf auth whoami 2>&1 | head -1)"
+    echo "  [OK] already logged in: $(hf auth whoami 2>&1 | head -1)"
   else
     echo "  Logging in with token from $TOKEN_FILE ..."
     hf auth login --token "$(cat "$TOKEN_FILE")"

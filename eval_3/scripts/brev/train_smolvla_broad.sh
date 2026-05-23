@@ -3,7 +3,7 @@
 # Coke-on-celebrity task). Run this directly OR via start_training.sh
 # (which wraps it in systemd).
 #
-# Recipe rationale — see eval_3/aug/STRATEGY.md §6 and the 3-agent
+# Recipe rationale - see eval_3/aug/STRATEGY.md §6 and the 3-agent
 # parallel research cross-check 2026-05-15 (Interleave-VLA 2505.02152,
 # Pi0.5-KI 2505.23705, "Don't Blind Your VLA" 2510.25616, SmolVLA paper
 # 2506.01844, canonical configuration_smolvla.py).
@@ -19,14 +19,14 @@
 #   - add_image_special_tokens=true   (BOI/EOI separators between the
 #                                cameras so the LM decoder can tell them apart;
 #                                mirrors Interleave-VLA §A.1)
-#   - train_expert_only=false  (CRITICAL — frozen VLM yields ~0% on
+#   - train_expert_only=false  (CRITICAL - frozen VLM yields ~0% on
 #                                face-matching, per all 3 papers above)
 #   - freeze_vision_encoder=false  (SigLIP must adapt for face matching
 #                                across reference photo ↔ printed portrait;
 #                                Blind-VLA Table 2 +24% semantic / +12% vision)
 #   - optimizer_lr=5e-5        (half the LeRobot default 1e-4; protects
 #                                pretrained features when unfreezing both
-#                                VLM and SigLIP — Interleave-VLA recipe)
+#                                VLM and SigLIP - Interleave-VLA recipe)
 #   - use_amp=true             (bf16 mixed precision. SmolVLAConfig has no
 #                                `gradient_checkpointing` or `dtype` flag, so
 #                                AMP is the available memory-saving knob.)
@@ -34,7 +34,7 @@
 #                                97 GB: bs=64 uses 82.8/97 GB (85 %) with GPU
 #                                util at 100 %. bs=80 OOMs. The unfrozen
 #                                VLM+SigLIP activation memory is the bottleneck.
-#                                Step rate ≈ 1.0 s/step at bs=64 → 30k steps
+#                                Step rate ≈ 1.0 s/step at bs=64 -> 30k steps
 #                                ≈ 8.3 h total.)
 #   - steps=30000              (cosine endpoint at canonical scheduler_decay_steps)
 #   - dataset.image_transforms.enable=true  (no flips; affine ±5° kept
@@ -50,19 +50,19 @@
 #                                episode boundaries when iterating 8390 unique
 #                                mp4 files. dmesg showed single pt_data_worker
 #                                hitting anon-rss=34.9 GB with num_workers=4 and
-#                                17.9 GB with num_workers=8 — leak is per-worker.
+#                                17.9 GB with num_workers=8 - leak is per-worker.
 #                                pyav is older + libav-based + well-tested.)
 #   - num_workers=8            (Bumped back to 8 with pyav backend in place. The
 #                                leak was per-worker in torchcodec, so with pyav
-#                                no-leak expected → 8 workers max-parallelism is
-#                                fine. If pyav also leaks, drop stepwise: 8→4→2.)
+#                                no-leak expected -> 8 workers max-parallelism is
+#                                fine. If pyav also leaks, drop stepwise: 8->4->2.)
 set -e
 
 source ~/miniconda3/etc/profile.d/conda.sh
 conda activate lemonkey
 cd ~/LeMonkey
 
-# Memory-allocator tweak — see header.
+# Memory-allocator tweak - see header.
 export PYTORCH_ALLOC_CONF=expandable_segments:True
 
 mkdir -p ~/outputs/train

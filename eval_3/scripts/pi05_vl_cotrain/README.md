@@ -1,4 +1,4 @@
-# pi05_vl_cotrain — Pi0.5 + ObjectVLA VL cotrain (published variant)
+# pi05_vl_cotrain - Pi0.5 + ObjectVLA VL cotrain (published variant)
 
 Pi0.5 sibling to `../smolvla_cotrain/`. Same RT-2 §3.2 recipe (interleaved robot + bbox-grounded VQA batches) but targets Pi0.5-3B (PaliGemma-2B + Gemma-300M action expert) instead of SmolVLA-450M.
 
@@ -12,11 +12,11 @@ The Pi0.5 Eval 3 variant is published as [`HBOrtiz/so101_pi05_eval3`](https://hu
 |---|---|
 | `verify_bbox_schema.py` | Pre-flight: validate the bbox parquet's column names. |
 | `arcface_audit_200celeb.py` | Per-frame `target_cos`, `max_distractor_cos`, `hardneg_gap` audit over the 200-celebrity inpainted dataset. |
-| `build_keep_list_and_weights.py` | Audit parquet → `keep_episodes.txt` + `hardneg_weights.npy`. |
-| `build_task_to_centroid.py` | Map task strings → celeb slug → ArcFace centroid. Produces `precomputed/task_index_to_centroid.json`. |
+| `build_keep_list_and_weights.py` | Audit parquet -> `keep_episodes.txt` + `hardneg_weights.npy`. |
+| `build_task_to_centroid.py` | Map task strings -> celeb slug -> ArcFace centroid. Produces `precomputed/task_index_to_centroid.json`. |
 | `build_confusion_matrix.py` | 192×192 celeb-vs-celeb ArcFace cosine matrix. Produces `precomputed/{confusion_matrix.npy, confusion_slugs.json, confusable_topk.json}`. |
 | `generate_vl_pairs.py` | RetinaFace-based VL-pair generator for the 193-celeb bank. |
-| `run_audit_pipeline.sh` | One-shot orchestrator: schema-verify → audit → build keep_list + weights. |
+| `run_audit_pipeline.sh` | One-shot orchestrator: schema-verify -> audit -> build keep_list + weights. |
 | `precomputed/` | Static audit artifacts checked in (used by the wrapper below). |
 
 ### Training wrapper (canonical scaffold)
@@ -30,8 +30,8 @@ The Pi0.5 Eval 3 variant is published as [`HBOrtiz/so101_pi05_eval3`](https://hu
 
 ## How `HBOrtiz/so101_pi05_eval3` was produced
 
-1. PaliGemma backbone warm-started on VGGFace2 VQA → [`HBOrtiz/paligemma_vqa_warm`](https://huggingface.co/HBOrtiz/paligemma_vqa_warm) (see [`../warmstart/`](../warmstart/)).
-2. Pi0.5 LoRA fine-tune from that init on `HBOrtiz/so101_eval3_broad`, launched via [`../brev/train_pi05.sh`](../brev/train_pi05.sh) — the vanilla LoRA path.
+1. PaliGemma backbone warm-started on VGGFace2 VQA -> [`HBOrtiz/paligemma_vqa_warm`](https://huggingface.co/HBOrtiz/paligemma_vqa_warm) (see [`../warmstart/`](../warmstart/)).
+2. Pi0.5 LoRA fine-tune from that init on `HBOrtiz/so101_eval3_broad`, launched via [`../brev/train_pi05.sh`](../brev/train_pi05.sh) - the vanilla LoRA path.
 
 The ObjectVLA enhancements (mixed batches, hard-neg curriculum, per-layer LoRA, EMA) listed in the file table above are documented here as the design intent; the published checkpoint is the vanilla-LoRA result. The wrapper here is preserved so the enhanced recipe can be revived from the precomputed artifacts.
 

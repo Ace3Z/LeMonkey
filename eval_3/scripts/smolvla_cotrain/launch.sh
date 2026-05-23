@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# SmolVLA + VL co-train launch — single-node AWS / Brev / generic CUDA box.
+# SmolVLA + VL co-train launch - single-node AWS / Brev / generic CUDA box.
 #
 # Override any value via env vars before invoking, e.g.:
 #   VL_RATIO=5 STEPS=20000 PUSH_REPO=HBOrtiz/my_run bash launch.sh
 #
 # PRE-FLIGHT (must be true):
-#   1. HF_TOKEN exported (read+write) — needed for HBOrtiz/* repos
+#   1. HF_TOKEN exported (read+write) - needed for HBOrtiz/* repos
 #   2. conda env with lerobot, transformers, peft, torch (CUDA), pandas, PIL installed
 #   3. At least one CUDA GPU visible (`nvidia-smi`)
 #   4. The local lerobot at $(python -c 'import lerobot; print(lerobot.__path__)')
@@ -51,23 +51,23 @@ KLAL_LAMBDA="${KLAL_LAMBDA:-1.0}"
 KLAL_LAYERS="${KLAL_LAYERS:-10,12,14}"      # must be a subset of LoRA layers
 KLAL_SIGMA="${KLAL_SIGMA:-1.0}"
 # KLAL's attention target is built from the VL dataset's quad_corners_norm
-# column — no external bbox source is needed.
+# column - no external bbox source is needed.
 
 # ---- Pre-flight ---------------------------------------------------------------
 
 if [ -z "${HF_TOKEN:-}" ]; then
-    echo "[WARN] HF_TOKEN not set — HF download/push will fail if any repo is private" >&2
+    echo "[WARN] HF_TOKEN not set - HF download/push will fail if any repo is private" >&2
 fi
 
 if ! command -v nvidia-smi >/dev/null 2>&1; then
-    echo "[WARN] nvidia-smi not found — running on CPU will be unusably slow" >&2
+    echo "[WARN] nvidia-smi not found - running on CPU will be unusably slow" >&2
 else
     echo "==> GPU(s) available:"
     nvidia-smi --query-gpu=name,memory.total --format=csv,noheader || true
 fi
 
 python -c "import lerobot.policies.smolvla.modeling_smolvla" \
-    || { echo "[ERROR] cannot import lerobot.policies.smolvla.modeling_smolvla — check env" >&2; exit 1; }
+    || { echo "[ERROR] cannot import lerobot.policies.smolvla.modeling_smolvla - check env" >&2; exit 1; }
 
 # ---- Launch -------------------------------------------------------------------
 

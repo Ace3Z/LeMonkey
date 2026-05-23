@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Eval 2 — interactive SmolVLA rollout runner (HBOrtiz/so101_smolvla_eval2).
+# Eval 2 - interactive SmolVLA rollout runner (HBOrtiz/so101_smolvla_eval2).
 #
 # Compositional instruction following. The model was trained with CAMERA-FRAME
 # spatial language - "leftmost" means image-left in the wrist-camera view.
@@ -58,7 +58,7 @@ if [ ! -f "$POLICY_PATH/model.safetensors" ]; then
 fi
 
 mkdir -p "$ROLLOUT_DIR"
-echo "Eval 2 — so101_smolvla_eval2 — interactive rollout"
+echo "Eval 2 - so101_smolvla_eval2 - interactive rollout"
 echo "Policy : $POLICY_PATH"
 echo "Saving : $ROLLOUT_DIR"
 echo "Convention: CAMERA-FRAME (read 'left'/'right' as image-left/right)"

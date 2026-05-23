@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# setup_env.sh — one-time bootstrap of the lemonkey conda env for SmolVLA cotrain.
+# setup_env.sh - one-time bootstrap of the lemonkey conda env for SmolVLA cotrain.
 #
 # Run once from repo root:
 #   bash eval_3/scripts/smolvla_cotrain/setup_env.sh
@@ -16,7 +16,7 @@
 #   lerobot's torch>=2.7,<2.12.0 constraint and runs on Blackwell sm_120).
 # lerobot: v0.5.2-ish HEAD of main (the pinned commit 7d8914c8 was GC'd
 #   from origin; HEAD at dfdc48a7 includes the same SmolVLA policy + a
-#   VideoDecoderCache OOM fix — better than the pin, not worse).
+#   VideoDecoderCache OOM fix - better than the pin, not worse).
 
 set -euo pipefail
 
@@ -27,7 +27,7 @@ echo "==> repo root: $REPO_ROOT"
 # ── Source conda ────────────────────────────────────────────────────────────
 CONDA_SH="$HOME/miniconda3/etc/profile.d/conda.sh"
 if [ ! -f "$CONDA_SH" ]; then
-    echo "[ERROR] conda not found at $CONDA_SH — adjust CONDA_SH in this script" >&2
+    echo "[ERROR] conda not found at $CONDA_SH - adjust CONDA_SH in this script" >&2
     exit 1
 fi
 source "$CONDA_SH"
@@ -48,7 +48,7 @@ echo
 echo "==> [2/4] installing lerobot[smolvla,dataset,av-dep] from third_party/ ..."
 echo "    smolvla : SmolVLAPolicy + transformers>=5.4 + accelerate"
 echo "    dataset : LeRobotDataset + pandas + pyarrow + torchcodec"
-echo "    av-dep  : av>=15 (PyAV — video backend used at training time)"
+echo "    av-dep  : av>=15 (PyAV - video backend used at training time)"
 pip install -e "$REPO_ROOT/third_party/lerobot[smolvla,dataset,av-dep]"
 
 # ── 3. zstandard (VL image tar.zst extraction) ──────────────────────────────
@@ -65,7 +65,7 @@ import sys
 
 # torch + CUDA
 import torch
-assert torch.cuda.is_available(), "CUDA not available — check driver / CUDA toolkit"
+assert torch.cuda.is_available(), "CUDA not available - check driver / CUDA toolkit"
 n = torch.cuda.device_count()
 for i in range(n):
     p = torch.cuda.get_device_properties(i)

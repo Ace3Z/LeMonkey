@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Interactive Eval 2 rollout runner — type any prompt, run it.
+# Interactive Eval 2 rollout runner - type any prompt, run it.
 # Mirrors eval_1/scripts/run_rollout.sh but points at the camera-frame v2 model.
 #
 # Usage:
@@ -9,7 +9,7 @@
 # Type 'q' at the prompt to quit.
 #
 # Convention reminder: the model was trained with CAMERA-FRAME spatial language
-# — "leftmost" means the bowl on the IMAGE LEFT side. Look at the camera feed.
+# - "leftmost" means the bowl on the IMAGE LEFT side. Look at the camera feed.
 set -euo pipefail
 
 CKPT_STEP="${1:-025000}"
@@ -39,24 +39,24 @@ while true; do
   read -r -p "Prompt (or 'q' to quit): " PROMPT
   case "$PROMPT" in
     q|Q|quit|exit) echo "Bye."; exit 0 ;;
-    "") echo "Empty prompt — skipping."; continue ;;
+    "") echo "Empty prompt - skipping."; continue ;;
   esac
 
   # Strip the eval-day "from the robot perspective" qualifier (PROJECT.md §2)
-  # before sending to the policy — the model was not trained on that phrase.
+  # before sending to the policy - the model was not trained on that phrase.
   RAW_PROMPT="$PROMPT"
   PROMPT=$("$PYBIN" "$HERE/filter_prompt.py" "$PROMPT")
   if [ "$PROMPT" != "$RAW_PROMPT" ]; then
-    echo "→ Original: $RAW_PROMPT"
-    echo "→ Filtered: $PROMPT"
+    echo "-> Original: $RAW_PROMPT"
+    echo "-> Filtered: $PROMPT"
   fi
 
   TS=$(date +%Y%m%d_%H%M%S)
   RUN_NAME="typed_${i}_${TS}"
   RUN_PATH="$ROLLOUT_DIR/$RUN_NAME"
 
-  echo "→ Running: $PROMPT"
-  echo "→ Saving to: $RUN_PATH"
+  echo "-> Running: $PROMPT"
+  echo "-> Saving to: $RUN_PATH"
   echo
 
   "$PYBIN" "$AUTO_HOME" capture "$HOME_POSE"
@@ -78,7 +78,7 @@ while true; do
   "$PYBIN" "$AUTO_HOME" drive "$HOME_POSE" "$HOME_DRIVE_S"
 
   echo
-  echo "✓ Rollout #$i complete: $RUN_PATH"
+  echo "[OK] Rollout #$i complete: $RUN_PATH"
   echo
   i=$((i+1))
 done
