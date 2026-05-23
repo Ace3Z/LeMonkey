@@ -225,7 +225,7 @@ def main() -> int:
             f"manifest.csv : page → display name → slug → in-zip filename "
             f"→ original source path on the dev box.\n\n"
             f"Seed = {args.seed}. Selection is reproducible by re-running "
-            f"eval_3/scripts/make_celeb_sample_pdf.py with the same seed.\n")
+            f"eval_3/scripts/celebs/make_celeb_sample_pdf.py with the same seed.\n")
     print(f"zip      → {zip_path} ({zip_path.stat().st_size/1024/1024:.1f} MB)")
     print("\nIndex (alphabetical):")
     for i, (name, _) in enumerate(all_picks, start=1):

@@ -179,7 +179,7 @@ hf download HBOrtiz/pi05_paligemma_celeb_warm_v2 --local-dir /tmp/pi05_warm
 
 # Simulate the rollout runner's first action with the warm-PG checkpoint
 # as a dry-run for Pi0.5 VL cotrain's eventual checkpoint format.
-bash eval_3/scripts/run_rollout_pi05_vl_cotrain.sh /tmp/pi05_warm
+bash eval_3/scripts/rollout/pi05_vl_cotrain.sh /tmp/pi05_warm
 # Type a test prompt: "Place the can on the photo of Yann LeCun."
 ```
 

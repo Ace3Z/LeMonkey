@@ -376,7 +376,7 @@ is pushed:
 
 ```bash
 # On Strix:
-bash eval_3/scripts/run_rollout_pi05_vl_cotrain.sh main
+bash eval_3/scripts/rollout/pi05_vl_cotrain.sh main
 # Type a test prompt, verify rollout works.
 ```
 

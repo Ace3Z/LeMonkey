@@ -175,7 +175,7 @@ Sources:
 ### §3.2 Per-celeb photo pool
 
 Target **≥ 5 distinct photos per celeb** (DreamBooth minimum extended
-for faces); **6–10 ideal**. Our scraper (`eval_3/scripts/scrape_headshots.py`)
+for faces); **6–10 ideal**. Our scraper (`eval_3/scripts/celebs/scrape_headshots.py`)
 already targets 10/celeb and we currently have:
 
 - 166 celebs with full 10/10 bank;
@@ -581,8 +581,8 @@ Each load-bearing decision verified against ≥ 3 independent sources.
 - `eval_3/aug/STRATEGY.md` - superseded by this doc
 - `eval_3/aug/RESEARCH_v2.md` - older research notes; inpaint primitives still current
 - `eval_3/aug/VALIDATION.md` - triple-source audit of v1 numerical defaults; still applies to MTF blur σ, Reinhard, etc.
-- `eval_3/scripts/scrape_headshots.py` - multi-source bank builder
-- `eval_3/scripts/record_eval3_guided.sh` - 180-ep recording structure
+- `eval_3/scripts/celebs/scrape_headshots.py` - multi-source bank builder
+- `eval_3/scripts/record/record_guided.sh` - 180-ep recording structure
 - `PROJECT.md` - Eval 3 task brief
 
 ---

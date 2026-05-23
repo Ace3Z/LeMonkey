@@ -87,17 +87,17 @@ live in [`scripts/`](scripts/):
 
 ```bash
 # in-distribution celebrities (Swift / Obama / LeCun)
-./eval_3/scripts/run_rollout_smolvla_cotrain.sh
+./eval_3/scripts/rollout/smolvla_cotrain.sh
 
 # broad and out-of-distribution celebrities
-./eval_3/scripts/run_rollout_smolvla_broad.sh
+./eval_3/scripts/rollout/smolvla_broad.sh
 ```
 
 Each script downloads its checkpoint from the Hub on first use, then loops: type
 a prompt (`Put the coke on <name>.`), the arm captures its home pose, runs the
 policy for one 25 s episode against a single live wrist camera, and drives back
 home. Type `q` to quit. Pass a checkpoint name as the first argument to use an
-earlier step, for example `./eval_3/scripts/run_rollout_smolvla_cotrain.sh step_020000`.
+earlier step, for example `./eval_3/scripts/rollout/smolvla_cotrain.sh step_020000`.
 
 The scripts assume the standard repo robot setup (SO-101 follower at
 `/dev/so101-follower`, wrist camera at `/dev/video0`) and force Hugging Face

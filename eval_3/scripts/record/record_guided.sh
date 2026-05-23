@@ -127,8 +127,8 @@ for arm in my_leader my_follower; do
   fi
 done
 
-# 5. record_eval3_quick.py present
-RECORDER="$HOME/LeMonkey/eval_3/scripts/record_eval3_quick.py"
+# 5. record_quick.py present
+RECORDER="$HOME/LeMonkey/eval_3/scripts/record/record_quick.py"
 if [[ -f "$RECORDER" ]]; then
   echo "  ✓ recorder script: $RECORDER"
 else

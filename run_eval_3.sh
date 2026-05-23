@@ -33,9 +33,9 @@ REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 case "$MODE" in
   cotrain)
-    exec "$REPO_ROOT/eval_3/scripts/run_rollout_smolvla_cotrain.sh" ${CKPT:+"$CKPT"}
+    exec "$REPO_ROOT/eval_3/scripts/rollout/smolvla_cotrain.sh" ${CKPT:+"$CKPT"}
     ;;
   broad)
-    exec "$REPO_ROOT/eval_3/scripts/run_rollout_smolvla_broad.sh" ${CKPT:+"$CKPT"}
+    exec "$REPO_ROOT/eval_3/scripts/rollout/smolvla_broad.sh" ${CKPT:+"$CKPT"}
     ;;
 esac

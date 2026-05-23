@@ -75,7 +75,7 @@ def list_root(root: Path, paths_only: bool, want_open: bool) -> int:
             ref_photo = meta.get("reference_photo")
             print(f"    ref     : {ref_photo or '(none)'}")
         else:
-            print("    (no reference.json — recorded outside record_eval3_quick.py)")
+            print("    (no reference.json — recorded outside record_quick.py)")
         if video and video.is_file():
             print(f"    video   : {video}")
             print(f"    size    : {human_size(video.stat().st_size)}")
@@ -117,9 +117,9 @@ def main() -> int:
             print("Open one in your default video viewer:")
             print("  xdg-open <video-path>")
             print("Or all of them at once:")
-            print("  python eval_3/scripts/list_eval3_episodes.py --open")
+            print("  python eval_3/scripts/record/list_episodes.py --open")
             print("Or pipe the paths into another tool:")
-            print("  python eval_3/scripts/list_eval3_episodes.py --paths-only | xargs -n1 -I{} echo {}")
+            print("  python eval_3/scripts/record/list_episodes.py --paths-only | xargs -n1 -I{} echo {}")
     return 0
 
 
