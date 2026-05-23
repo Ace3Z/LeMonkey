@@ -29,7 +29,7 @@ Usage:
     record_eval3.py --regenerate-plan --seed 42
     record_eval3.py --dry-run                # walk plan without recording
 
-Controls during recording (matches record_eval2.py):
+Controls during recording (matches record_episodes.py):
     ENTER   record next episode
     d       delete last recorded episode AND re-queue
     p       progress summary

@@ -11,7 +11,7 @@ Touches: videos/ dir name, data/*.parquet column drop, meta/info.json,
 meta/episodes/*.parquet column rename + drop.
 
 Usage:
-    normalize_dagger_to_bc_schema.py --src datasets/eval1_dagger \\
+    _archive/normalize_dagger_to_bc_schema.py --src datasets/eval1_dagger \\
                                      --dst datasets/eval1_dagger_norm
 """
 from __future__ import annotations

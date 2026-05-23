@@ -17,9 +17,9 @@ Targets:
     refers to one of these rows; rewriting the strings is sufficient.
 
 Usage:
-    relabel_camframe.py                         # dry-run, prints diffs
-    relabel_camframe.py --apply                 # write the file in place
-    relabel_camframe.py --apply --push-to-hub   # also push the changed
+    _archive/relabel_camframe.py                         # dry-run, prints diffs
+    _archive/relabel_camframe.py --apply                 # write the file in place
+    _archive/relabel_camframe.py --apply --push-to-hub   # also push the changed
                                                   file to HBOrtiz/so101_eval2
 """
 from __future__ import annotations

@@ -12,7 +12,7 @@ takes JSON arrays of repo_ids and roots; we pass each subdir as its own
 (fake-local-repo, root) pair and let the tool concatenate them in chunked
 layout under --new_root.
 
-Adapted from eval_2/scripts/merge_eval2_episodes.py. Pre-flight schema
+Adapted from eval_2/scripts/merge_episodes.py. Pre-flight schema
 check rejects the merge if any episode dir's features.keys() differ from
 the others, which protects us against the eval3-aug schema bug where
 augmented variants used to declare only camera1 (fixed by

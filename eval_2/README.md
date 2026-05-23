@@ -77,20 +77,20 @@ prompt to the right bowl regardless of arrangement.
 
 ## Recording the dataset
 
-`scripts/record_eval2.py` drives a fixed, balanced 180-episode recording plan
+`scripts/record_episodes.py` drives a fixed, balanced 180-episode recording plan
 (persisted to `state/plan.json`, so progress survives restarts). It minimises
 physical work by grouping episodes so the bowls only need to be reshuffled five
 times across the whole collection. It announces each arrangement change, shows
 the prompt and target bowl, and records one 20 s teleop episode per step.
 
 ```bash
-./scripts/record_eval2.py             # resume (or create) the plan
-./scripts/record_eval2.py --dry-run   # walk the plan without the robot
+./scripts/record_episodes.py             # resume (or create) the plan
+./scripts/record_episodes.py --dry-run   # walk the plan without the robot
 ```
 
 ## Training pipeline
 
-`scripts/merge_eval2_episodes.py` merges the 180 per-episode directories into one
+`scripts/merge_episodes.py` merges the 180 per-episode directories into one
 LeRobot v3 dataset, which is then trained on a Brev GPU VM. The `scripts/brev/`
 folder holds the launch scripts (`run_training.sh`, `start_training.sh`,
 `follow_training.sh`, `training_status.sh`). Key settings: from
@@ -103,8 +103,8 @@ only, `empty_cameras=2` to zero-pad the unused camera slots.
 eval_2/
 ├── README.md          this file
 ├── scripts/
-│   ├── record_eval2.py          balanced 180-episode teleop recorder
-│   ├── merge_eval2_episodes.py  merges episode dirs into one LeRobot v3 dataset
+│   ├── record_episodes.py          balanced 180-episode teleop recorder
+│   ├── merge_episodes.py  merges episode dirs into one LeRobot v3 dataset
 │   └── brev/                    Brev training-VM launch scripts
 ├── state/             plan.json, persistent recording state (gitignored)
 ├── train/             model checkpoints (gitignored)

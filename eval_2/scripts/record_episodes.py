@@ -21,10 +21,10 @@ Design:
     (~150+ distinct strings across the 180 episodes).
 
 Usage:
-    record_eval2.py                          # use existing plan or create one
-    record_eval2.py --regenerate-plan        # discard plan, build a fresh one
-    record_eval2.py --regenerate-plan --seed 42
-    record_eval2.py --dry-run                # walk the plan without recording
+    record_episodes.py                          # use existing plan or create one
+    record_episodes.py --regenerate-plan        # discard plan, build a fresh one
+    record_episodes.py --regenerate-plan --seed 42
+    record_episodes.py --dry-run                # walk the plan without recording
 
 Controls during recording:
     ENTER   record the next planned episode

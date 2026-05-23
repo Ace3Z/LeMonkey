@@ -3,7 +3,7 @@
 
 Every iteration picks NEW random values (no seed, no plan):
   1. Bowl arrangement — one of the 6 permutations (BRG / BGR / RBG / RGB / GBR / GRB)
-  2. Source — 50/50 split between TRAINED phrasings (from record_eval2.py's pools)
+  2. Source — 50/50 split between TRAINED phrasings (from record_episodes.py's pools)
      and OUT-OF-DISTRIBUTION phrasings (designed not to overlap)
   3. Family — direct / spatial_absolute / spatial_ordinal / relational_lr /
      relational_between / negation
@@ -17,9 +17,9 @@ The script:
   - 'q' quits, 's' skips this prompt and resamples
 
 Usage:
-    run_rollout_eval2.py                        # default: v2/025000, random
-    run_rollout_eval2.py 020000                 # use a different intermediate ckpt
-    run_rollout_eval2.py --ood-prob 0.3         # 30% OOD instead of default 50%
+    run_rollout_structured.py                        # default: v2/025000, random
+    run_rollout_structured.py 020000                 # use a different intermediate ckpt
+    run_rollout_structured.py --ood-prob 0.3         # 30% OOD instead of default 50%
 """
 from __future__ import annotations
 
@@ -34,14 +34,14 @@ from pathlib import Path
 
 # Reuse the TRAINED phrasing pools and per-family generators from the recorder.
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from record_eval2 import (
+from record_episodes import (
     ARRANGEMENTS, COLOR_NAMES,
     DIRECT_COLOR_PHR, ABS_PHR, ORD_PHR, ORDINAL_WORDS,
     REL_LR_PHR, REL_BETWEEN_PHR, NEG_PHR,
 )
 
 # ─── OOD phrasing pools ──────────────────────────────────────────────────────
-# These are deliberately disjoint from record_eval2.py's pools so the policy
+# These are deliberately disjoint from record_episodes.py's pools so the policy
 # has not seen them verbatim. They keep the same compositional structure.
 
 DIRECT_OOD = [

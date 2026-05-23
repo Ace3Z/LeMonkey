@@ -7,8 +7,8 @@ picking a NEW random prompt (50/50 trained vs out-of-distribution) and
 showing you which bowl is the target. The policy must then put the banana
 in that bowl.
 
-Differs from run_rollout_eval2.py:
-  - run_rollout_eval2.py   ← script dictates the arrangement; you reshuffle
+Differs from run_rollout_structured.py:
+  - run_rollout_structured.py   ← script dictates the arrangement; you reshuffle
                              when it tells you to
   - run_rollout_freeplay.py ← YOU control the arrangement; just press 'a'
                              when you want to update it
@@ -33,8 +33,8 @@ from pathlib import Path
 
 # Reuse the random-pick infrastructure from the structured rollout script.
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from run_rollout_eval2 import GENERATORS, FAMILIES
-from record_eval2 import COLOR_NAMES, is_valid_arrangement
+from run_rollout_structured import GENERATORS, FAMILIES
+from record_episodes import COLOR_NAMES, is_valid_arrangement
 
 
 def random_pick_for(arr: str, ood_prob: float):

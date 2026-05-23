@@ -11,9 +11,9 @@ After merge, the merged dataset lives at:
 Use that single root when training on Brev — much simpler than 180 inputs.
 
 Usage:
-    merge_eval2_episodes.py                     # default paths
-    merge_eval2_episodes.py --src DIR --dst DIR
-    merge_eval2_episodes.py --dry-run           # print the command, don't run it
+    merge_episodes.py                     # default paths
+    merge_episodes.py --src DIR --dst DIR
+    merge_episodes.py --dry-run           # print the command, don't run it
 """
 from __future__ import annotations
 
