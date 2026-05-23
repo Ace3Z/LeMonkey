@@ -11,7 +11,8 @@ every episode's task_index points to one of the 3 base prompts.
 This script patches the **merged** dataset in place:
 
   1. Re-derive merge order (sorted base teleops + sorted augmented
-     variants), matching merge_eval3_episodes.py's discover_episode_dirs.
+     variants), matching eval_3/scripts/data/merge_episodes.py's
+     discover_episode_dirs.
   2. For each merged ep, look up its correct prompt:
        - base teleop → reference.json["prompt"]  (already correct)
        - augmented variant → augmentation.json["prompt"]
@@ -41,8 +42,8 @@ import pandas as pd
 
 
 def discover_merge_order(base_root: Path, aug_root: Path) -> list[Path]:
-    """Replicate merge_eval3_episodes.discover_episode_dirs to recover the
-    same (base sorted, then aug sorted) ordering used at merge time."""
+    """Replicate eval_3/scripts/data/merge_episodes.discover_episode_dirs to
+    recover the same (base sorted, then aug sorted) ordering used at merge time."""
     base = sorted(p for p in base_root.iterdir()
                     if p.is_dir() and (p / "meta" / "info.json").is_file()
                     and (p / "reference.json").is_file()) if base_root.is_dir() else []

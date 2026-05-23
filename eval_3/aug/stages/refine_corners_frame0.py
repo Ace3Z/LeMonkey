@@ -1,19 +1,19 @@
 #!/usr/bin/env python3
 """Recompute sub-pixel refined corners at frame 0 for every base teleop.
 
-Stage 3 (3_extract_corners.py) overwrote the refined corners with the
-coarse per-frame minAreaRect output. The original sub-pixel quad from
-refine_paper_quad_to_edges() only persists implicitly as a rasterized
-mask in portrait_masks.pkl["M_0_per_pid"] — re-extracting from that
-mask is lossy and sometimes degenerate.
+The legacy per-frame corner extractor (`_legacy/stage3_extract_corners.py`)
+overwrote the refined corners with coarse per-frame `minAreaRect` output. The
+original sub-pixel quad from `refine_paper_quad_to_edges()` only persists
+implicitly as a rasterized mask in `portrait_masks.pkl["M_0_per_pid"]` —
+re-extracting from that mask is lossy and sometimes degenerate.
 
-This script re-runs the refinement using each base teleop's frame_0.png
-+ SAM mask + the refine_paper_quad module, saving the sub-pixel refined
-corners as <ep>/portrait_corners_refined_frame0.json.
+This script re-runs the refinement using each base teleop's `frame_0.png`
++ SAM mask + the sibling `refine_paper_quad` module, saving the sub-pixel
+refined corners as `<ep>/portrait_corners_refined_frame0.json`.
 
-Aug variants share the base teleop's paper geometry (the inpainter doesn't
-move the portraits), so refining at the 178 base teleops covers all 9394
-episodes in the track3 dataset.
+Aug variants share the base teleop's paper geometry (the inpainter does not
+move the portraits), so refining at the base teleops covers every episode in
+the merged dataset.
 
 Output (per base teleop):
     <ep>/portrait_corners_refined_frame0.json:
@@ -43,7 +43,7 @@ import numpy as np
 import pycocotools.mask as mask_util
 
 
-# Lazy import of refine_paper_quad
+# Lazy import of refine_paper_quad (sibling module in aug/stages/).
 _REFINE_FN = None
 
 
@@ -52,7 +52,7 @@ def get_refine_fn():
     if _REFINE_FN is None:
         spec = ilu.spec_from_file_location(
             "refine_paper_quad",
-            str(Path(__file__).resolve().parents[2] / "aug" / "refine_paper_quad.py"))
+            str(Path(__file__).resolve().parent / "refine_paper_quad.py"))
         mod = ilu.module_from_spec(spec)
         spec.loader.exec_module(mod)
         _REFINE_FN = mod.refine_paper_quad_to_edges

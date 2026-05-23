@@ -10,7 +10,7 @@ VLM, so KLAL would back-prop into frozen weights and learn nothing.
 LoRA reopens exactly the needed capacity: a low-rank trainable delta on the
 attention projections, base weights frozen. The frozen base preserves the
 SmolVLM2 prior (anti-forgetting) -- strictly less destructive than fully
-fine-tuning whole layers (the M2 partial-freeze path in `m2_smolvla_hook.py`).
+fine-tuning whole layers (the partial-freeze path we explored earlier).
 
 Canonical LoRA update:  h = W0 x + (alpha / r) * B (A x)
 with A ~ kaiming-uniform and B = 0, so the adapter is a no-op at init.

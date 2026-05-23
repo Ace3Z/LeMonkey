@@ -395,6 +395,7 @@ eval_3/aug/
 ├── stages/                            per-stage pipeline primitives (libraries + CLIs)
 │   ├── detect_static.py                static-camera portrait detection + per-frame occluders
 │   ├── refine_paper_quad.py            sub-pixel paper-edge refit (Canny + Hough + cornerSubPix)
+│   ├── refine_corners_frame0.py        one-shot refit of frame-0 corners post-detect_static
 │   ├── inpaint_video.py                composite engine (warp + Reinhard + MTF + seamlessClone)
 │   └── video_io.py                     AV1 -> H.264 sidecar transcode + frame iterators
 │
@@ -412,6 +413,7 @@ eval_3/aug/
 │   ├── patch_episodes_parquet.py
 │   ├── relabel_cotrain_prompts.py
 │   ├── fix_merged_tasks.py
+│   ├── regen_default_prompts.py        deterministic default-bucket paraphrase regenerator
 │   └── validate_merged.py
 │
 ├── training/                           consumed by eval_3/scripts/smolvla_cotrain/cotrain.py

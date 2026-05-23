@@ -31,7 +31,7 @@ import pyarrow.parquet as pq
 import pandas as pd
 
 
-# Matches eval_3/aug/generate_aug_v3.py PROMPT_PARAPHRASES exactly.
+# Matches eval_3/aug/generators/broad.py PROMPT_PARAPHRASES exactly.
 PARAPHRASES = [
     "Place the coke on {name}.",
     "Put the coke on {name}.",
@@ -43,7 +43,7 @@ PARAPHRASES = [
 
 def discover_in_merge_order(base_root: Path, aug_root: Path,
                               aug_pattern: str) -> list[Path]:
-    """Mirror merge_track3_custom.py:discover() exactly."""
+    """Mirror eval_3/scripts/data/merge_episodes.py:discover_episode_dirs() exactly."""
     base = sorted(p for p in base_root.iterdir()
                     if p.is_dir() and (p / "meta" / "info.json").is_file()
                     and (p / "reference.json").is_file()) if base_root.is_dir() else []

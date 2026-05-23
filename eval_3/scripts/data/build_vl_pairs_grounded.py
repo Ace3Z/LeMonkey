@@ -1,32 +1,28 @@
 #!/usr/bin/env python3
-"""Build Track 3 VL pairs v3 — fixes the image↔label mispairing bug from v1/v2.
+"""Build VL pairs (location-explicit + Q&A grounded) from the merged cotrain dataset.
 
-The bug (per docs/experiments/2026-05-21_vl_pairs_image_mispairing.md):
-  v1/v2 built ep_to_videos keyed by the MERGED dataset's episode_index
-  (positional, defined by merge_track3_custom.discover() = sorted(base) +
-  sorted(aug)). Then v1/v2 indexed that dict with ep_idx = enumeration
-  position in their OWN filtered ep_metadata list. The builder's filter
-  (requires portrait_corners + portrait_seeds + valid target) selects
-  fewer episodes (151 vs merger's 178), shifting every subsequent index.
-  Result: ~98% of rows had frame 0 from a different episode than the
-  labels described.
+For each merged episode, emits VL records consumed by SmolVLA cotrain alongside
+the robot action stream. Each record carries the wrist-cam frame-0 JPEG, the
+reference-cam frame-0 JPEG, and a portrait quad (normalized [x,y]x4 in image
+coords) for one of the three printed portraits visible in the frame.
 
-This v3 fix:
-  - Replicates merger's discover() exactly → canonical (episode_name, episode_index)
-    list of length 9394.
-  - Builds a name → metadata dict from the same per-episode metadata as v2.
-  - Iterates the canonical list by episode_index → ep_to_videos[episode_index]
-    is now guaranteed correct (same index space).
-  - For episodes with metadata, emits VL pairs. For the 27 cacheless base
-    teleops, skips with a [WARN] (their videos exist but we have no portrait
-    geometry, so no usable bbox).
+History note — the canonical-name-keyed lookup below:
+  An earlier builder keyed `ep_to_videos` by the MERGED dataset's episode_index
+  (positional, defined by `data/merge_episodes.discover_episode_dirs()` =
+  sorted(base) + sorted(aug)) but indexed it with `ep_idx = enumeration position
+  in the builder's own filtered ep_metadata list`. The builder's filter
+  (requires portrait_corners + portrait_seeds + valid target) selects fewer
+  episodes than the merger, shifting every subsequent index — so ~98% of rows
+  had a frame from a different episode than the labels described. The current
+  builder replicates the merger's discovery exactly and looks up by episode
+  NAME, so the mispairing cannot recur.
 
-Other v2 features preserved:
+Outputs:
   - Refined sub-pixel corners at frame 0, with degenerate-quad detection +
-    coarse fallback (Bug 2 from the handoff).
+    coarse fallback.
   - Quad-corner geometry (no axis-aligned bbox).
-  - Two caption types (location_explicit, qa_grounded).
-  - Reference image per episode.
+  - Two caption types per record: location_explicit, qa_grounded.
+  - Reference-camera frame extracted once per episode.
 """
 from __future__ import annotations
 
@@ -113,8 +109,8 @@ def build_distractor_combos(layout, target_short, bank, K, rng):
 
 
 def discover_base_for_aug_pool(root):
-    """Replicate generate_aug_track3.discover_base_teleops — the pool that
-    aug variants were assigned to via slot_cursor round-robin. Uses the
+    """Replicate eval_3/aug/generators/cotrain.discover_base_teleops — the pool
+    that aug variants were assigned to via slot_cursor round-robin. Uses the
     same filter as the original generator (requires all 4 caches)."""
     groups = {0: [], 1: [], 2: []}
     for ep in sorted(root.iterdir()):
@@ -144,8 +140,8 @@ def discover_base_for_aug_pool(root):
 
 
 def merger_discover_base(base_root):
-    """Replicate merge_track3_custom.discover() base filter:
-       has meta/info.json AND reference.json. No cache requirement."""
+    """Replicate eval_3/scripts/data/merge_episodes.discover_episode_dirs base
+    filter: has meta/info.json AND reference.json. No cache requirement."""
     return sorted(p for p in base_root.iterdir()
                     if p.is_dir()
                     and (p / "meta" / "info.json").is_file()
@@ -153,8 +149,8 @@ def merger_discover_base(base_root):
 
 
 def re_derive_aug_variant_names(base_root, bank_root, seed=42, K=64):
-    """Replicate generate_aug_track3 to get the EXACT list of variant
-    names that were generated. These names match what merger sees."""
+    """Replicate eval_3/aug/generators/cotrain.py to get the EXACT list of
+    variant names that were generated. These names match what the merger sees."""
     bank = load_track3_bank(bank_root)
     tuples = enumerate_tuples_track3(bank)
     base_groups = discover_base_for_aug_pool(base_root)

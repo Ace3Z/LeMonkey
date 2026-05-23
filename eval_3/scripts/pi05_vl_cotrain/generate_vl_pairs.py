@@ -38,7 +38,7 @@ Per the triple-source-defaults rule: numerical defaults inline-cited.
 USAGE
 =====
 
-On edna (or anywhere with `lemonkey-arcface` conda env / InsightFace + buffalo_l):
+On any host with the `lemonkey-arcface` conda env (InsightFace + buffalo_l):
 
     python eval_3/scripts/pi05_vl_cotrain/generate_vl_pairs.py \\
         --scraped-root ~/LeMonkey/datasets/eval3_celebs/scraped \\
@@ -47,7 +47,7 @@ On edna (or anywhere with `lemonkey-arcface` conda env / InsightFace + buffalo_l
         --push-repo HBOrtiz/so101_eval3_broad_grounding
 
 Expected output: ~193 celebs × ~7-10 photos × 10 captions = ~15,000 rows.
-~5-10 min on edna's 128-core CPU box (RetinaFace is the bottleneck).
+~5-10 min on a 64-128 CPU host (RetinaFace is the bottleneck).
 """
 from __future__ import annotations
 

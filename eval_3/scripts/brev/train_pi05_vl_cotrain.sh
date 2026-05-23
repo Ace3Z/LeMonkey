@@ -13,7 +13,7 @@
 #
 #
 # PRE-FLIGHT (must be true before running this):
-#   1. Darius has pushed the VL pairs manifest HBOrtiz/so101_eval3_broad_grounding.
+#   1. The VL pairs manifest is published at HBOrtiz/so101_eval3_broad_grounding.
 #   2. the team has produced per-frame bboxes for 200-celeb dataset.
 #   3. ArcFace audit pipeline has run:
 #        python eval_3/scripts/pi05_vl_cotrain/arcface_audit_200celeb.py

@@ -766,9 +766,9 @@ def _drop_meta(cand: Candidate, out_dir: Path, reason: str) -> None:
 
 # ─── 6. CLI ────────────────────────────────────────────────────────────────
 def _load_celebs_dict() -> dict[str, list[str]]:
-    """Load the CELEBS dict from the existing head_shot.py without importing
+    """Load the CELEBS dict from the legacy head_shot script without importing
     its main() (which would otherwise scrape on import)."""
-    here = Path(__file__).resolve().parent / "head_shot.py"
+    here = Path(__file__).resolve().parent / "_archive" / "head_shot_legacy.py"
     spec = ilu.spec_from_file_location("_head_shot", str(here))
     mod = ilu.module_from_spec(spec)
     spec.loader.exec_module(mod)

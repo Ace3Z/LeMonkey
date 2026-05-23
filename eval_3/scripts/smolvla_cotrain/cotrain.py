@@ -644,7 +644,7 @@ def _setup_distributed():
         # also lets the distributed path be exercised on a single-GPU box.
         backend = os.environ.get("COTRAIN_DDP_BACKEND", "nccl")
         # set_device MUST precede init_process_group so NCCL binds each rank to
-        # its own GPU (matches feat/cotrain-smolvla-darius's ordering).
+        # its own GPU before the first collective.
         if torch.cuda.is_available():
             torch.cuda.set_device(local_rank % torch.cuda.device_count())
         # Generous timeout: rank 0 downloads the full ~15 GB dataset inside a
@@ -1031,7 +1031,7 @@ def main() -> int:
 
     # Sync, then tear the process group DOWN before the final save + push: the
     # HF upload can be slow, and a barrier left live during it would trip the
-    # NCCL watchdog on the waiting ranks (matches feat/cotrain-smolvla-darius).
+    # NCCL watchdog on the waiting ranks.
     if world_size > 1:
         dist.barrier()
         dist.destroy_process_group()

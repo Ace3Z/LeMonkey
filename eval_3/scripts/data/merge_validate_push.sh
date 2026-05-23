@@ -1,23 +1,24 @@
 #!/usr/bin/env bash
-# Edna — post-augmentation pipeline:
-#   1. Merge 178 base teleops with the ~18k aug variants into a LeRobot v3 dataset
-#   2. Validate the merged dataset against LeRobot v3 schema
-#   3. Push to HF (HBOrtiz/so101_eval3_aug_v3_200celebs)
+# Post-augmentation dataset pipeline:
+#   1. Merge base teleops with the augmented variants into a LeRobot v3 dataset
+#   2. Validate the merged dataset against the LeRobot v3 schema
+#   3. Push to HF
 #
 # Usage:
-#   bash eval_3/scripts/edna/merge_validate_push.sh          # full pipeline
-#   bash eval_3/scripts/edna/merge_validate_push.sh merge    # only merge
-#   bash eval_3/scripts/edna/merge_validate_push.sh validate # only validate (assumes merged exists)
-#   bash eval_3/scripts/edna/merge_validate_push.sh push     # only push (assumes validated)
+#   bash eval_3/scripts/data/merge_validate_push.sh          # full pipeline
+#   bash eval_3/scripts/data/merge_validate_push.sh merge    # only merge
+#   bash eval_3/scripts/data/merge_validate_push.sh validate # only validate (assumes merged exists)
+#   bash eval_3/scripts/data/merge_validate_push.sh push     # only push (assumes validated)
 
 set -euo pipefail
 
 STEP="${1:-all}"
 
-# Activate conda env
-if [[ -z "${CONDA_DEFAULT_ENV:-}" || "${CONDA_DEFAULT_ENV:-}" != "aug" ]]; then
+# Activate conda env (override with CONDA_ENV=...)
+CONDA_ENV="${CONDA_ENV:-lemonkey}"
+if [[ -z "${CONDA_DEFAULT_ENV:-}" || "${CONDA_DEFAULT_ENV:-}" != "$CONDA_ENV" ]]; then
     source "$HOME/miniconda3/etc/profile.d/conda.sh"
-    conda activate aug
+    conda activate "$CONDA_ENV"
 fi
 cd "$HOME/LeMonkey"
 
@@ -41,8 +42,8 @@ if [[ "$STEP" == "all" || "$STEP" == "merge" ]]; then
     echo "    base eps found : $n_base"
     echo "    aug variants   : $n_aug"
     t_start=$(date +%s)
-    # v3 variants use "__var" pattern (not "__t3_")
-    python eval_3/scripts/merge_track3_custom.py \
+    # Broad-pipeline variants use the "__var" suffix (not "__t3_").
+    python eval_3/scripts/data/merge_episodes.py \
         --base-root "$BASE_ROOT" \
         --aug-root  "$AUG_ROOT" \
         --aug-pattern "__var" \
@@ -53,7 +54,7 @@ fi
 
 if [[ "$STEP" == "all" || "$STEP" == "validate" ]]; then
     echo "==> [2/3] validating merged dataset against LeRobot v3 schema"
-    python eval_3/scripts/edna/validate_lerobot_v3.py --root "$MERGED_DST" || {
+    python eval_3/scripts/data/validate_v3_schema.py --root "$MERGED_DST" || {
         echo "[FATAL] validation failed; not pushing" >&2
         exit 1
     }
@@ -67,7 +68,7 @@ if [[ "$STEP" == "all" || "$STEP" == "push" ]]; then
         echo "[FATAL] HF token missing: $TOKEN_FILE" >&2
         exit 2
     fi
-    python eval_3/scripts/push_dataset_to_hf.py \
+    python eval_3/scripts/data/push_dataset_to_hf.py \
         --local "$MERGED_DST" \
         --repo  "$HF_REPO" \
         --token-file "$TOKEN_FILE"

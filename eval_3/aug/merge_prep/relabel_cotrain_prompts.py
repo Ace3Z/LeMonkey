@@ -27,8 +27,9 @@ THIS SCRIPT, per variant:
 Per-base-teleop prompts are left untouched — they already use the
 default-bucket format and don't carry the bucket-mixing issue.
 
-After this runs, merge_eval3_episodes.py can aggregate cleanly; the
-global tasks.parquet will deduplicate identical paraphrase strings.
+After this runs, eval_3/scripts/data/merge_episodes.py can aggregate
+cleanly; the global tasks.parquet will deduplicate identical paraphrase
+strings.
 
 Usage:
     relabel_cotrain_prompts.py --aug-root datasets/eval3_aug_cotrain

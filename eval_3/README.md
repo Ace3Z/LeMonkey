@@ -402,7 +402,7 @@ eval_3/
 ├── scripts/
 │   ├── rollout/             eval-day rollout runners (one per deployed policy)
 │   ├── record/              teleop recording session scripts
-│   ├── data/                dataset merge + push helpers
+│   ├── data/                dataset merge + validate + push + VL-pair builders
 │   ├── celebs/              celebrity-photo bank builders
 │   ├── smolvla_cotrain/     deployed SmolVLA cotrain trainer
 │   ├── pi05_vl_cotrain/     Pi0.5 + VL cotrain (published variant)

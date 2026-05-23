@@ -16,12 +16,12 @@ Adapted from eval_2/scripts/merge_episodes.py. Pre-flight schema
 check rejects the merge if any episode dir's features.keys() differ from
 the others, which protects us against the eval3-aug schema bug where
 augmented variants used to declare only camera1 (fixed by
-eval_3/aug/prep_for_merge.py before this script runs).
+eval_3/aug/merge_prep/prep_for_merge.py before this script runs).
 
 Usage:
-    merge_eval3_episodes.py                         # default paths
-    merge_eval3_episodes.py --base-root … --aug-root … --dst …
-    merge_eval3_episodes.py --dry-run               # print stats, don't run
+    merge_episodes.py                         # default paths
+    merge_episodes.py --base-root … --aug-root … --dst …
+    merge_episodes.py --dry-run               # print stats, don't run
 """
 from __future__ import annotations
 
