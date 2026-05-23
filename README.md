@@ -189,17 +189,25 @@ Deployed models at a glance:
 
 ```
 LeMonkey/
-├── README.md                  this file (the map)
-├── DATASETS_AND_MODELS.md      Hugging Face dataset and model inventory
-├── eval_1/                    Eval 1: runtime, scripts, README
-├── eval_2/                    Eval 2: runtime, scripts, README
-├── eval_3/                    Eval 3: runtime, scripts, README
-│   ├── aug/                   data-augmentation pipeline (celebrity portraits)
-│   ├── scripts/               training, rollout, and dataset-build scripts
-│   │   └── smolvla_cotrain/   the SmolVLA co-training trainer
-│   └── tools/                 dataset-verification tooling
-├── calibration/               per-arm SO-101 calibration JSONs
-└── media/                     logos and demo GIFs
+├── README.md                    this file (the map)
+├── DATASETS_AND_MODELS.md       Hugging Face dataset and model inventory
+├── run_eval_1.sh                top-level Eval 1 rollout launcher
+├── run_eval_2.sh                top-level Eval 2 rollout launcher
+├── run_eval_3.sh                top-level Eval 3 rollout launcher (--broad for OOD celebrities)
+├── eval_1/                      Eval 1: runtime, scripts, README
+├── eval_2/                      Eval 2: runtime, scripts, README
+├── eval_3/                      Eval 3: runtime, scripts, README
+│   ├── HANDOVER_TO_DEPLOY.md    dev-box → robot-machine deploy runbook
+│   ├── aug/                     data-augmentation pipeline (celebrity portraits)
+│   ├── scripts/                 training, rollout, and dataset-build scripts
+│   │   ├── brev/                Brev-VM training entrypoints
+│   │   ├── smolvla_cotrain/     the SmolVLA co-training trainer
+│   │   ├── track_2/             Track 2 (warm-start) experiments
+│   │   └── warmstart/           PaliGemma VQA warm-start pipeline
+│   └── tools/                   dataset-verification tooling
+├── calibration/                 per-arm SO-101 calibration JSONs
+├── media/                       logos (figures/) and demo GIFs (gifs/)
+└── third_party/lerobot/         LeRobot framework as a git submodule
 ```
 
 Per-eval `train/`, `rollouts/`, `evals/`, and `state/` folders stay local (checkpoints, recordings, and session state are not committed).
