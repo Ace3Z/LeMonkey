@@ -158,15 +158,12 @@ Each eval ships interactive rollout scripts. They download the deployed checkpoi
 ```bash
 conda activate lemonkey
 
-# Eval 1: direct color pick and place
-cd eval_1 && ./scripts/run_rollout.sh
-
-# Eval 2: compositional instruction following
-cd eval_2 && ./scripts/run_rollout.sh
-
-# Eval 3: coke can onto a celebrity portrait
-./eval_3/scripts/run_rollout_cotrain_track3_5to1.sh   # in-distribution celebrities
-./eval_3/scripts/run_rollout_smolvla_eval3.sh         # broad celebrities
+# Top-level wrappers (download checkpoints from HF on first use,
+# or use a local copy if shipped under policy/<repo_name>/).
+./run_eval_1.sh                  # Eval 1: direct color pick and place
+./run_eval_2.sh                  # Eval 2: compositional instruction following
+./run_eval_3.sh                  # Eval 3: in-distribution celebrities (default)
+./run_eval_3.sh --broad          # Eval 3: broad / out-of-distribution celebrities
 ```
 
 Type the prompt at the menu (for example `Put the coke on Barack Obama.`), watch the rollout, then type the next one or `q` to quit. Each `eval_N/README.md` documents the per-eval scripts, checkpoints, and structured-evaluation tooling.

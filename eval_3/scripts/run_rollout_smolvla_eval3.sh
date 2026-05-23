@@ -21,7 +21,11 @@ ARG="${1:-}"
 REPO_ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)
 AUTO_HOME="$REPO_ROOT/eval_1/scripts/auto_home.py"
 ROLLOUT_DIR="$REPO_ROOT/eval_3/rollouts"
-CACHE="$HOME/.cache/eval3_rollout/so101_smolvla_eval3_broad"
+if [ -d "$REPO_ROOT/policy/so101_smolvla_eval3_broad" ]; then
+  CACHE="$REPO_ROOT/policy/so101_smolvla_eval3_broad"
+else
+  CACHE="$HOME/.cache/eval3_rollout/so101_smolvla_eval3_broad"
+fi
 HOME_POSE=/tmp/run_rollout_smolvla_eval3_home.json
 HOME_DRIVE_S=2.0
 

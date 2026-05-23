@@ -4,6 +4,7 @@
 
 # Datasets and model weights (hosted on the Hugging Face Hub)
 datasets/
+policy/
 *.safetensors
 *.pt
 *.pth
