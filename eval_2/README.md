@@ -66,14 +66,24 @@ The result is **`HBOrtiz/so101_smolvla_eval2`**, SmolVLA-450M trained for 25k st
 
 ## Running a rollout
 
-With the `lemonkey` conda environment active:
+With the `lemonkey` conda environment active, the top-level wrapper
+[`run_eval_2.sh`](../run_eval_2.sh) downloads the deployed checkpoint from
+the Hub on first use and starts an interactive prompt loop:
 
 ```bash
-./scripts/run_rollout.sh           # single rollout, type the prompt
+./run_eval_2.sh                    # default = HF root (final 25k)
+./run_eval_2.sh checkpoints/020000 # earlier intermediate
 ```
 
 Reshuffle the bowls between rollouts and check that the policy follows the
 prompt to the right bowl regardless of arrangement.
+
+Two structured variants live under `scripts/`:
+
+| Script | Mode |
+|---|---|
+| `scripts/run_rollout_structured.py` | Script picks the arrangement; samples a random prompt each iteration. |
+| `scripts/run_rollout_freeplay.py` | You fix the arrangement once; the script samples a random prompt each iteration. |
 
 ## Recording the dataset
 

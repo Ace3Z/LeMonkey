@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 """Strip the "from the robot perspective" qualifier from Eval 2 prompts.
 
-Per PROJECT.md §2 (latest Google Doc rule), spatial prompts on eval day
+Eval-day spatial prompts can
 have the qualifier embedded inline, e.g.:
 
     "Put the banana into the 2nd bowl from the left from the robot perspective"
     "Put the banana into the bowl on the right of the red bowl from the robot perspective"
 
-Our SmolVLA Eval 2 model was NOT trained on that qualifier — the 180-episode
+The SmolVLA Eval 2 model was NOT trained on that qualifier — the 180-episode
 dataset's prompts never contain "from the robot perspective". Feeding the OOD
 phrase to the policy pushes it off-distribution. Solution: strip the qualifier
 before sending to the model. The trajectory the model produces should be the
@@ -17,7 +17,7 @@ Matched phrase (exact, case-insensitive, optional trailing period):
     "from the robot perspective"
 
 Anything else — including "robot's perspective", "camera perspective", etc.
-— is left untouched. Per the latest user direction the filter is intentionally
+— is left untouched. The filter is intentionally
 narrow.
 
 Usage:

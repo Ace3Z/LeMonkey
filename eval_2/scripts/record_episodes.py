@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Record Eval 2 teleop episodes against a balanced 180-episode plan.
 
-Per PROJECT.md §2 (Eval 2 — Compositional instruction following):
+Eval 2 task (compositional instruction following):
   - Banana stays in its Eval-1 position throughout.
   - 3 colored bowls reshuffled across 3 positions per session.
   - Compositional prompts (spatial / relational / negation).
