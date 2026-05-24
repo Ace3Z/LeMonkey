@@ -43,6 +43,12 @@ REPO_ROOT="$(cd "$HERE/../../.." && pwd)"
 PYBIN="${PYBIN:-$(command -v python)}"
 AUTO_HOME="${AUTO_HOME:-$REPO_ROOT/scripts/auto_home.py}"
 ROLLOUT_DIR="${ROLLOUT_DIR:-$REPO_ROOT/eval_3/rollouts}"
+
+# Hardware preflight: clear [FATAL] if the SO-101 follower or overhead camera
+# isn't plugged in (vs lerobot-record's cryptic deep-stack failure).
+source "$REPO_ROOT/scripts/preflight_robot.sh"
+require_so101_follower
+require_camera "${CAMERA_DEV:-/dev/video0}"
 HOME_POSE="/tmp/run_rollout_eval3_pi05_vl_cotrain_home.json"
 HOME_DRIVE_S=2.0
 

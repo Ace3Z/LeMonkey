@@ -21,6 +21,12 @@ REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 AUTO_HOME="$REPO_ROOT/scripts/auto_home.py"
 FILTER_PROMPT="$REPO_ROOT/eval_2/scripts/filter_prompt.py"
 ROLLOUT_DIR="$REPO_ROOT/eval_2/rollouts"
+
+# Hardware preflight: clear [FATAL] if the SO-101 follower or overhead camera
+# isn't plugged in (vs lerobot-record's cryptic deep-stack failure).
+source "$REPO_ROOT/scripts/preflight_robot.sh"
+require_so101_follower
+require_camera "${CAMERA_DEV:-/dev/video0}"
 if [ -d "$REPO_ROOT/policy/so101_smolvla_eval2" ]; then
   CACHE="$REPO_ROOT/policy/so101_smolvla_eval2"
 else
