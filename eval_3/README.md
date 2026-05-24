@@ -130,8 +130,8 @@ Two datasets come out of this, one for each eval-day regime:
 | **HF dataset**           | [`so101_eval3_cotrain`](https://huggingface.co/datasets/HBOrtiz/so101_eval3_cotrain) | [`so101_eval3_broad`](https://huggingface.co/datasets/HBOrtiz/so101_eval3_broad) |
 | **Celebrity bank**       | 3 (Swift, Obama, LeCun) | 192 (scraped + ArcFace-verified) |
 | **Variant generation**   | **Exhaustive enumeration** of every (target, target photo, layout, distractor pair) tuple | **Random sampling**: per base teleop, draw 3 distinct celebs uniformly from the bank, repeat 54×|
-| **Variants per dataset** | 3 × 8 × 6 × 64 = **9,216** | 180 × 54 ≈ **9,662** |
-| **+ base teleops**       | 178                     | 180 |
+| **Variants per dataset** | 3 × 8 × 6 × 64 = **9,216** | ~180 × 54 ≈ **9,662** |
+| **+ base teleops**       | ~180                    | ~180 |
 | **= total episodes**     | **9,394**               | **9,842** |
 | **= total frames**       | **5.05 M**              | **5.29 M** |
 | **What it teaches**      | Breaks the §1 positional shortcut by saturating every (layout × target × distractor) cell on the 3 known faces. | Forces the VLM backbone to generalise across 192 different celebrity faces, so eval-day faces it has never seen still ground correctly. |
