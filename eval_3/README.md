@@ -115,18 +115,46 @@ rendering". The recipe is:
    celebrity's name. These are the (image, text) pairs used by the
    co-training loss in [§Our training approach](#our-training-approach-co-training--klal--lora).
 
-The multiplication:
+Two datasets come out of this:
 
-| Input | Output |
-|---|---|
-| 178 base teleops × 3 portrait slots × ~53 celebrity variants per episode | **9,394 episodes / 5.05 M frames** in [`so101_eval3_cotrain`](https://huggingface.co/datasets/HBOrtiz/so101_eval3_cotrain) |
-| 180 base teleops × 3 portrait slots × ~54 variants from a 192-celeb bank | **9,842 episodes / 5.29 M frames** in [`so101_eval3_broad`](https://huggingface.co/datasets/HBOrtiz/so101_eval3_broad) |
+**1. The in-distribution (toy) dataset, `so101_eval3_cotrain`.** Only the
+3 IID celebrities (Swift, Obama, LeCun). The augmentation generator
+exhaustively enumerates every permutation of:
+
+$$
+\underbrace{3}_{\text{target celeb}}
+\;\times\;
+\underbrace{8}_{\text{target photos per celeb}}
+\;\times\;
+\underbrace{6}_{\text{slot layouts (3!)}}
+\;\times\;
+\underbrace{8 \times 8}_{\text{distractor-photo combos}}
+\;=\;
+9{,}216 \text{ variants}
+$$
+
+Plus the 178 base teleops, that gives **9,394 episodes / 5.05 M frames**
+in [`so101_eval3_cotrain`](https://huggingface.co/datasets/HBOrtiz/so101_eval3_cotrain).
+Every (target celeb, target photo, layout, distractor pair) tuple appears
+at least once. No random sampling, no missed cells.
+
+**2. The out-of-distribution (broad) dataset, `so101_eval3_broad`.** Same
+recipe, but the photo bank is a 192-celebrity scraped collection. The
+full enumeration of 192 celebrities at 3 slots is too large to render, so
+the broad generator instead samples a fixed number of variants per base
+teleop (about 54 each), and for every variant it draws 3 distinct
+celebrities uniformly from the 192-celeb bank. Plus the 180 base teleops,
+that gives **9,842 episodes / 5.29 M frames** in
+[`so101_eval3_broad`](https://huggingface.co/datasets/HBOrtiz/so101_eval3_broad).
 
 Because the swap is identity-preserving (pixel-accurate face replacement
 on the printed quads, with the gripper / can / hand never overdrawn), the
-action labels stay valid. The policy sees ~50× more (face, layout, name)
-combinations than we ever teleoperated, which is what breaks the
-positional shortcut from §1.
+action labels stay valid in both cases. On the IID dataset the policy
+sees every layout × target × distractor combination that can be built
+from the 3-celeb bank, which is what breaks the positional shortcut from
+§1; on the broad dataset it sees 192 different celebrity faces, which is
+what gives the trained policy a chance at out-of-distribution celebs at
+eval time.
 
 The pipeline uses [GroundingDINO](https://arxiv.org/abs/2303.05499) for
 open-vocabulary portrait detection, [SAM 2](https://arxiv.org/abs/2408.00714)
