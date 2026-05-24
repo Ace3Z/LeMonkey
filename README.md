@@ -180,7 +180,7 @@ Deployed models at a glance:
 |---|---|---|---|
 | 1 | [`so101_smolvla_eval1`](https://huggingface.co/HBOrtiz/so101_smolvla_eval1) | SmolVLA-450M | `so101_eval1` (153 ep) |
 | 2 | [`so101_smolvla_eval2`](https://huggingface.co/HBOrtiz/so101_smolvla_eval2) | SmolVLA-450M | `so101_eval2` (180 ep) |
-| 3 | [`so101_smolvla_eval3_cotrain`](https://huggingface.co/HBOrtiz/so101_smolvla_eval3_cotrain) | SmolVLA-450M | `so101_eval3_cotrain` + `so101_eval3_cotrain_grounding` |
+| 3 | [`so101_smolvla_eval3_cotrain`](https://huggingface.co/HBOrtiz/so101_smolvla_eval3_cotrain) | SmolVLA-450M | `so101_eval3_cotrain` + `so101_eval3_cotrain_grounding` (3 celebrities) |
 | 3 | [`so101_smolvla_eval3_broad`](https://huggingface.co/HBOrtiz/so101_smolvla_eval3_broad) | SmolVLA-450M | `so101_eval3_broad` + `so101_eval3_broad_grounding` (192 celebrities) |
 
 ---
