@@ -112,15 +112,19 @@ only, `empty_cameras=2` to zero-pad the unused camera slots.
 
 ```
 eval_2/
-├── README.md          this file
+├── README.md                       this file
 ├── scripts/
 │   ├── record_episodes.py          balanced 180-episode teleop recorder
-│   ├── merge_episodes.py  merges episode dirs into one LeRobot v3 dataset
-│   └── brev/                    Brev training-VM launch scripts
-├── state/             plan.json, persistent recording state (gitignored)
-├── train/             model checkpoints (gitignored)
-├── rollouts/          per-rollout dataset dumps (gitignored)
-└── evals/             per-session evaluation CSVs (gitignored)
+│   ├── merge_episodes.py           merges episode dirs into one LeRobot v3 dataset
+│   ├── run_rollout_structured.py   script-picked arrangement + sampled prompt loop
+│   ├── run_rollout_freeplay.py     fixed arrangement + sampled prompt loop
+│   ├── filter_prompt.py            strips OOD "from the robot perspective" qualifier
+│   ├── brev/                       Brev training-VM launch scripts
+│   └── _archive/                   superseded scripts kept for provenance
+├── state/                          plan.json, persistent recording state (gitignored)
+├── train/                          model checkpoints (gitignored)
+├── rollouts/                       per-rollout dataset dumps (gitignored)
+└── evals/                          per-session evaluation CSVs (gitignored)
 ```
 
 ## Hardware
