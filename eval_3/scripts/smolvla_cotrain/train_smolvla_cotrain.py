@@ -24,13 +24,13 @@ Usage
     python eval_3/scripts/smolvla_cotrain/train_smolvla_cotrain.py \\
         --robot_dataset=HBOrtiz/so101_eval3_cotrain \\
         --vl_manifest=HBOrtiz/so101_eval3_cotrain_grounding \\
-        --vl_ratio=10 \\
-        --output_dir=outputs/smolvla_cotrain_10to1 \\
+        --vl_ratio=5 \\
+        --output_dir=outputs/smolvla_cotrain_5to1 \\
         --steps=30000 \\
         --batch_size=32 \\
         --vl_batch_size=8 \\
         --lr=5e-5 \\
-        --push_to_hub_repo=HBOrtiz/so101_smolvla_eval3_cotrain_10to1
+        --push_to_hub_repo=HBOrtiz/so101_smolvla_eval3_cotrain
 
 For a smoke test, drop --steps=200 and --batch_size=4.
 

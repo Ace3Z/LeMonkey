@@ -12,7 +12,7 @@
 #   4. PUSH_REPO exported - the HF model repo to push checkpoints to
 #
 # Run from anywhere:
-#   HF_TOKEN=hf_... PUSH_REPO=youruser/smolvla_klal_lora_25k \
+#   HF_TOKEN=hf_... PUSH_REPO=youruser/smolvla_cotrain_klal_lora \
 #       bash eval_3/scripts/smolvla_cotrain/launch_multi_gpu.sh
 #
 # Single node, several GPUs. For a multi-node job, set the torchrun rendezvous
@@ -34,7 +34,7 @@ if [ -z "${HF_TOKEN:-}" ] && [ -f "$HF_TOKEN_FILE" ]; then
     echo "==> HF_TOKEN loaded from $HF_TOKEN_FILE"
 fi
 : "${HF_TOKEN:?provide HF_TOKEN - export it, or write it into $HERE/.hf_token (gitignored)}"
-: "${PUSH_REPO:?set PUSH_REPO - the HF model repo for checkpoints, e.g. youruser/smolvla_klal_lora_25k}"
+: "${PUSH_REPO:?set PUSH_REPO - the HF model repo for checkpoints, e.g. youruser/smolvla_cotrain_klal_lora}"
 export HF_TOKEN
 
 # HF tokenizers deadlocks if forked into DataLoader workers after being used in
@@ -53,7 +53,7 @@ ROBOT_DATASET="${ROBOT_DATASET:-HBOrtiz/so101_eval3_cotrain}"
 VL_MANIFEST="${VL_MANIFEST:-HBOrtiz/so101_eval3_cotrain_grounding}"
 PRETRAINED="${PRETRAINED:-lerobot/smolvla_base}"
 EMPTY_CAMERAS="${EMPTY_CAMERAS:-2}"   # match deployed cotrain checkpoint: camera1 + 2 empty pads
-OUT_DIR="${OUT_DIR:-outputs/smolvla_klal_lora_25k}"
+OUT_DIR="${OUT_DIR:-outputs/smolvla_cotrain_klal_lora_${STEPS}}"
 # KLAL + LoRA
 KLAL_LAYERS="${KLAL_LAYERS:-10,12,14}"
 KLAL_LAMBDA="${KLAL_LAMBDA:-1.0}"   # KLAL is on the VL step (vs the VQA loss) - see klal_smolvla_vl.py (same dir as this script) for the loss definition
