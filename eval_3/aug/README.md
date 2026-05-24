@@ -13,11 +13,8 @@ known by construction, so vision-language grounding pairs are emitted
 automatically alongside. Co-training SmolVLA on both streams installs the
 celebrity knowledge into the policy weights themselves.
 
-Quick links: [`STRATEGY.md`](STRATEGY.md) (the locked design),
-[`VALIDATION.md`](VALIDATION.md) (numerical-defaults audit),
-[`RESEARCH_face_matching_rescue.md`](RESEARCH_face_matching_rescue.md)
-(face-matching rescue plan), [`eval_3/README.md`](../README.md) (task
-description + deployed models).
+For the task description, deployed models, and the cotrain + KLAL + LoRA
+write-up, see [`eval_3/README.md`](../README.md).
 
 - [End-to-end pipeline](#end-to-end-pipeline)
 - [Stage 1: Mining the celebrity bank](#stage-1-mining-the-celebrity-bank)
@@ -84,7 +81,7 @@ Each candidate goes through:
   embedding, compared against the celebrity's Wikipedia-lead reference
   embedding. The threshold is **cosine >= 0.40**, which the
   ArcFace paper reports as the open-set verification operating point for
-  the buffalo_l model (see [`VALIDATION.md`](VALIDATION.md) §1).
+  the buffalo_l model.
 - **Perceptual hash de-duplication** (pHash) to drop near-duplicate photos
   across sources.
 
@@ -325,7 +322,7 @@ near-uniform.
 next step would have to integrate over discretisation-noisy boundary
 pixels, which causes a faint halo. One pixel of erosion is enough to avoid
 the issue; more (the OpenCV default of 3+) over-erodes and shrinks the
-visible portrait. See [`VALIDATION.md`](VALIDATION.md) §4.
+visible portrait.
 
 **Poisson seamless cloning** (`cv2.seamlessClone(..., NORMAL_CLONE)`). This
 is [Pérez et al., SIGGRAPH 2003, *Poisson Image Editing*](http://www.irisa.fr/vista/Papers/2003_siggraph_perez.pdf)
@@ -360,9 +357,8 @@ pixels show through where they should.
 
 ## Stage 5: Identity verification
 
-**Module**: [`_legacy/stage5_verify_identity.py`](_legacy/stage5_verify_identity.py)
-(now under `_legacy/`; the production generators apply the same check
-inline; see [`generators/broad.py`](generators/broad.py) `process_episode`).
+**Module**: applied inline by the production generators (see
+[`generators/broad.py`](generators/broad.py) `process_episode`).
 
 For each augmented variant, sample five frames, ArcFace-embed the
 inpainted portrait, and assert the cosine similarity to the new celebrity's
@@ -456,9 +452,6 @@ of the KLAL-supervised layers (caller's responsibility).
 ```text
 eval_3/aug/
 ├── README.md                          this file
-├── STRATEGY.md                        locked design rationale (v3, Path A)
-├── VALIDATION.md                      triple-source audit of numerical defaults
-├── RESEARCH_face_matching_rescue.md   the rescue-plan research synthesis
 │
 ├── stages/                            per-stage pipeline primitives (libraries + CLIs)
 │   ├── detect_static.py                static-camera portrait detection + per-frame occluders
@@ -496,21 +489,17 @@ eval_3/aug/
 │   ├── segmentation_video.py           full-clip mask overlay
 │   └── stage2_panels.py                detect_static.py decision panels
 │
-├── tests/
-│   ├── test_replace_portrait.py        synthetic regression on inpaint_video.replace_portrait
-│   └── test_klal_lora_smoke.py         two-tier pure-logic + real-SmolVLA forward gate
-│
-└── _legacy/                            v1 pipeline + superseded research
-                                        (see _legacy/README.md)
+└── tests/
+    ├── test_replace_portrait.py        synthetic regression on inpaint_video.replace_portrait
+    └── test_klal_lora_smoke.py         two-tier pure-logic + real-SmolVLA forward gate
 ```
 
 ---
 
 ## References
 
-Method papers we directly build on. Bibliographic detail in
-[`STRATEGY.md`](STRATEGY.md) §10 (the canonical citation list); short list
-here for quick reference.
+Method papers we directly build on. Short bibliography below; full
+hyperlinks are inlined in the per-stage sections above.
 
 ### Detection + segmentation
 

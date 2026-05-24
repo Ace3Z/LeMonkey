@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """Recompute sub-pixel refined corners at frame 0 for every base teleop.
 
-The legacy per-frame corner extractor (`_legacy/stage3_extract_corners.py`)
-overwrote the refined corners with coarse per-frame `minAreaRect` output. The
-original sub-pixel quad from `refine_paper_quad_to_edges()` only persists
-implicitly as a rasterized mask in `portrait_masks.pkl["M_0_per_pid"]` —
-re-extracting from that mask is lossy and sometimes degenerate.
+An earlier per-frame corner extractor overwrote the refined corners with
+coarse per-frame `minAreaRect` output. The original sub-pixel quad from
+`refine_paper_quad_to_edges()` only persists implicitly as a rasterized
+mask in `portrait_masks.pkl["M_0_per_pid"]`; re-extracting from that mask
+is lossy and sometimes degenerate.
 
 This script re-runs the refinement using each base teleop's `frame_0.png`
 + SAM mask + the sibling `refine_paper_quad` module, saving the sub-pixel

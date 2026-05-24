@@ -8,10 +8,11 @@
 # from this file; rollout uses text-only prompting because of how the
 # policy is invoked at inference.
 #
-# Recipe rationale - see eval_3/aug/STRATEGY.md §6 and the parallel
-# research cross-check 2026-05-15 (Interleave-VLA 2505.02152,
-# Pi0.5-KI 2505.23705, "Don't Blind Your VLA" 2510.25616, SmolVLA paper
-# 2506.01844, canonical configuration_smolvla.py).
+# Recipe rationale - see eval_3/README.md for the cotrain + KLAL + LoRA
+# write-up. Cross-checked against Interleave-VLA (arXiv:2505.02152),
+# Pi0.5-KI (arXiv:2505.23705), "Don't Blind Your VLA" (arXiv:2510.25616),
+# the SmolVLA paper (arXiv:2506.01844), and the canonical
+# configuration_smolvla.py in third_party/lerobot.
 #
 # Recipe diffs vs eval_1:
 #   - dual image input         (camera1 = wrist webcam; camera2 = reference photo

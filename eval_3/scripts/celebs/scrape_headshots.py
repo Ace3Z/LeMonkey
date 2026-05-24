@@ -53,7 +53,6 @@ from __future__ import annotations
 
 import argparse
 import dataclasses
-import importlib.util as ilu
 import io
 import json
 import os
@@ -71,6 +70,256 @@ import requests
 from PIL import Image
 
 # ─── Tuning (every threshold cited inline) ──────────────────
+CELEBS: dict[str, list[str]] = {
+    # ── Tech / AI / Robotics (50) ───────────────────────────────────────
+    # Big Tech CEOs / Founders, AI lab leaders, AI academics, robotics
+    # pioneers, HuggingFace / open-source. Triple-sourced from Time 100 AI
+    # 2025, Fortune Most Powerful in Business 2025, ACM Turing, Nobel 2024.
+    "tech_ceos": [
+        "Elon Musk",
+        "Bill Gates",
+        "Steve Jobs",
+        "Mark Zuckerberg",
+        "Jeff Bezos",
+        "Tim Cook",
+        "Sundar Pichai",
+        "Satya Nadella",
+        "Jensen Huang",
+        "Andy Jassy",
+        "Lisa Su",
+        "Masayoshi Son",
+    ],
+    "ai_labs": [
+        "Sam Altman",
+        "Demis Hassabis",
+        "Dario Amodei",
+        "Daniela Amodei",
+        "Ilya Sutskever",
+        "Greg Brockman",
+        "Mira Murati",
+        "Mustafa Suleyman",
+        "Liang Wenfeng",
+        "Aravind Srinivas",
+        "John Jumper",
+        "Chris Olah",
+        "Jared Kaplan",
+        "Shane Legg",
+    ],
+    "ai_academia": [
+        "Andrej Karpathy",
+        "Yann LeCun",
+        "Geoffrey Hinton",
+        "Yoshua Bengio",
+        "Andrew Ng",
+        "Fei-Fei Li",
+        "Stuart Russell",
+        "Richard Sutton",
+        "Andrew Barto",
+    ],
+    "robotics": [
+        "Marc Raibert",
+        "Robert Playter",
+        "Brett Adcock",
+        "Bernt Børnich",
+        "Marco Hutter",
+        "Marc Pollefeys",
+        "Roland Siegwart",
+        "Davide Scaramuzza",
+        "Sergey Levine",
+        "Pieter Abbeel",
+        "Chelsea Finn",
+        "Karol Hausman",
+        "Oier Mees",
+    ],
+    "open_source": [
+        "Clément Delangue",
+        "Thomas Wolf",
+        "Rémi Cadène",
+    ],
+
+    # ── Top 50 globally famous in 2025/2026 ─────────────────────────────
+    # Sources: Instagram most-followed, Time 100 of 2026, Forbes Celebrity
+    # 100 (Wikipedia top-10s 2005-2020). Categorised below.
+    "musicians": [
+        "Taylor Swift",
+        "Beyoncé",
+        "Rihanna",
+        "Selena Gomez",
+        "Ariana Grande",
+        "Drake",
+        "The Weeknd",
+        "Bad Bunny",
+        "Dua Lipa",
+        "Billie Eilish",
+        "Sabrina Carpenter",
+        "Charli XCX",
+        "Chappell Roan",
+        "Olivia Rodrigo",
+        "Justin Bieber",
+        "Lady Gaga",
+        "Katy Perry",
+        "Miley Cyrus",
+        "Jennifer Lopez",
+        "Demi Lovato",
+        "Cardi B",
+        "Chris Brown",
+        "Shakira",
+        "Snoop Dogg",
+        "Lisa BLACKPINK",
+        "Ed Sheeran",
+        "Kanye West",
+    ],
+    "actors_modern": [
+        # Younger / gen-Z / current-Hollywood (Time 100 2026, social-media
+        # top followed). Includes everyone in the merged top-50 famous list.
+        "Zendaya",
+        "Jenna Ortega",
+        "Timothée Chalamet",
+        "Sydney Sweeney",
+        "Pedro Pascal",
+        "Jeremy Allen White",
+        "Jacob Elordi",
+        "Cillian Murphy",
+        "Anya Taylor-Joy",
+        "Tom Holland",
+        "Margot Robbie",
+        "Emma Stone",
+        "Daisy Ridley",
+        "Chris Pratt",
+        "Jennifer Lawrence",
+    ],
+    "actors_classic": [
+        # IMDB ls052283250 "100 MOST POPULAR CELEBRITIES IN THE WORLD"
+        # + Kaggle Celebrity Faces Dataset (17 names) — all merged and
+        # deduplicated against actors_modern above.
+        "Johnny Depp",
+        "Leonardo DiCaprio",
+        "Tom Cruise",
+        "Robert Downey Jr",
+        "Brad Pitt",
+        "Tom Hanks",
+        "Hugh Jackman",
+        "Matt Damon",
+        "Will Smith",
+        "Morgan Freeman",
+        "Angelina Jolie",
+        "Scarlett Johansson",
+        "Anne Hathaway",
+        "Natalie Portman",
+        "Ryan Reynolds",
+        "Keanu Reeves",
+        "Denzel Washington",
+        "Chris Hemsworth",
+        "Chris Evans",
+        "Robert De Niro",
+        "Al Pacino",
+        "Meryl Streep",
+        "George Clooney",
+        "Harrison Ford",
+        "Arnold Schwarzenegger",
+        "Jim Carrey",
+        "Emma Watson",
+        "Daniel Radcliffe",
+        "Russell Crowe",
+        "Liam Neeson",
+        "Kate Winslet",
+        "Sean Connery",
+        "Mark Wahlberg",
+        "Pierce Brosnan",
+        "Orlando Bloom",
+        "Dwayne Johnson",
+        "Jackie Chan",
+        "Adam Sandler",
+        "Heath Ledger",
+        "Daniel Craig",
+        "Jessica Alba",
+        "Edward Norton",
+        "Keira Knightley",
+        "Bradley Cooper",
+        "Will Ferrell",
+        "Julia Roberts",
+        "Nicolas Cage",
+        "Ian McKellen",
+        "Halle Berry",
+        "Bruce Willis",
+        "Samuel L. Jackson",
+        "Ben Stiller",
+        "Tommy Lee Jones",
+        "Jack Black",
+        "Antonio Banderas",
+        "Steve Carell",
+        "Shia LaBeouf",
+        "Megan Fox",
+        "James Franco",
+        "Mel Gibson",
+        "Vin Diesel",
+        "Tim Allen",
+        "Robin Williams",
+        "Jean-Claude Van Damme",
+        "Owen Wilson",
+        "Christian Bale",
+        "Sandra Bullock",
+        "Bruce Lee",
+        "Drew Barrymore",
+        "Jack Nicholson",
+        "Bill Murray",
+        "Sigourney Weaver",
+        "Jake Gyllenhaal",
+        "Jason Statham",
+        "Jet Li",
+        "Kate Beckinsale",
+        "Rowan Atkinson",
+        "Marlon Brando",
+        "John Travolta",
+        "Ben Affleck",
+        "Jennifer Aniston",
+        "James McAvoy",
+        "Brendan Fraser",
+        "Rachel McAdams",
+        "Tom Hiddleston",
+        "Cameron Diaz",
+        "Sylvester Stallone",
+        "Clint Eastwood",
+        "Nicole Kidman",
+    ],
+    "directors": [
+        "Steven Spielberg",
+        "Christopher Nolan",
+        "Peter Jackson",
+        "James Cameron",
+    ],
+    "athletes": [
+        "Cristiano Ronaldo",
+        "Lionel Messi",
+        "LeBron James",
+        "Virat Kohli",
+        "Roger Federer",
+        "Tiger Woods",
+    ],
+    "creators_and_media": [
+        "MrBeast",
+        "Oprah Winfrey",
+        "Kim Kardashian",
+        "Kylie Jenner",
+        "Kendall Jenner",
+        "Khloé Kardashian",
+    ],
+    "politics": [
+        "Donald Trump",
+        "Barack Obama",
+    ],
+    # Swiss locals — kept from prior scraper. Useful because Eval 3 is at
+    # ETH Zurich and there's a non-zero chance Swiss public figures appear.
+    "swiss": [
+        "Stan Wawrinka",
+        "Bertrand Piccard",
+        "Ursula Andress",
+        "Granit Xhaka",
+        "Xherdan Shaqiri",
+    ],
+}
+
+
 TARGET_N           = 10        # kept images per celeb
 CANDIDATE_CAP      = 60        # at most this many per celeb before filter
 MIN_SHORT_SIDE_PX  = 512       # min(w, h) — covers any reasonable headshot
@@ -776,13 +1025,8 @@ def _drop_meta(cand: Candidate, out_dir: Path, reason: str) -> None:
 
 # ─── 6. CLI ────────────────────────────────────────────────────────────────
 def _load_celebs_dict() -> dict[str, list[str]]:
-    """Load the CELEBS dict from the legacy head_shot script without importing
-    its main() (which would otherwise scrape on import)."""
-    here = Path(__file__).resolve().parent / "_archive" / "head_shot_legacy.py"
-    spec = ilu.spec_from_file_location("_head_shot", str(here))
-    mod = ilu.module_from_spec(spec)
-    spec.loader.exec_module(mod)
-    return mod.CELEBS
+    """Return the in-module CELEBS dict (curated public-figure list for scraping)."""
+    return CELEBS
 
 
 def main() -> int:
@@ -792,7 +1036,7 @@ def main() -> int:
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("--out-root", default="./celeb_headshots_v2")
     p.add_argument("--only", nargs="+", default=None,
-                   help="Restrict to these CELEBS categories (defined in _archive/head_shot_legacy.py)")
+                   help="Restrict to these CELEBS categories (see the CELEBS dict at module top)")
     p.add_argument("--names", nargs="+", default=None,
                    help="Ad-hoc celeb names to scrape (overrides --only)")
     p.add_argument("--force", action="store_true")

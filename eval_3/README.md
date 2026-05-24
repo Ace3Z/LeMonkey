@@ -71,8 +71,7 @@ just needs a thin action head." Two problems:
   were stripped from the [WebLI](https://arxiv.org/abs/2209.06794) training
   corpus by Google's data-loss-prevention pipeline. Cross-checked by running
   zero-shot identification with PaliGemma on a curated 14-celebrity probe:
-  **0/14** named correctly at training time (see
-  [`eval_3/aug/STRATEGY.md`](aug/STRATEGY.md) §1).
+  **0/14** named correctly at training time.
 - SmolVLM2 (used inside SmolVLA-450M) is trained on a smaller corpus
   (~1.1T tokens, [SmolVLM technical report](https://arxiv.org/abs/2504.05299))
   and has even weaker celebrity-face priors than PaliGemma.
@@ -475,8 +474,7 @@ eval_3/
 
 ## References
 
-Method papers we directly build on (full bibliography in
-[`aug/STRATEGY.md`](aug/STRATEGY.md) for the augmentation side):
+Method papers we directly build on:
 
 ### Co-training and VLA architectures
 

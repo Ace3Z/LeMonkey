@@ -7,7 +7,7 @@ the photo bank built by eval_3/aug/mining/mine_celeb_photos.py), plus picks a se
 held-out reference photo for the TARGET celeb (used as image-as-prompt
 at training time).
 
-The "Recommended tier" composite recipe (per STRATEGY.md §3.4):
+Composite recipe (default tier):
   Lanczos warp → Gaussian σ=0.8 (camera MTF) → Reinhard Lab transfer
   sampled from a 5-px outer ring → mask erosion → cv2.seamlessClone
   NORMAL_CLONE.
@@ -33,7 +33,8 @@ Output layout:
 The action / state parquet is byte-identical to the original — we never
 touch it. Only the camera video changes.
 
-See STRATEGY.md §3.4 for design rationale.
+See eval_3/aug/README.md §"Stage 4: Identity-preserving inpainting" for
+the design rationale (math + per-step citations).
 """
 from __future__ import annotations
 
@@ -81,9 +82,8 @@ def reinhard_lab(
     src_mean = src_lab.mean((0, 1)); src_std = src_lab.std((0, 1)) + 1e-6
     ring_pix = ref_lab[sample_mask > 0]
     if len(ring_pix) < 10:
-        # not enough samples; bail (already documented in STRATEGY.md as a
-        # corner case worth surfacing — match behaviour of the canonical
-        # Reinhard implementations that simply skip when the sample is empty)
+        # not enough samples; bail and skip color transfer (matches the
+        # canonical Reinhard implementations, which also skip on empty samples)
         print(f"[WARN] reinhard_lab: only {len(ring_pix)} sample pixels; skipping color transfer", flush=True)
         return src
     ref_mean = ring_pix.mean(0); ref_std = ring_pix.std(0) + 1e-6
@@ -170,7 +170,7 @@ def replace_portrait(
     new_photo   : (h,w,3) uint8 BGR  (high-res replacement)
     dst_corners : (4,2)   float32   TL,TR,BR,BL of the original portrait
 
-    Defaults, see eval_3/aug/STRATEGY.md §3.4 and eval_3/aug/VALIDATION.md:
+    Defaults (rationale + citations in eval_3/aug/README.md §"Stage 4"):
       mtf_sigma=0.8     — empirical, in the 0.5-1.0 px range typical for
                           640×480 USB webcam PSFs (Mosleh CVPR 2015,
                           consumer-OLPF lit). EMPIRICAL ONLY, characterise
@@ -184,8 +184,7 @@ def replace_portrait(
                           backgrounds.
       apply_unsharp     — optional unsharp-mask pass after MTF blur to
                           recover edges. OFF by default per the canonical
-                          recipe; recommended-but-flagged add per
-                          VALIDATION.md §8a.
+                          recipe; recommended-but-flagged optional add.
     """
     H, W = src_frame.shape[:2]
 
@@ -329,7 +328,10 @@ def replace_portrait(
         return out
 
     if blend_mode == "poisson_normal":
-        # pre-fill dst's mask region with ring-mean (see VALIDATION.md §8e).
+        # pre-fill dst's mask region with the ring-mean colour so Poisson
+        # cloning sees a smooth boundary (avoids the "ghost of the original
+        # portrait" leaking through where the dst pixels would otherwise
+        # be the old face).
         ring_pix = src_frame[ring > 0]
         if len(ring_pix) >= 10:
             ring_mean_bgr = ring_pix.astype(np.float32).mean(0).astype(np.uint8)

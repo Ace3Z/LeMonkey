@@ -20,8 +20,6 @@ Usage:
     python eval_3/aug/mining/mine_celeb_photos.py --celebs swift obama lecun federer merkel
     python eval_3/aug/mining/mine_celeb_photos.py --num 50 --threshold 0.45
     python eval_3/aug/mining/mine_celeb_photos.py --dry-run                    # plan + reference only
-
-See STRATEGY.md §3.1 for design rationale.
 """
 from __future__ import annotations
 
