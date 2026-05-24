@@ -125,11 +125,11 @@ Everything runs in one conda environment, `lemonkey` (Python 3.12, PyTorch CUDA 
 ```bash
 git clone https://github.com/Ace3Z/LeMonkey.git
 cd LeMonkey
-bash eval_1/scripts/brev_setup.sh      # canonical env recipe: miniconda, lerobot 0.5.1, ffmpeg
+bash scripts/brev_setup_smolvla.sh     # canonical env recipe: miniconda, lerobot 0.5.1, ffmpeg
 conda activate lemonkey
 ```
 
-`brev_setup.sh` is written for a fresh NVIDIA Brev training VM, but the package set is the same on a laptop. On a consumer GPU also install: `feetech-servo-sdk`, `rerun-sdk==0.26.2`, `peft==0.19.1`, and `opencv-python` (not the `-headless` build).
+`brev_setup_smolvla.sh` is written for a fresh NVIDIA Brev training VM, but the package set is the same on a laptop. On a consumer GPU also install: `feetech-servo-sdk`, `rerun-sdk==0.26.2`, `peft==0.19.1`, and `opencv-python` (not the `-headless` build). Eval 3 Pi0.5 needs the vendored-lerobot variant under [`eval_3/scripts/brev/setup_pi05.sh`](eval_3/scripts/brev/setup_pi05.sh) instead.
 
 ### 2. Authenticate with Hugging Face
 
@@ -208,7 +208,11 @@ LeMonkey/
 │   │   ├── warmstart/           PaliGemma VQA warm-start (init for Pi0.5)
 │   │   └── brev/                Brev-VM training entrypoints (all four recipes)
 │   └── tools/                   dataset-verification tooling
-├── scripts/                     shared rollout helpers (auto_home.py: arm-home capture/drive)
+├── scripts/                     shared, non-eval-specific scripts
+│   ├── auto_home.py                arm-home capture / drive helper for rollouts
+│   ├── rest_arms.py                release SO-101 follower + leader torque
+│   ├── brev_setup_smolvla.sh       Brev VM bootstrap (miniconda + lerobot 0.5.1 PyPI)
+│   └── brev/                       training-VM systemd wrap + log tail + status (eval-agnostic; driven by env vars)
 ├── calibration/                 per-arm SO-101 calibration JSONs
 ├── media/                       logos (figures/) and demo GIFs (gifs/)
 └── third_party/lerobot/         LeRobot framework as a git submodule

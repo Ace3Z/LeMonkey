@@ -8,11 +8,18 @@ The dev-box to Brev workflow:
 dev box                       Brev VM
 -------                       -------
 sync_to_brev.sh   --rsync-->  ~/LeMonkey/
-                              setup_pi05.sh                 (one-time env install)
-                              start_training.sh             (systemd-user wrap of one train_*.sh)
-                              follow_training.sh            (live log tail)
-                              training_status.sh            (one-shot snapshot)
+                              eval_3/scripts/brev/setup_pi05.sh         (one-time env install)
+                              scripts/brev/start_training.sh            (shared systemd-user wrap)
+                              scripts/brev/follow_training.sh           (shared live log tail)
+                              scripts/brev/training_status.sh           (shared one-shot snapshot)
 ```
+
+The `start_training.sh` / `follow_training.sh` / `training_status.sh`
+launchers are **shared across evals** and live under
+[`../../../scripts/brev/`](../../../scripts/brev/). They take their
+eval-specific defaults (log path, systemd unit name, checkpoint dir,
+which `train_*.sh` to wrap) as env vars; see the Quickstart below for
+the exact invocation.
 
 ## Files
 
@@ -24,13 +31,13 @@ sync_to_brev.sh   --rsync-->  ~/LeMonkey/
 | `setup_pi05.sh` | Conda env install. Pi0.5 needs the vendored `third_party/lerobot[smolvla,pi]`, not the PyPI build. Idempotent. |
 | `setup_paligemma_warmstart.sh` | Same as above, plus `datasets` + `Pillow` for VGGFace2 loading, plus a cu128 PyTorch override for Blackwell GPUs (RTX PRO 6000 / 5090 / B100 / B200). |
 
-### Run + monitor
+### Run + monitor (shared, lives at [`../../../scripts/brev/`](../../../scripts/brev/))
 
-| File | What it does |
-|---|---|
-| `start_training.sh` | Wraps the active `train_*.sh` in a transient systemd user unit (`lerobot-train-eval3.service`). Survives SSH disconnect and laptop close. Requires user lingering. |
-| `follow_training.sh` | Colourised live `tail -F` of the training log + a `nvidia-smi` snapshot header. |
-| `training_status.sh` | One-shot snapshot: systemd unit state, GPU util, latest progress line, last 5 events, checkpoints saved. |
+Eval 3 uses the same shared `start_training.sh` + `follow_training.sh` +
+`training_status.sh` as Eval 2; they are parametrised by env vars so
+each eval supplies its own systemd unit name, log path, and `train_*.sh`
+to wrap. See the [Quickstart](#quickstart-pi05-reference-policy-end-to-end)
+below for the exact invocation.
 
 ### Trainers (the actual `lerobot-train` invocations)
 
@@ -53,12 +60,30 @@ bash eval_3/scripts/brev/setup_pi05.sh                # ~15 min, idempotent
 
 # 3. Optional warm-start track (on a second VM): see ../warmstart/README.md.
 
-# 4. Pi0.5 action fine-tune.
-bash eval_3/scripts/brev/start_training.sh            # systemd wrap of train_pi05.sh
-bash eval_3/scripts/brev/follow_training.sh           # live log
+# 4. Pi0.5 action fine-tune (systemd wrap so the run survives SSH disconnect).
+REPO_ROOT=~/LeMonkey
+UNIT=lerobot-train-eval3 \
+DESCRIPTION="LeRobot Pi0.5 Eval 3 training (LoRA, Coke-on-celebrity)" \
+TRAIN_SCRIPT=$REPO_ROOT/eval_3/scripts/brev/train_pi05.sh \
+LOG_FILE=$HOME/outputs/train/so101_pi05_eval3.log \
+LIMIT_NOFILE=524288 \
+    bash $REPO_ROOT/scripts/brev/start_training.sh
+
+bash $REPO_ROOT/scripts/brev/follow_training.sh $HOME/outputs/train/so101_pi05_eval3.log
 ```
 
 The checkpoint is auto-pushed to `$PUSH_REPO` (default `HBOrtiz/so101_pi05_eval3`).
+
+For the **SmolVLA broad** run, swap `TRAIN_SCRIPT=` and the log path:
+
+```bash
+UNIT=lerobot-train-eval3 \
+DESCRIPTION="LeRobot SmolVLA Eval 3 training (image-as-prompt Coke-on-celebrity)" \
+TRAIN_SCRIPT=$REPO_ROOT/eval_3/scripts/brev/train_smolvla_broad.sh \
+LOG_FILE=$HOME/outputs/train/so101_smolvla_eval3_broad.log \
+LIMIT_NOFILE=524288 \
+    bash $REPO_ROOT/scripts/brev/start_training.sh
+```
 
 ## Pre-flight gates (before launching any train_*.sh)
 
@@ -68,7 +93,7 @@ The checkpoint is auto-pushed to `$PUSH_REPO` (default `HBOrtiz/so101_pi05_eval3
 | GPU visible | `nvidia-smi` |
 | `lemonkey` env active | `[ "$CONDA_DEFAULT_ENV" = lemonkey ] && echo ok` |
 | HF token present | `[ -n "$HF_TOKEN" ] && echo ok` |
-| User lingering on (only for `start_training.sh`) | `loginctl show-user $USER --property=Linger` reports `Linger=yes` |
+| User lingering on (only for `scripts/brev/start_training.sh`) | `loginctl show-user $USER --property=Linger` reports `Linger=yes` |
 
 ## Smoke before the 24h run
 

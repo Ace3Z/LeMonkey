@@ -1,11 +1,24 @@
 #!/usr/bin/env bash
-# Follow the lerobot-train log live (eval2 default).
+# Follow a lerobot-train log live. Colourises matched patterns by severity:
+# red = traceback / OOM / SIGTERM, yellow = warnings, green = loss / step /
+# checkpoint events, cyan = the periodic % progress line.
+#
 # Usage:
-#   ./follow_training.sh                   # follow the eval2 log
-#   ./follow_training.sh /path/to/file.log # follow another log
+#   bash scripts/brev/follow_training.sh /path/to/lerobot-train.log
+#
+# Or:
+#   LOG=/path/to/file.log bash scripts/brev/follow_training.sh
+#
+# This is the shared launcher invoked by each eval's brev README. The eval-
+# specific defaults (log filename, systemd unit, checkpoint dir) live next
+# to the README that documents them; this script takes them as a CLI arg.
 set -u
 
-LOG="${1:-$HOME/outputs/train/so101_smolvla_eval2.log}"
+LOG="${1:-${LOG:-}}"
+if [ -z "$LOG" ]; then
+  echo "[FATAL] no log path supplied; pass as argv[1] or set LOG=…" >&2
+  exit 2
+fi
 
 B=$(tput bold 2>/dev/null || true)
 R=$(tput setaf 1 2>/dev/null || true)

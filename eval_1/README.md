@@ -80,8 +80,8 @@ and per-prompt-type success rates.
 | Script | Purpose |
 |---|---|
 | `scripts/dagger_record.py` | HG-DAgger correction recorder (`SPACE` toggles teleop, `n` ends an episode early) |
-| `scripts/rest_arms.py` | Release torques and manually home both arms |
-| `scripts/brev_setup.sh` | Idempotent bootstrap for a fresh Brev training VM |
+| `../scripts/rest_arms.py` | (shared) Release torques and manually home both arms |
+| `../scripts/brev_setup_smolvla.sh` | (shared) Idempotent bootstrap for a fresh Brev training VM (miniconda + `lerobot[smolvla]==0.5.1` from PyPI; Eval 3 Pi0.5 uses the vendored-fork variant under [`../eval_3/scripts/brev/setup_pi05.sh`](../eval_3/scripts/brev/setup_pi05.sh) instead) |
 
 ## Hardware
 

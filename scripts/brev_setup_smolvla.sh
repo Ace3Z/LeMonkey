@@ -9,7 +9,7 @@
 #   4. Verify imports + GPU
 #
 # Run on the Brev VM after rsync:
-#   bash ~/LeMonkey/eval_1/scripts/brev_setup.sh
+#   bash ~/LeMonkey/scripts/brev_setup_smolvla.sh
 set -euo pipefail
 
 # ─── 0. Sanity: must be on a CUDA host ───────────────────────────────────────
@@ -84,7 +84,8 @@ esac
 # ─── 3. pip install lerobot[smolvla] + extras ────────────────────────────────
 # lerobot==0.5.1 is the deployed version. DON'T use the
 # third_party/lerobot submodule in this repo - it's missing
-# `lerobot.datasets` and friends (see the install note in brev_setup.sh).
+# `lerobot.datasets` and friends. For Eval 3 Pi0.5, install the vendored
+# fork via eval_3/scripts/brev/setup_pi05.sh instead of this script.
 echo "=== pip install lerobot[smolvla]==0.5.1 ==="
 pip install --quiet --upgrade pip
 pip install --quiet 'lerobot[smolvla]==0.5.1' 2>&1 | tail -5

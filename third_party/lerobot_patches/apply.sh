@@ -4,11 +4,13 @@
 #
 # Idempotent: skips patches that look already-applied. Safe to re-run.
 #
-# Invoked automatically by:
+# Invoked automatically by the Eval 3 setup scripts (which install the
+# vendored lerobot fork and need these patches):
 #   - eval_3/scripts/brev/setup_pi05.sh
 #   - eval_3/scripts/brev/setup_paligemma_warmstart.sh
 #   - eval_3/scripts/smolvla_cotrain/setup_env.sh
-#   - eval_1/scripts/brev_setup.sh
+# Note: scripts/brev_setup_smolvla.sh installs lerobot==0.5.1 from PyPI
+# and does NOT need to call this script.
 set -euo pipefail
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

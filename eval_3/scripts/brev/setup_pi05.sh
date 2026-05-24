@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Brev-side env setup for Pi0.5 (Pi0.5 + LoRA).
 #
-# Differs from eval_1/scripts/brev_setup.sh: that script installed
+# Differs from scripts/brev_setup_smolvla.sh: that script installed
 # `lerobot[smolvla]==0.5.1` from PyPI; Pi0.5 needs Pi0.5 + PEFT support
 # which we have in the vendored fork at third_party/lerobot/. So this
 # script does `pip install -e third_party/lerobot[smolvla,pi]` instead.

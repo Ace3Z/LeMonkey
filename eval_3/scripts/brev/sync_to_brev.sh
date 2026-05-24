@@ -15,7 +15,8 @@
 # After sync, on the VM:
 #   bash ~/LeMonkey/eval_3/scripts/brev/setup_pi05.sh        # idempotent env install for Pi0.5
 #   # or: bash ~/LeMonkey/eval_3/scripts/brev/setup_paligemma_warmstart.sh   # for the PaliGemma warm-start path
-#   bash ~/LeMonkey/eval_3/scripts/brev/start_training.sh  # launch training
+#   # launch training via the shared systemd-wrap launcher (see eval_3/scripts/brev/README.md for the full invocation):
+#   UNIT=lerobot-train-eval3 TRAIN_SCRIPT=~/LeMonkey/eval_3/scripts/brev/train_pi05.sh ... bash ~/LeMonkey/scripts/brev/start_training.sh
 set -euo pipefail
 
 if [ "$#" -lt 1 ]; then
@@ -64,4 +65,4 @@ echo "==> sync complete."
 echo
 echo "Next steps on the VM:"
 echo "  bash ~/LeMonkey/eval_3/scripts/brev/setup_pi05.sh   # or setup_paligemma_warmstart.sh"
-echo "  bash ~/LeMonkey/eval_3/scripts/brev/start_training.sh"
+echo "  # then launch training via the shared launcher; see eval_3/scripts/brev/README.md for the full env-var invocation."
