@@ -78,7 +78,7 @@ the Hub on first use and starts an interactive prompt loop:
 Reshuffle the bowls between rollouts and check that the policy follows the
 prompt to the right bowl regardless of arrangement.
 
-Two structured variants live under `scripts/`:
+Three structured variants live under `scripts/`:
 
 | Script | Mode |
 |---|---|
