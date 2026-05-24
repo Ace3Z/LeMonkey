@@ -45,7 +45,7 @@ KEEP_LIST="${KEEP_LIST:-eval_3/scripts/pi05_vl_cotrain/keep_episodes.txt}"
 SAMPLE_WEIGHTS="${SAMPLE_WEIGHTS:-eval_3/scripts/pi05_vl_cotrain/hardneg_weights.npy}"
 
 # Per-layer LoRA rank config.
-LAYER_RANK_CONFIG="${LAYER_RANK_CONFIG:-eval_3/scripts/pi05_vl_cotrain/layer_rank.json}"
+LAYER_RANK_CONFIG="${LAYER_RANK_CONFIG:-eval_3/scripts/pi05_vl_cotrain/precomputed/layer_rank.json}"
 
 # Two-phase curriculum switch step.
 CURRICULUM_SWITCH="${CURRICULUM_SWITCH:-5000}"
