@@ -401,7 +401,7 @@ For each monitored layer $\ell \in \mathcal{L}$ the attention from name
 tokens to image patches is recomputed (RoPE applied) and the loss is
 
 $$
-\mathcal{L}_\text{KLAL} = \frac{1}{|\mathcal{L}|} \sum_{\ell \in \mathcal{L}} \mathrm{KL}\!\left(P_\text{target}(\mathcal{S}) \,\|\, Q^{(\ell)}(\mathcal{S})\right)
+\mathcal{L}_\text{KLAL} \;=\; \frac{1}{|\mathcal{L}|} \sum_{\ell \in \mathcal{L}} \mathrm{KL}\bigl(\, P_\text{target}(\mathcal{S}) \,\Vert\, Q^{(\ell)}(\mathcal{S}) \,\bigr)
 $$
 
 with $P_\text{target}$ an isotropic 2-D Gaussian on the bbox centroid (our

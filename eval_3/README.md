@@ -138,7 +138,7 @@ $Q^{(\ell)}$, summed over $\mathcal{S}$ (the set of image-patch positions in
 the prefix):
 
 $$
-\mathcal{L}_\text{KLAL} = \frac{1}{|\mathcal{L}|} \sum_{\ell \in \mathcal{L}} \mathrm{KL}\!\left(P_\text{target}(\mathcal{S}) \,\|\, Q^{(\ell)}(\mathcal{S})\right)
+\mathcal{L}_\text{KLAL} \;=\; \frac{1}{|\mathcal{L}|} \sum_{\ell \in \mathcal{L}} \mathrm{KL}\bigl(\, P_\text{target}(\mathcal{S}) \,\Vert\, Q^{(\ell)}(\mathcal{S}) \,\bigr)
 $$
 
 where:
@@ -164,9 +164,12 @@ where:
 The three losses are applied on alternating steps under one shared
 optimiser, not combined per step:
 
+Let $r_{\text{vl}}$ denote the `vl_ratio` (the number of robot batches per
+VL batch). Then a single step does:
+
 $$
-\mathcal{L}_\text{step} = \begin{cases}
-\mathcal{L}_\text{VL} + \lambda_\text{KLAL} \cdot \mathcal{L}_\text{KLAL} & \text{if } \text{step} \bmod (\text{vl\_ratio} + 1) = 0 \\
+\mathcal{L}_\text{step} \;=\; \begin{cases}
+\mathcal{L}_\text{VL} \;+\; \lambda_\text{KLAL} \cdot \mathcal{L}_\text{KLAL} & \text{if } \text{step} \bmod (r_{\text{vl}} + 1) = 0 \\
 \mathcal{L}_\text{action} & \text{otherwise}
 \end{cases}
 $$
@@ -176,7 +179,7 @@ fires only on VL steps because its gradient depends on knowing where the
 prompted celebrity's portrait actually is (the bbox), which the VL stream
 carries and the robot stream does not. Over a full pass through the data
 the schedule averages out to the weighted sum
-$\sim \mathcal{L}_\text{action} + (1 / \text{vl\_ratio}) \cdot (\mathcal{L}_\text{VL} + \mathcal{L}_\text{KLAL})$.
+$\;\sim\; \mathcal{L}_\text{action} \,+\, (1 / r_{\text{vl}}) \cdot (\mathcal{L}_\text{VL} \,+\, \mathcal{L}_\text{KLAL})$.
 
 #### One deviation from the paper
 
@@ -234,7 +237,7 @@ layers; this is the caller's responsibility (see the docstring note in
 ### Putting it together
 
 A single training step that runs at `step % 11 == 0` (a VL step under
-$\text{vl\_ratio} = 10$) executes the following:
+$r_{\text{vl}} = 10$) executes the following:
 
 ```mermaid
 flowchart LR
@@ -243,7 +246,7 @@ flowchart LR
     B --> D[KLAL hookset<br/>captures q,k at layers L]
     D --> E[Re-RoPE + softmax<br/>recompute attention Q]
     E --> F[Gaussian target P<br/>from bbox]
-    F --> G[KL P || Q averaged<br/>over L: L_KLAL]
+    F --> G["KL(P ‖ Q) averaged<br/>over L: L_KLAL"]
     C --> H[L_total]
     G --> H
     H --> I[Backprop into<br/>VLM LoRA + LM head]
