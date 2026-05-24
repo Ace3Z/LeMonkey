@@ -100,7 +100,7 @@ We interleave at the step level:
 - Every step where `step % (vl_ratio + 1) == 0`: a **vision-language batch**
   of (portrait image, location prompt, target answer) pairs, supervised with
   cross-entropy on SmolVLM2's LM head.
-- Every other step: a **robot batch** of (wrist image, action prompt, target
+- Every other step: a **robot batch** of (overhead image, action prompt, target
   action) tuples, supervised with SmolVLA's flow-matching action loss.
 
 Both losses share one AdamW optimiser; both gradients flow through the
@@ -192,7 +192,7 @@ use a **2-D isotropic Gaussian on the bbox centroid** instead. See
 <img src="../media/figures/aug/klal_target_construction.png" width="780" alt="KLAL target construction on a real episode: bbox highlighted, isotropic 2D Gaussian, downsampled to 8x8 patch grid"/>
 </div>
 
-The three panels show the construction on a real wrist-cam frame from our
+The three panels show the construction on a real overhead-cam frame from our
 dataset: the prompted target bbox highlighted in green (A), the continuous
 2D Gaussian centered on its centroid (B), and the same Gaussian
 downsampled to SmolVLM2's 8x8 patch grid (C). Panel C is the
@@ -323,7 +323,7 @@ are both SmolVLA.
 
 ### Single-camera inference contract
 
-The training data has three image streams (`camera1` wrist, `camera2` and
+The training data has three image streams (`camera1` overhead, `camera2` and
 `reference`). At inference we feed only `camera1` and rely on SmolVLA's
 `empty_cameras` config to zero-pad the unused slots:
 
@@ -386,13 +386,13 @@ live in [`scripts/rollout/`](scripts/rollout/):
 
 Each script downloads its checkpoint from the Hub on first use, then loops:
 type a prompt (`Put the Coke on <name>.`), the arm captures its home pose,
-runs the policy for one 25 s episode against the live wrist camera, and
+runs the policy for one 25 s episode against the live overhead camera, and
 drives back home. Type `q` to quit. Pass a checkpoint name as the first
 argument to use an earlier step, for example
 `./eval_3/scripts/rollout/smolvla_cotrain.sh step_020000`.
 
 The scripts assume the standard repo robot setup (SO-101 follower at
-`/dev/so101-follower`, wrist camera at `/dev/video0`) and force Hugging Face
+`/dev/so101-follower`, overhead camera at `/dev/video0`) and force Hugging Face
 offline mode after the first download to avoid a chat-template rate-limit
 stall on subsequent loads.
 
@@ -437,7 +437,7 @@ through the clip, so the inpainter knows which pixels of the printed
 portrait to keep untouched.
 
 <div align="center">
-<img src="../media/gifs/eval3_aug_compare.gif" width="640" alt="GIF: side-by-side original wrist-cam clip vs augmented variant with three different celebrities"/>
+<img src="../media/gifs/eval3_aug_compare.gif" width="640" alt="GIF: side-by-side original overhead-cam clip vs augmented variant with three different celebrities"/>
 </div>
 
 Side-by-side original (left) vs augmented variant (right), produced by

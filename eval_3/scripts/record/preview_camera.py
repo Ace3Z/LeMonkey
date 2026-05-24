@@ -3,7 +3,7 @@
 
 Useful for composing the workspace before recording — set up your portrait
 semicircle, place the can, check that everything's framed and well-lit
-through the wrist camera before you press ENTER on `record_quick.py`.
+through the overhead camera before you press ENTER on `record_quick.py`.
 
 Usage:
     python preview_camera.py                           # /dev/video0, no rotation

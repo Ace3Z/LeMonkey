@@ -111,7 +111,7 @@ def main() -> int:
     p.add_argument("--follower-id", default="my_follower",
                    help="lerobot-record robot ID for the follower arm (default: my_follower).")
     p.add_argument("--cam-path", default="/dev/video0",
-                   help="V4L2 device node for the wrist camera (default: /dev/video0).")
+                   help="V4L2 device node for the overhead camera (default: /dev/video0).")
     p.add_argument("--dry-run", action="store_true",
                    help="Walk the loop without invoking lerobot-record (no robot needed)")
     args = p.parse_args()

@@ -130,4 +130,4 @@ eval_2/
 ## Hardware
 
 Same as Eval 1: SO-101 follower on `/dev/so101-follower`, leader on
-`/dev/so101-leader`, USB wrist camera on `/dev/video0`.
+`/dev/so101-leader`, USB overhead camera (mounted above the workspace, looking down) on `/dev/video0`.

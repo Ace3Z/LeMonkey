@@ -15,7 +15,7 @@ The Pi0.5 Eval 3 variant is published as [`HBOrtiz/so101_pi05_eval3`](https://hu
 | `build_keep_list_and_weights.py` | Audit parquet -> `keep_episodes.txt` + `hardneg_weights.npy`. |
 | `build_task_to_centroid.py` | Map task strings -> celeb slug -> ArcFace centroid. Produces `precomputed/task_index_to_centroid.json`. |
 | `build_confusion_matrix.py` | 192×192 celeb-vs-celeb ArcFace cosine matrix. Produces `precomputed/{confusion_matrix.npy, confusion_slugs.json, confusable_topk.json}`. |
-| `generate_vl_pairs.py` | RetinaFace-based VL-pair generator for the 193-celeb bank. |
+| `generate_vl_pairs.py` | RetinaFace-based VL-pair generator for the 192-celeb bank. |
 | `run_audit_pipeline.sh` | One-shot orchestrator: schema-verify -> audit -> build keep_list + weights. |
 | `precomputed/` | Static audit artifacts checked in (used by the wrapper below). |
 

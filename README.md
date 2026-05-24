@@ -142,7 +142,7 @@ hf auth login          # paste a read token (write token if you will push)
 ### 3. Robot setup (only needed to run on real hardware)
 
 - **SO-101 arm:** a udev rule pinning the follower to `/dev/so101-follower` (and `/dev/so101-leader` for the teleop arm). The user must be in the `dialout` group.
-- **Camera:** a USB wrist camera at `/dev/video0`, 640x480 at 30 fps.
+- **Camera:** a USB overhead camera (mounted above the workspace, looking down) at `/dev/video0`, 640x480 at 30 fps.
 - **Calibration:** per-arm calibration JSONs are checked in under [`calibration/`](calibration/). Symlink them into the LeRobot cache:
   ```bash
   mkdir -p ~/.cache/huggingface/lerobot
@@ -216,7 +216,7 @@ Per-eval `train/`, `rollouts/`, `evals/`, and `state/` folders stay local (check
 
 ## 🖥️ Hardware
 
-- **Robot:** SO-101 6-DOF arm (follower plus leader for teleop), USB wrist camera at 640x480, 30 fps.
+- **Robot:** SO-101 6-DOF arm (follower plus leader for teleop), USB overhead camera (mounted above the workspace, looking down) at 640x480, 30 fps.
 - **Inference:** any NVIDIA GPU with at least 6 GB of VRAM. A laptop GPU is enough, since SmolVLA-450M is small.
 - **Training:** an NVIDIA Brev H100 or RTX PRO 6000, or a local RTX 5090. A 25k to 45k step run takes a few hours.
 

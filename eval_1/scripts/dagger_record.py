@@ -89,7 +89,7 @@ p.add_argument("--follower-id",   default="my_follower",
 p.add_argument("--leader-id",     default="my_leader",
                help="Calibration id used to look up the leader's calibration JSON")
 p.add_argument("--cam-path",      default="/dev/video0",
-               help="OpenCV camera path (USB wrist cam)")
+               help="OpenCV camera path (USB overhead cam)")
 p.add_argument("--cam-width",     type=int, default=640,
                help="Camera capture width in pixels")
 p.add_argument("--cam-height",    type=int, default=480,

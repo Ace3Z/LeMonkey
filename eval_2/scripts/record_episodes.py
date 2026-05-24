@@ -421,7 +421,7 @@ def main() -> int:
     p.add_argument("--follower-id",   default="my_follower",
                    help="Calibration id for the follower arm")
     p.add_argument("--cam-path",      default="/dev/video0",
-                   help="OpenCV camera path (USB wrist cam)")
+                   help="OpenCV camera path (USB overhead cam)")
     p.add_argument("--dry-run", action="store_true",
                    help="Walk through the plan without recording (no robot needed)")
     args = p.parse_args()

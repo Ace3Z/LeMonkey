@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Parse the 200-celeb dataset's task strings → map task_index to celeb slug + centroid.
+"""Parse the 192-celeb dataset's task strings → map task_index to celeb slug + centroid.
 
 Walks `data/200celebs/meta/tasks.parquet` (960 unique task strings indexed 0..959),
 extracts the celeb name from each task string, normalizes to a slug, and looks
@@ -104,7 +104,7 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--tasks-parquet", type=Path,
                         default=Path("data/200celebs/meta/tasks.parquet"),
-                        help="200-celeb dataset's meta/tasks.parquet")
+                        help="192-celeb dataset's meta/tasks.parquet")
     parser.add_argument("--celeb-manifest", type=Path,
                         default=Path("data/arcface_toolkit/celeb_embeddings.json"),
                         help="the celeb_embeddings.json")

@@ -2,7 +2,7 @@
 """STAGE 2: static-camera pipeline (the simplest correct design).
 
 REPLACES the SAM-2-video-propagator + Kalman+RTS pipeline. Premise:
-the wrist camera does NOT move during a 20-second teleop episode, and the
+the overhead camera does NOT move during a 20-second teleop episode, and the
 printed portraits do NOT move on the table. The only things that change
 between frames are the gripper, the Coke can, and the user's hand, all
 of which are *occluders* on top of static paper.

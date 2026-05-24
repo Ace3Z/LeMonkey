@@ -2,7 +2,7 @@
 """Build VL pairs (location-explicit + Q&A grounded) from the merged cotrain dataset.
 
 For each merged episode, emits VL records consumed by SmolVLA cotrain alongside
-the robot action stream. Each record carries the wrist-cam frame-0 JPEG, the
+the robot action stream. Each record carries the overhead-cam frame-0 JPEG, the
 reference-cam frame-0 JPEG, and a portrait quad (normalized [x,y]x4 in image
 coords) for one of the three printed portraits visible in the frame.
 
@@ -233,7 +233,7 @@ def load_clean_corners(base_ep_dir: "Path") -> dict:
 
 # ── Per-worker frame extraction ──
 def find_camera1_video_path(ep_dir: "Path"):
-    """For base teleops in datasets/eval3/, find their wrist-cam mp4 (prefer
+    """For base teleops in datasets/eval3/, find their overhead-cam mp4 (prefer
     H.264 sidecar). This is the ORIGINAL recording, same content as merger."""
     cam1 = ep_dir / "videos" / "observation.images.camera1" / "chunk-000"
     if not cam1.is_dir():
@@ -252,7 +252,7 @@ def find_reference_video_path(ep_dir: "Path"):
 
 
 def process_episode(args):
-    """Per-worker: decode the wrist + reference frame 0, write JPEGs, and emit one VL record per portrait + caption-type."""
+    """Per-worker: decode the overhead + reference frame 0, write JPEGs, and emit one VL record per portrait + caption-type."""
     (ep_idx, ep_name, video_path_str, ref_video_path_str, base_ep_dir_str,
      pid_to_celeb_full_str, out_root_str) = args
     out_root = Path(out_root_str)

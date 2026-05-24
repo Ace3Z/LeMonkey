@@ -135,7 +135,7 @@ IID_CELEBS = ("swift", "obama", "lecun")
 #       camera_layout = filename_layout[::-1]
 # Verified empirically across all 9 (target,layout) base cells.
 # Internally THIS SCRIPT uses camera-LMR throughout — that is the convention
-# that matches the actual paper positions in the wrist-camera frames, which
+# that matches the actual paper positions in the overhead camera frames, which
 # is what the inpainter writes into.
 def filename_layout_to_camera(filename_layout: str) -> str:
     return filename_layout[::-1]
@@ -568,7 +568,7 @@ def render_base_ep_variants(
             new_sidecar["target_celeb"] = target_short
             new_sidecar["target_celeb_name"] = slug_to_name(target_full)
             new_sidecar["target_celeb_full"] = target_full
-            # `layout` here is camera-LMR (matches what the wrist-camera sees).
+            # `layout` here is camera-LMR (matches what the overhead camera sees).
             # Filename layouts in base teleops are operator-LMR = camera-LMR
             # reversed; recorded separately for traceability.
             new_sidecar["layout"] = layout

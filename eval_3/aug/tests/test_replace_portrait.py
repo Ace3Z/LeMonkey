@@ -51,7 +51,7 @@ def make_synthetic_scene(
     """Returns (frame, mask, ground_truth_corners_4x2_float32).
 
     add_noise=True adds Gaussian sensor noise (σ ≈ 8) to the whole frame,
-    which is realistic for wrist-cam at 640×480 and exercises Reinhard's
+    which is realistic for overhead-cam at 640×480 and exercises Reinhard's
     std-matching path — without noise, the outer ring is uniform and
     Reinhard would clamp to identity (correct behaviour, but not
     representative of real data).

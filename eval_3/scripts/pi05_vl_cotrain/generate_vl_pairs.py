@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate Pi0.5 VL cotrain's bbox-grounded face VQA pairs from the 193-celeb scraped bank.
+"""Generate Pi0.5 VL cotrain's bbox-grounded face VQA pairs from the 192-celeb scraped bank.
 
 This is the deliverable per the ObjectVLA spec. Standalone CPU-friendly
 fallback in case the GPU bbox-generation path is unavailable.
@@ -45,7 +45,7 @@ On any host with the `lemonkey-arcface` conda env (InsightFace + buffalo_l):
         --captions-per-photo 10 \\
         --push-repo HBOrtiz/so101_eval3_broad_grounding
 
-Expected output: ~193 celebs × ~7-10 photos × 10 captions = ~15,000 rows.
+Expected output: ~192 celebs × ~7-10 photos × 10 captions = ~15,000 rows.
 ~5-10 min on a 64-128 CPU host (RetinaFace is the bottleneck).
 """
 from __future__ import annotations
@@ -221,7 +221,7 @@ def main() -> int:
                         help="N captions emitted per photo (mix per CANONICAL_MIX)")
     parser.add_argument("--include-iid", action="store_true",
                         help="Also walk heldout/ subdir (the 3 IID celebs). "
-                             "Off by default — 200-celeb training set's "
+                             "Off by default — 192-celeb training set's "
                              "augmentation pipeline already handles IID.")
     parser.add_argument("--push-repo", default=None,
                         help="If set, push to this HF dataset repo after writing")

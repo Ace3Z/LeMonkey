@@ -2,7 +2,7 @@
 """Visually verify the so101_eval3_cotrain_grounding dataset: label <-> bbox <-> face.
 
 Renders verification panels from a VL-pairs manifest: each panel draws the
-frame-0 wrist-cam image with all 3 portrait quads (`quad_corners_norm`) and
+frame-0 overhead-cam image with all 3 portrait quads (`quad_corners_norm`) and
 their `celeb_name` labels overlaid, plus the reference photo. Lets a human
 confirm every label matches the face inside its quad and the quads tightly
 bound the rotated portraits.

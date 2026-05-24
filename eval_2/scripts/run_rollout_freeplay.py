@@ -100,7 +100,7 @@ def main() -> int:
     p.add_argument("--follower-id",   default="my_follower",
                    help="Calibration id for the follower arm")
     p.add_argument("--cam-path",      default="/dev/video0",
-                   help="OpenCV camera path (USB wrist cam)")
+                   help="OpenCV camera path (USB overhead cam)")
     p.add_argument("--home-drive-s",  type=float, default=2.0,
                    help="Seconds to spend driving the arm back to the home pose")
     args = p.parse_args()

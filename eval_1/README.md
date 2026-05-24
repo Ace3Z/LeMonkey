@@ -87,7 +87,7 @@ and per-prompt-type success rates.
 ## Hardware
 
 - **Robot**: SO-101 follower on `/dev/so101-follower`, leader on `/dev/so101-leader` (udev-stable symlinks), calibrated and in home pose.
-- **Camera**: USB wrist camera at `/dev/video0`, 640x480 at 30 fps, the same physical mount used during training.
+- **Camera**: USB overhead camera (mounted above the workspace, looking down) at `/dev/video0`, 640x480 at 30 fps, the same physical mount used during training.
 - **GPU**: any NVIDIA GPU with at least 6 GB of VRAM for inference (a GTX 1660 SUPER was enough); an H100 or RTX 6000 was used for training.
 
 ## Layout

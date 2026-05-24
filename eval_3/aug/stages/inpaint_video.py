@@ -259,7 +259,7 @@ def replace_portrait(
     # step (4 below) already provides local DC matching at the Poisson
     # boundary; Poisson's gradient-domain blend handles the interior. So
     # Reinhard is only needed when the ring has rich texture/colour
-    # (atypical for our wrist-cam-on-white-table setup).
+    # (atypical for our overhead-cam-on-white-table setup).
     ring_dilated = cv2.dilate(mask, np.ones((ring_dilate_px, ring_dilate_px), np.uint8))
     ring = cv2.subtract(ring_dilated, mask)
     if apply_reinhard:

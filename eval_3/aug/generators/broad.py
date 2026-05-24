@@ -1,11 +1,12 @@
 """
 Eval 3 broad augmentation generator: replaces each printed portrait with
-another photo of the same celebrity and writes a reference-image stream;
-supports up to ~200 celebrities.
+another photo of the same celebrity and writes a reference-image stream.
+The deployed scraped bank has 192 ArcFace-verified celebrities; the
+generator scales to whatever the bank actually contains.
 
 Strategy: for each base teleop episode, generate M variants. Each variant:
     1. Samples 3 distinct celebs from the bank (target + 2 distractors).
-    2. Inpaints ALL 3 visible portraits in the wrist camera.
+    2. Inpaints ALL 3 visible portraits in the overhead camera.
     3. Writes a reference video stream `observation.images.reference`
        containing a DIFFERENT photo of the target celeb than the one
        painted on the table (face-verification setup).
@@ -133,8 +134,8 @@ def precompute_target_assignment(
     where N = len(ep_names) * num_variants and K = len(bank_celebs).
 
     For the planned 179 base episodes × M=25 = 4475 total variants over a
-    195-celeb bank: 185 celebs each appear as target 23 times, 10 celebs
-    each appear as target 22 times (185×23 + 10×22 = 4475).
+    192-celeb bank: 133 celebs each appear as target 23 times, 59 celebs
+    each appear as target 24 times (133×23 + 59×24 = 4475).
 
     Returns {(episode_name, variant_idx): target_celeb_slug}.
     """
@@ -254,7 +255,7 @@ def process_episode(
 ) -> dict:
     """Generate `num_variants` augmented variants for one base
     teleop episode. Each variant writes:
-      - videos/observation.images.camera1/...  (inpainted wrist)
+      - videos/observation.images.camera1/...  (inpainted overhead)
       - videos/observation.images.reference/...  (constant ref photo)
       - data/chunk-000/file-000.parquet  (hardlinked from base)
       - meta/                              (hardlinked from base)
@@ -332,7 +333,7 @@ def process_episode(
                 target_aspect = paper_top / max(paper_left, 1e-6)
                 pid_photos[pid] = face_centered_aspect_crop(img, target_aspect)
 
-            # 3. Inpaint the wrist video
+            # 3. Inpaint the overhead video
             n_written = render_variant(
                 src_video, corners_data, masks_pkl, pid_photos,
                 out_video=var_video, fps=fps, work_dir=work_dir,
@@ -427,7 +428,7 @@ def main() -> int:
     if not args.root and not args.episode_dirs:
         p.error("either --root or --episode-dirs required")
 
-    # Load 195-celeb photo bank
+    # Load celeb photo bank (192 verified celebs in the deployed scraped/ bank)
     bank = load_photo_bank(Path(args.photo_bank), portrait_only=True, color_only=True)
     if len(bank) < 3:
         print(f"[FATAL] photo bank has only {len(bank)} celebs", file=sys.stderr)
@@ -448,8 +449,8 @@ def main() -> int:
     out_root.mkdir(parents=True, exist_ok=True)
 
     # Pre-compute deterministic uniform target assignment across ALL
-    # (episode, variant_idx) tuples. Each of the 195 celebs gets exactly
-    # 22 or 23 target appearances across the full 4 475-variant corpus.
+    # (episode, variant_idx) tuples. Each of the 192 celebs gets exactly
+    # 23 or 24 target appearances across the full 4 475-variant corpus.
     target_assignment = precompute_target_assignment(
         [e.name for e in ep_dirs], args.num_variants,
         list(bank.keys()), args.seed,

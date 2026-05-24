@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Prepare a PaliGemma VQA training manifest from VGGFace2 (+ optionally our
-own 193-celeb scraped bank for distribution alignment).
+own 192-celeb scraped bank for distribution alignment).
 
 OUTPUT FORMAT
 =============
@@ -26,7 +26,7 @@ VGGFace2 expects the standard Oxford layout:
 If you don't have identity_meta.csv, pass --names-jsonl with one
 {"id": "n000001", "name": "Aaron Eckhart"} per line.
 
-Scraped bank uses our 193-celeb dir layout:
+Scraped bank uses our 192-celeb dir layout:
     <scraped_root>/<celeb_slug>/<photo>.{jpg,png}
 where the slug is the canonical name (lowercase, underscored).
 
@@ -129,7 +129,7 @@ def collect_vggface2(root: Path, id_to_name: dict[str, str],
 
 def collect_scraped(root: Path, max_per_identity: int,
                      rng: random.Random) -> list[dict]:
-    """Our 193-celeb scraped bank. Each subdir = one celeb, slug-named."""
+    """Our 192-celeb scraped bank. Each subdir = one celeb, slug-named."""
     rows: list[dict] = []
     n_identities = 0
     for ident_dir in sorted(p for p in root.iterdir() if p.is_dir()):
@@ -166,7 +166,7 @@ def main() -> int:
     ap.add_argument("--names-jsonl", type=Path, default=None,
                      help="Alternate names file: one {id, name} per line")
     ap.add_argument("--scraped-root", type=Path, default=None,
-                     help="Our 193-celeb scraped bank (optional)")
+                     help="Our 192-celeb scraped bank (optional)")
     ap.add_argument("--max-per-identity", type=int, default=50,
                      help="Cap per identity to keep the manifest manageable (default 50)")
     ap.add_argument("--scraped-max-per-identity", type=int, default=10,

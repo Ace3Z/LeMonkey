@@ -15,7 +15,7 @@
 # configuration_smolvla.py in third_party/lerobot.
 #
 # Recipe diffs vs eval_1:
-#   - dual image input         (camera1 = wrist webcam; camera2 = reference photo
+#   - dual image input         (camera1 = overhead webcam; camera2 = reference photo
 #                                stream after --rename_map from
 #                                observation.images.reference. empty_cameras=1
 #                                fills the unused camera3 slot. The SmolVLA

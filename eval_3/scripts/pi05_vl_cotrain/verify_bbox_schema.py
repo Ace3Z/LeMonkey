@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Validate the bbox parquet schema before running the audit.
 
-A parquet of per-frame face bboxes for the 200-celeb dataset.
+A parquet of per-frame face bboxes for the 192-celeb dataset.
 The exact column names may vary slightly from our assumed schema; this script
 checks BEFORE we burn 1 h on the ArcFace audit only to find the columns
 weren't what we expected.
@@ -55,7 +55,7 @@ def main() -> int:
                         help="the per-frame bbox annotations")
     parser.add_argument("--dataset-info", type=Path,
                         default=Path("data/200celebs/meta/info.json"),
-                        help="200-celeb info.json for episode range validation")
+                        help="192-celeb info.json for episode range validation")
     parser.add_argument("--write-normalized", type=Path, default=None,
                         help="If set, write a normalized-column version to this path")
     args = parser.parse_args()
@@ -138,10 +138,10 @@ def main() -> int:
     max_frame_per_ep = df.groupby(ep_col)[frame_col].max()
     print(f"  frames per episode: min={max_frame_per_ep.min()}, "
           f"max={max_frame_per_ep.max()}, mean={max_frame_per_ep.mean():.1f}")
-    # Most 200-celeb episodes are 538 frames; bboxes should cover most/all.
+    # Most 192-celeb episodes are 538 frames; bboxes should cover most/all.
     if max_frame_per_ep.max() > 600:
         print(f"[WARN] max frame_idx={max_frame_per_ep.max()}: expected<=538 per "
-              f"200-celeb info.json, fallback=audit will silently process them",
+              f"192-celeb info.json, fallback=audit will silently process them",
               flush=True)
 
     # Target celeb sanity.
