@@ -115,11 +115,20 @@ rendering". The recipe is:
    celebrity's name. These are the (image, text) pairs used by the
    co-training loss in [§Our training approach](#our-training-approach-co-training--klal--lora).
 
-Two datasets come out of this:
+Two datasets come out of this, one for each eval-day regime:
 
-**1. The in-distribution (toy) dataset, `so101_eval3_cotrain`.** Only the
-3 IID celebrities (Swift, Obama, LeCun). The augmentation generator
-exhaustively enumerates every permutation of:
+|                          | **IID (toy)** | **OOD (broad)** |
+|--------------------------|---|---|
+| **HF dataset**           | [`so101_eval3_cotrain`](https://huggingface.co/datasets/HBOrtiz/so101_eval3_cotrain) | [`so101_eval3_broad`](https://huggingface.co/datasets/HBOrtiz/so101_eval3_broad) |
+| **Celebrity bank**       | 3 (Swift, Obama, LeCun) | 192 (scraped + ArcFace-verified) |
+| **Variant generation**   | **Exhaustive enumeration** of every (target, target photo, layout, distractor pair) tuple | **Random sampling**: per base teleop, draw 3 distinct celebs uniformly from the bank, repeat 54×|
+| **Variants per dataset** | 3 × 8 × 6 × 64 = **9,216** | 180 × 54 ≈ **9,662** |
+| **+ base teleops**       | 178                     | 180 |
+| **= total episodes**     | **9,394**               | **9,842** |
+| **= total frames**       | **5.05 M**              | **5.29 M** |
+| **What it teaches**      | Breaks the §1 positional shortcut by saturating every (layout × target × distractor) cell on the 3 known faces. | Forces the VLM backbone to generalise across 192 different celebrity faces, so eval-day faces it has never seen still ground correctly. |
+
+The IID multiplication, written out:
 
 $$
 \underbrace{3}_{\text{target celeb}}
@@ -132,28 +141,15 @@ $$
 = 9{,}216 \text{ variants}
 $$
 
-Plus the 178 base teleops, that gives **9,394 episodes / 5.05 M frames**
-in [`so101_eval3_cotrain`](https://huggingface.co/datasets/HBOrtiz/so101_eval3_cotrain).
-Every (target celeb, target photo, layout, distractor pair) tuple appears
-at least once. No random sampling, no missed cells.
-
-**2. The out-of-distribution (broad) dataset, `so101_eval3_broad`.** Same
-recipe, but the photo bank is a 192-celebrity scraped collection. The
-full enumeration of 192 celebrities at 3 slots is too large to render, so
-the broad generator instead samples a fixed number of variants per base
-teleop (about 54 each), and for every variant it draws 3 distinct
-celebrities uniformly from the 192-celeb bank. Plus the 180 base teleops,
-that gives **9,842 episodes / 5.29 M frames** in
-[`so101_eval3_broad`](https://huggingface.co/datasets/HBOrtiz/so101_eval3_broad).
+No random sampling, no missed cells. Every (target celeb, target photo,
+layout, distractor pair) tuple appears at least once in
+`so101_eval3_cotrain`. The broad dataset cannot do this (full enumeration
+at 192 celebs × 3 slots is too large to render in finite time), so it
+trades exhaustiveness for face diversity.
 
 Because the swap is identity-preserving (pixel-accurate face replacement
 on the printed quads, with the gripper / can / hand never overdrawn), the
-action labels stay valid in both cases. On the IID dataset the policy
-sees every layout × target × distractor combination that can be built
-from the 3-celeb bank, which is what breaks the positional shortcut from
-§1; on the broad dataset it sees 192 different celebrity faces, which is
-what gives the trained policy a chance at out-of-distribution celebs at
-eval time.
+action labels stay valid in both cases.
 
 The pipeline uses [GroundingDINO](https://arxiv.org/abs/2303.05499) for
 open-vocabulary portrait detection, [SAM 2](https://arxiv.org/abs/2408.00714)
