@@ -403,15 +403,6 @@ operator subtracts the occluder mask (a SAM 2 video-predictor track from
 the gripper-can-hand seed) from the inpaint mask, so the original frame
 pixels show through where they should.
 
-> [!NOTE]
-> **The training-side modules that consume this pipeline (KLAL loss, LoRA
-> adapter) used to live at `eval_3/aug/training/`. They've moved to
-> [`eval_3/scripts/smolvla_cotrain/`](../scripts/smolvla_cotrain/)** because
-> they have nothing to do with augmentation: they patch the policy at
-> training time, not the data. Their write-up (formulation, target
-> construction, integration) lives in the parent
-> [Eval 3 README](../README.md#our-training-approach-co-training--klal--lora).
-
 ---
 
 ## File layout
@@ -444,18 +435,6 @@ eval_3/aug/
 └── tests/
     └── test_replace_portrait.py        synthetic regression on inpaint_video.replace_portrait
 ```
-
-Code that USED to live here but is not augmentation has moved:
-
-- **Photo-bank scrapers** (`mining/mine_celeb_photos.py`) →
-  [`eval_3/scripts/celebs/`](../scripts/celebs/) (joins `scrape_headshots.py`).
-- **Post-augmentation dataset surgery** (`merge_prep/*.py`) →
-  [`eval_3/scripts/data/merge_prep/`](../scripts/data/merge_prep/) (joins
-  `merge_episodes.py` and friends).
-- **Training-time policy patches** (KLAL loss, LoRA adapter, the
-  KLAL+LoRA smoke test) →
-  [`eval_3/scripts/smolvla_cotrain/`](../scripts/smolvla_cotrain/) (sits
-  next to `train_smolvla_cotrain.py`, the only consumer).
 
 ---
 

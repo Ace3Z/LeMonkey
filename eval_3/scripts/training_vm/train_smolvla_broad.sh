@@ -1,107 +1,54 @@
 #!/usr/bin/env bash
-# The actual lerobot-train command for Eval 3 (SmolVLA, image-as-prompt
-# Coke-on-celebrity task). Run this directly OR via start_training.sh
-# (which wraps it in systemd).
+# SmolVLA + VL co-train on the BROAD (192-celebrity) dataset.
 #
-# NOTE: This is the IMAGE-AS-PROMPT training recipe (early Eval 3 work).
-# The published HBOrtiz/so101_smolvla_eval3_broad checkpoint was trained
-# from this file; rollout uses text-only prompting because of how the
-# policy is invoked at inference.
+# Same trainer as the IID cotrain recipe (`train_smolvla_cotrain.py` via
+# `scripts/smolvla_cotrain/launch_multi_gpu.sh`), pointed at the broad
+# robot dataset + broad VL grounding pairs, at ObjectVLA's default 10:1
+# robot:VL ratio (vs the IID cotrain's 5:1) to reflect the harder
+# OOD-celeb generalisation task.
 #
-# Recipe rationale - see eval_3/README.md for the cotrain + KLAL + LoRA
-# write-up. Cross-checked against Interleave-VLA (arXiv:2505.02152),
-# Pi0.5-KI (arXiv:2505.23705), "Don't Blind Your VLA" (arXiv:2510.25616),
-# the SmolVLA paper (arXiv:2506.01844), and the canonical
-# configuration_smolvla.py in third_party/lerobot.
+# This script is a thin shim over the shared multi-GPU launcher: it just
+# overrides the dataset / VL-manifest / VL-ratio / output-dir defaults to
+# the broad recipe and exec's launch_multi_gpu.sh. Every other tunable
+# (BATCH_SIZE, STEPS, LR, KLAL_LAYERS, LORA_R, ...) inherits the cotrain
+# launcher's default unless explicitly overridden in the environment.
 #
-# Recipe diffs vs eval_1:
-#   - dual image input         (camera1 = overhead webcam; camera2 = reference photo
-#                                stream after --rename_map from
-#                                observation.images.reference. empty_cameras=1
-#                                fills the unused camera3 slot. The SmolVLA
-#                                base policy hard-expects 3 cameras
-#                                (camera1/2/3); the rename + empty_cameras=1
-#                                give it exactly that.)
-#   - add_image_special_tokens=true   (BOI/EOI separators between the
-#                                cameras so the LM decoder can tell them apart;
-#                                mirrors Interleave-VLA §A.1)
-#   - train_expert_only=false  (CRITICAL - frozen VLM yields ~0% on
-#                                face-matching, per all 3 papers above)
-#   - freeze_vision_encoder=false  (SigLIP must adapt for face matching
-#                                across reference photo ↔ printed portrait;
-#                                Blind-VLA Table 2 +24% semantic / +12% vision)
-#   - optimizer_lr=5e-5        (half the LeRobot default 1e-4; protects
-#                                pretrained features when unfreezing both
-#                                VLM and SigLIP - Interleave-VLA recipe)
-#   - use_amp=true             (bf16 mixed precision. SmolVLAConfig has no
-#                                `gradient_checkpointing` or `dtype` flag, so
-#                                AMP is the available memory-saving knob.)
-#   - batch_size=64            (Measured empirically 2026-05-15 on RTX PRO 6000
-#                                97 GB: bs=64 uses 82.8/97 GB (85 %) with GPU
-#                                util at 100 %. bs=80 OOMs. The unfrozen
-#                                VLM+SigLIP activation memory is the bottleneck.
-#                                Step rate ≈ 1.0 s/step at bs=64 -> 30k steps
-#                                ≈ 8.3 h total.)
-#   - steps=30000              (cosine endpoint at canonical scheduler_decay_steps)
-#   - dataset.image_transforms.enable=true  (no flips; affine ±5° kept
-#                                because prompts never reference position)
-#   - PYTORCH_ALLOC_CONF=expandable_segments:True
-#                              (mitigates allocator fragmentation that surfaces
-#                                near the VRAM ceiling. PyTorch emitted this
-#                                exact recommendation in the bs=96 OOM probe.)
-#   - dataset.video_backend=pyav  (Replaces lerobot's default torchcodec.
-#                                Empirically 2026-05-15: torchcodec leaks ~35 GB
-#                                per DataLoader worker over ~30 min of training
-#                                because decoder contexts aren't freed across
-#                                episode boundaries when iterating 8390 unique
-#                                mp4 files. dmesg showed single pt_data_worker
-#                                hitting anon-rss=34.9 GB with num_workers=4 and
-#                                17.9 GB with num_workers=8 - leak is per-worker.
-#                                pyav is older + libav-based + well-tested.)
-#   - num_workers=8            (Bumped back to 8 with pyav backend in place. The
-#                                leak was per-worker in torchcodec, so with pyav
-#                                no-leak expected -> 8 workers max-parallelism is
-#                                fine. If pyav also leaks, drop stepwise: 8->4->2.)
-set -e
+# Usage:
+#   HF_TOKEN=hf_... PUSH_REPO=youruser/so101_smolvla_eval3_broad \
+#       bash eval_3/scripts/training_vm/train_smolvla_broad.sh
+#
+# Or via the shared systemd-wrap launcher (survives SSH disconnect):
+#   UNIT=lerobot-train-eval3-broad \
+#   DESCRIPTION="LeRobot SmolVLA Eval 3 broad cotrain (192 celebs, 10:1)" \
+#   TRAIN_SCRIPT=$REPO_ROOT/eval_3/scripts/training_vm/train_smolvla_broad.sh \
+#   LOG_FILE=$HOME/outputs/train/so101_smolvla_eval3_broad.log \
+#   LIMIT_NOFILE=524288 \
+#       bash $REPO_ROOT/scripts/training_vm/start_training.sh
+set -euo pipefail
 
-source ~/miniconda3/etc/profile.d/conda.sh
-conda activate lemonkey
-cd ~/LeMonkey
+HERE="$(cd "$(dirname "$0")" && pwd)"
+REPO_ROOT="$(cd "$HERE/../../.." && pwd)"
 
-# Memory-allocator tweak - see header.
-export PYTORCH_ALLOC_CONF=expandable_segments:True
+# Broad-specific defaults (override the cotrain launcher's IID defaults).
+# Anything not set here inherits from launch_multi_gpu.sh.
 
-mkdir -p ~/outputs/train
+# Robot + VL data pair for the 192-celebrity broad recipe.
+export ROBOT_DATASET="${ROBOT_DATASET:-HBOrtiz/so101_eval3_broad}"
+export VL_MANIFEST="${VL_MANIFEST:-HBOrtiz/so101_eval3_broad_grounding}"
 
-LOG=~/outputs/train/so101_smolvla_eval3_broad.log
-echo "==> training log: $LOG"
-echo "==> started at: $(date)"
-echo
+# ObjectVLA's 10:1 robot:VL default for the broader OOD task (vs the IID
+# cotrain's 5:1). Override via VL_RATIO=... if you want to ablate.
+export VL_RATIO="${VL_RATIO:-10}"
 
-python -u "$(which lerobot-train)" \
-  --policy.path=lerobot/smolvla_base \
-  --policy.push_to_hub=false \
-  --policy.train_expert_only=false \
-  --policy.freeze_vision_encoder=false \
-  --policy.add_image_special_tokens=true \
-  --policy.empty_cameras=1 \
-  --policy.optimizer_lr=5e-5 \
-  --policy.scheduler_warmup_steps=1000 \
-  --policy.use_amp=true \
-  --policy.device=cuda \
-  --dataset.repo_id=local/so101_eval3_broad \
-  --dataset.root=$HOME/LeMonkey/datasets/eval3_merged \
-  --dataset.video_backend=pyav \
-  --dataset.image_transforms.enable=true \
-  --rename_map='{"observation.images.reference": "observation.images.camera2"}' \
-  --batch_size=64 \
-  --steps=30000 \
-  --save_freq=5000 \
-  --num_workers=8 \
-  --output_dir=$HOME/outputs/train/so101_smolvla_eval3_broad \
-  --job_name=so101_smolvla_eval3_broad \
-  --wandb.enable=false \
-  2>&1 | tee "$LOG"
+# Output dir reflects the broad recipe; STEPS comes from launch_multi_gpu.sh
+# (default 50000) so the suffix stays accurate when STEPS is overridden.
+export OUT_DIR="${OUT_DIR:-outputs/smolvla_broad_klal_lora_${STEPS:-50000}}"
 
-echo
-echo "==> finished at: $(date)"
+# Default push target if the operator doesn't override it. The shared
+# launcher [FATAL]s if PUSH_REPO is unset.
+export PUSH_REPO="${PUSH_REPO:-HBOrtiz/so101_smolvla_eval3_broad}"
+
+# Hand off to the shared multi-GPU launcher. Same trainer (train_smolvla_cotrain.py),
+# same preflight gates, same KLAL + LoRA defaults, same systemd-friendly
+# torchrun invocation - just with broad data + 10:1 ratio under it.
+exec bash "$REPO_ROOT/eval_3/scripts/smolvla_cotrain/launch_multi_gpu.sh"
