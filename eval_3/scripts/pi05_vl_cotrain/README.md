@@ -11,7 +11,7 @@ The Pi0.5 Eval 3 variant is published as [`HBOrtiz/so101_pi05_eval3`](https://hu
 | File | Purpose |
 |---|---|
 | `verify_bbox_schema.py` | Pre-flight: validate the bbox parquet's column names. |
-| `arcface_audit_200celeb.py` | Per-frame `target_cos`, `max_distractor_cos`, `hardneg_gap` audit over the 200-celebrity inpainted dataset. |
+| `arcface_audit_200celeb.py` | Per-frame `target_cos`, `max_distractor_cos`, `hardneg_gap` audit over `HBOrtiz/so101_eval3_aug_v3_200celebs` (the pre-filter inpainted dataset; deployed bank is 192 celebrities). |
 | `build_keep_list_and_weights.py` | Audit parquet -> `keep_episodes.txt` + `hardneg_weights.npy`. |
 | `build_task_to_centroid.py` | Map task strings -> celeb slug -> ArcFace centroid. Produces `precomputed/task_index_to_centroid.json`. |
 | `build_confusion_matrix.py` | 192×192 celeb-vs-celeb ArcFace cosine matrix. Produces `precomputed/{confusion_matrix.npy, confusion_slugs.json, confusable_topk.json}`. |
