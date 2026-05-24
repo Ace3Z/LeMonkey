@@ -97,6 +97,14 @@ load-bearing as the training side, and it needs its own solution.
 
 ## Our data approach: identity-preserving augmentation
 
+> [!IMPORTANT]
+> **Deep dive: [`eval_3/aug/README.md`](aug/README.md).** This section is
+> the overview. The aug README walks through every stage of the pipeline
+> (GroundingDINO + SAM 2 portrait detection, sub-pixel paper-quad refit,
+> identity-preserving inpainting, KLAL + LoRA training modules) with the
+> visual gates and design rationale. If you want to understand how the
+> 9,216 IID variants are actually rendered, read it.
+
 The dataset is the lever that turns the §3 problem from "weeks of
 teleoperation" into "one weekend of teleoperation plus one GPU-week of
 rendering". The recipe is:
@@ -187,9 +195,12 @@ Side-by-side original (left) vs augmented variant (right), produced by
 table layout, lighting, and gripper motion are unchanged; only the three
 printed portraits have been swapped.
 
-See [`aug/README.md`](aug/README.md) for the rest of the visual gates,
-including the GroundingDINO + SAM 2 detection panel and the
-post-inpainting compare panel.
+> [!TIP]
+> **Continue with [`eval_3/aug/README.md`](aug/README.md) →** for the rest
+> of the visual gates (GroundingDINO + SAM 2 detection panel, Stage 3
+> sub-pixel quad refit, Stage 4 step-by-step inpainting panel), the
+> per-stage source files, and the KLAL + LoRA training-time modules that
+> live alongside the augmentation code.
 
 ---
 
