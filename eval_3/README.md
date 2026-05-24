@@ -109,8 +109,8 @@ The dataset is the lever that turns the §3 problem from "weeks of
 teleoperation" into "one weekend of teleoperation plus one GPU-week of
 rendering". The recipe is:
 
-1. **Teleop a small base set.** ~180 real episodes (~178 cotrain, ~180
-   broad) of the Coke can placed on three printed portraits of Taylor
+1. **Teleop a small base set.** ~180 real episodes per dataset (cotrain
+   and broad) of the Coke can placed on three printed portraits of Taylor
    Swift, Barack Obama, and Yann LeCun, across varied layouts, lighting, hand
    approaches, and slot orderings.
 2. **Multiply each base episode by inpainting new celebrity faces onto the

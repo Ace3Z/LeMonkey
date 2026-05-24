@@ -33,7 +33,7 @@ SmolVLA cotrain trainer) live under
 
 ```mermaid
 flowchart TB
-    A[Real teleop episodes<br/>179 base demos] --> B[Stage 2: detect_static.py<br/>GroundingDINO + SAM 2 + ArcFace]
+    A[Real teleop episodes<br/>~180 base demos] --> B[Stage 2: detect_static.py<br/>GroundingDINO + SAM 2 + ArcFace]
     B --> C[Stage 3: refine_paper_quad.py<br/>Canny + Hough + cornerSubPix]
     C --> D{Per-episode<br/>portrait corners +<br/>occluder masks}
     M[Stage 1: scrape_headshots.py<br/>Wikimedia + TMDB + Bing<br/>+ ArcFace verifier] --> N[(Celebrity photo bank<br/>192 identities)]
