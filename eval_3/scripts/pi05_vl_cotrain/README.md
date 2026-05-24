@@ -31,7 +31,7 @@ The Pi0.5 Eval 3 variant is published as [`HBOrtiz/so101_pi05_eval3`](https://hu
 ## How `HBOrtiz/so101_pi05_eval3` was produced
 
 1. PaliGemma backbone warm-started on VGGFace2 VQA -> [`HBOrtiz/paligemma_vqa_warm`](https://huggingface.co/HBOrtiz/paligemma_vqa_warm) (see [`../warmstart/`](../warmstart/)).
-2. Pi0.5 LoRA fine-tune from that init on `HBOrtiz/so101_eval3_broad`, launched via [`../brev/train_pi05.sh`](../brev/train_pi05.sh), the vanilla LoRA path.
+2. Pi0.5 LoRA fine-tune from that init on `HBOrtiz/so101_eval3_broad`, launched via [`../training_vm/train_pi05.sh`](../training_vm/train_pi05.sh), the vanilla LoRA path.
 
 The ObjectVLA enhancements (mixed batches, hard-neg curriculum, per-layer LoRA, EMA) listed in the file table above are documented here as the design intent; the published checkpoint is the vanilla-LoRA result. The wrapper here is preserved so the enhanced recipe can be revived from the precomputed artifacts.
 

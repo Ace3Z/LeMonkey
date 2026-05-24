@@ -7,7 +7,7 @@
 # Required env (no defaults; every eval picks its own):
 #   UNIT            systemd --user unit name           e.g. lerobot-train-eval3
 #   DESCRIPTION     unit description string            e.g. "LeRobot SmolVLA Eval 3 (image-as-prompt)"
-#   TRAIN_SCRIPT    absolute path to the bash trainer  e.g. $REPO_ROOT/eval_3/scripts/brev/train_smolvla_broad.sh
+#   TRAIN_SCRIPT    absolute path to the bash trainer  e.g. $REPO_ROOT/eval_3/scripts/training_vm/train_smolvla_broad.sh
 #   LOG_FILE        log path to wipe before launch     e.g. $HOME/outputs/train/so101_smolvla_eval3_broad.log
 #
 # Optional env:
@@ -16,10 +16,10 @@
 # Usage:
 #   UNIT=lerobot-train-eval3 \
 #   DESCRIPTION="LeRobot SmolVLA Eval 3 training (image-as-prompt Coke-on-celebrity)" \
-#   TRAIN_SCRIPT=$REPO_ROOT/eval_3/scripts/brev/train_smolvla_broad.sh \
+#   TRAIN_SCRIPT=$REPO_ROOT/eval_3/scripts/training_vm/train_smolvla_broad.sh \
 #   LOG_FILE=$HOME/outputs/train/so101_smolvla_eval3_broad.log \
 #   LIMIT_NOFILE=524288 \
-#       bash scripts/brev/start_training.sh
+#       bash scripts/training_vm/start_training.sh
 set -e
 
 UNIT="${UNIT:-}"
@@ -110,8 +110,8 @@ if [ -n "$TRAIN_PID" ] && [ "$TRAIN_PID" != "0" ]; then
 fi
 echo
 echo "next steps:"
-echo "  bash scripts/brev/training_status.sh                # one-shot snapshot (set LOG/UNIT/CHECKPOINT_DIR)"
-echo "  bash scripts/brev/follow_training.sh $LOG_FILE      # live tail of log"
+echo "  bash scripts/training_vm/training_status.sh                # one-shot snapshot (set LOG/UNIT/CHECKPOINT_DIR)"
+echo "  bash scripts/training_vm/follow_training.sh $LOG_FILE      # live tail of log"
 echo "  journalctl --user -u $UNIT -f                       # journal stream"
 echo "  systemctl --user status $UNIT                       # service health"
 echo "  systemctl --user stop $UNIT                         # cancel cleanly"

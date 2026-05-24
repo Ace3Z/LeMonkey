@@ -1,15 +1,15 @@
 #!/usr/bin/env bash
-# Brev-side env setup for the PaliGemma VQA warm-start (Pi0.5 fallback).
+# VM-side env setup for the PaliGemma VQA warm-start (Pi0.5 fallback).
 #
 # Differs from setup_pi05.sh in two ways:
 #   1. Forces cu128 PyTorch for Blackwell sm_120 GPUs (the RTX PRO 6000
-#      VMs from Massed Compute / Brev). The default torch wheel pulled by
+#      VMs from Massed Compute, Brev, Lambda Cloud, etc). The default torch wheel pulled by
 #      `pip install lerobot` is pre-cu128 and reports torch.cuda.is_available()
 #      = False on Blackwell.
 #   2. Installs `datasets` + `pillow` explicitly (needed by the VQA training
 #      script's HF Dataset loader + image collator).
 #
-# Idempotent. Run on Brev after rsync.
+# Idempotent. Run on the training VM after `sync_to_vm.sh`.
 
 set -euo pipefail
 
@@ -134,6 +134,6 @@ echo "=== the training VM (VQA warm-start) setup complete ==="
 echo "Next:"
 echo "  1. Obtain VGGFace2 raw images (via the dataset's official request page) or use CASIA-WebFace from HF."
 echo "  2. Build manifest via eval_3/scripts/warmstart/prepare_vggface2_vqa.py"
-echo "  3. Smoke test: bash eval_3/scripts/brev/train_paligemma_warmstart.sh after setting"
+echo "  3. Smoke test: bash eval_3/scripts/training_vm/train_paligemma_warmstart.sh after setting"
 echo "     MANIFEST_PATH=... in env, with python eval_3/scripts/warmstart/train_paligemma_vqa.py --smoke"
-echo "  4. Full run: bash eval_3/scripts/brev/train_paligemma_warmstart.sh"
+echo "  4. Full run: bash eval_3/scripts/training_vm/train_paligemma_warmstart.sh"

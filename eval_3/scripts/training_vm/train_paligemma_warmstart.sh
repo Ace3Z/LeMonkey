@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# Brev - PaliGemma VQA warm-start (LoRA on Pi0.5's PaliGemma, VGGFace2 data).
+# PaliGemma VQA warm-start (LoRA on Pi0.5's PaliGemma, VGGFace2 data).
 #
-# Designed to run on a SECOND Brev H100 80GB VM, parallel to the Pi0.5
+# Designed to run on a second H100-class VM, parallel to the Pi0.5
 # vanilla LoRA run. See eval_3/scripts/warmstart/train_paligemma_vqa.py for
 # the recipe + architecture rationale.
 #
-# PRE-FLIGHT (on the Brev VM):
+# PRE-FLIGHT (on the training VM):
 #   1. Conda env `lemonkey` with lerobot + peft + datasets installed
 #   2. VGGFace2 manifest at $MANIFEST_PATH (build via prepare_vggface2_vqa.py
 #      using the VGGFace2 raw dir).

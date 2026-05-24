@@ -2,13 +2,13 @@
 """Pi0.5 + ObjectVLA VL cotrain wrapper around lerobot-train.
 
 SCAFFOLD ONLY — the deployed Pi0.5 checkpoint was trained with
-../brev/train_pi05.sh; this file documents the intended structure but is
+../training_vm/train_pi05.sh; this file documents the intended structure but is
 not executed in production.
 
 This wrapper is preserved as a starting point for the enhanced ObjectVLA
 recipe; the deployed Pi0.5 reference policy
 (HBOrtiz/so101_pi05_eval3) was trained via the vanilla LoRA path in
-`../brev/train_pi05.sh`, not via this file. The dataloader, mixed-batch
+`../training_vm/train_pi05.sh`, not via this file. The dataloader, mixed-batch
 alternation, per-layer LoRA rank, and EMA pieces are written but the
 training-loop hook into the installed lerobot-train was not completed.
 
@@ -296,10 +296,10 @@ def pi05_vqa_loss(model, batch: dict, _fallback_state: dict | None = None) -> to
     # Manual splice fallback for the dict-attention-mask issue.
     # Integration point: this requires reading the exact lerobot Pi0.5 wrapper
     # to know whether model.model is PaliGemmaWithExpertModel and how to access
-    # vision/language submodules. Stub below — fill in once Brev env is online.
+    # vision/language submodules. Stub below — fill in once the training-VM env is online.
     raise NotImplementedError(
         "Dict-mask manual splice fallback not yet implemented. "
-        "Will be filled in during the Brev smoke test if the primary path crashes. "
+        "Will be filled in during the training-VM smoke test if the primary path crashes. "
         "Manual splice fallback not implemented in this scaffold."
     )
 
@@ -312,7 +312,7 @@ def pi05_flow_loss(policy, batch: dict) -> torch.Tensor:
     """Standard lerobot Pi0.5 flow-matching action loss. Unchanged from
     canonical lerobot-train's per-step forward."""
     # Integration point: lerobot's policy.forward returns (loss, output) tuple.
-    # Confirm the exact return signature on the Brev env's lerobot version.
+    # Confirm the exact return signature on the training-VM's lerobot version.
     result = policy.forward(batch)
     if isinstance(result, tuple):
         loss = result[0]
@@ -333,7 +333,7 @@ def apply_layer_wise_lora(policy, layer_rank_config_path: str):
 
     Integration point: PEFT's LoraConfig accepts a single `r` value. Per-layer
     rank requires either (a) per-target-module rank dict via `rank_pattern=`,
-    or (b) applying LoRA in two passes with different ranks. Implement on Brev
+    or (b) applying LoRA in two passes with different ranks. Implement on the training VM
     once the PEFT version is confirmed.
     """
     if not Path(layer_rank_config_path).is_file():
@@ -361,7 +361,7 @@ def apply_layer_wise_lora(policy, layer_rank_config_path: str):
     # Integration point: pass rank_pattern to LoraConfig + reapply. The lerobot
     # train.py instantiates LoraConfig from --peft.* flags; we'd need to
     # monkey-patch the LoraConfig kwargs OR apply LoRA post-construction.
-    # Stub for now — will integrate during Brev smoke.
+    # Stub for now; will integrate during the training-VM smoke test.
     print(f"[layer_rank] built rank_pattern with {len(rank_pattern)} entries. "
           f"integration needed to feed into LoraConfig.", flush=True)
     return policy
@@ -424,7 +424,7 @@ def main(argv: list[str]) -> int:
     #
     # This requires importing the lerobot training infrastructure and
     # overriding/wrapping its train() function. The exact integration
-    # depends on the lerobot version on Brev — see the smoke test plan in
+    # depends on the lerobot version on the training VM — see the smoke test plan in
     # the ObjectVLA spec.
 
     print("\n[pi05_vl_cotrain] ---- INTEGRATION POINTS (scaffold) ----")

@@ -7,7 +7,7 @@
 #   LOG=$HOME/outputs/train/<run>.log \
 #   UNIT=lerobot-train-eval3 \
 #   CHECKPOINT_DIR=$HOME/outputs/train/<run>/checkpoints \
-#       bash scripts/brev/training_status.sh
+#       bash scripts/training_vm/training_status.sh
 #
 # LOG may also be passed as argv[1] for convenience.
 

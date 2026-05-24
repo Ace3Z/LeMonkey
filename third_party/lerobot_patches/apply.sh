@@ -6,10 +6,10 @@
 #
 # Invoked automatically by the Eval 3 setup scripts (which install the
 # vendored lerobot fork and need these patches):
-#   - eval_3/scripts/brev/setup_pi05.sh
-#   - eval_3/scripts/brev/setup_paligemma_warmstart.sh
+#   - eval_3/scripts/training_vm/setup_pi05.sh
+#   - eval_3/scripts/training_vm/setup_paligemma_warmstart.sh
 #   - eval_3/scripts/smolvla_cotrain/setup_env.sh
-# Note: scripts/brev_setup_smolvla.sh installs lerobot==0.5.1 from PyPI
+# Note: scripts/setup_smolvla_env.sh installs lerobot==0.5.1 from PyPI
 # and does NOT need to call this script.
 set -euo pipefail
 

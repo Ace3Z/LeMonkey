@@ -9,9 +9,9 @@
 # zero-padded via the policy's empty_cameras=1 setting.
 #
 # Usage (run with the `lemonkey` conda env active, from anywhere in the repo):
-#   ./run_rollout_smolvla_broad.sh                      # default = root (final 25k)
-#   ./run_rollout_smolvla_broad.sh checkpoints/020000   # an earlier checkpoint
-#   ./run_rollout_smolvla_broad.sh /local/dir           # a custom local pretrained dir
+#   ./eval_3/scripts/rollout/smolvla_broad.sh                      # default = root (final 25k)
+#   ./eval_3/scripts/rollout/smolvla_broad.sh checkpoints/020000   # an earlier checkpoint
+#   ./eval_3/scripts/rollout/smolvla_broad.sh /local/dir           # a custom local pretrained dir
 set -euo pipefail
 
 REPO_ID="HBOrtiz/so101_smolvla_eval3_broad"

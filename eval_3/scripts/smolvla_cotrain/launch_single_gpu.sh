@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# SmolVLA + VL co-train launch - single-node AWS / Brev / generic CUDA box.
+# SmolVLA + VL co-train launch - single-node AWS / Brev / Lambda / generic CUDA box.
 #
 # Override any value via env vars before invoking, e.g.:
 #   VL_RATIO=5 STEPS=20000 PUSH_REPO=HBOrtiz/my_run bash launch_single_gpu.sh

@@ -19,10 +19,10 @@
 # matches training-time naming.
 #
 # Usage:
-#   ./run_rollout_pi05_vl_cotrain.sh                       # default revision: main
-#   ./run_rollout_pi05_vl_cotrain.sh main                  # explicit main branch
-#   ./run_rollout_pi05_vl_cotrain.sh <commit-sha>          # pin to a specific HF revision
-#   ./run_rollout_pi05_vl_cotrain.sh /path/to/pretrained   # local pretrained_model dir
+#   ./eval_3/scripts/rollout/pi05_vl_cotrain.sh                       # default revision: main
+#   ./eval_3/scripts/rollout/pi05_vl_cotrain.sh main                  # explicit main branch
+#   ./eval_3/scripts/rollout/pi05_vl_cotrain.sh <commit-sha>          # pin to a specific HF revision
+#   ./eval_3/scripts/rollout/pi05_vl_cotrain.sh /path/to/pretrained   # local pretrained_model dir
 #
 # Trained celebs: 192 from the scraped bank + 3 IID (Swift/Obama/LeCun).
 # Recommended prompt: 'Place the can on the photo of <Name>.' or

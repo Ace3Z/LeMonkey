@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
-# Brev-side env setup for Pi0.5 (Pi0.5 + LoRA).
+# VM-side env setup for Pi0.5 (Pi0.5 + LoRA).
 #
-# Differs from scripts/brev_setup_smolvla.sh: that script installed
+# Differs from scripts/setup_smolvla_env.sh: that script installed
 # `lerobot[smolvla]==0.5.1` from PyPI; Pi0.5 needs Pi0.5 + PEFT support
 # which we have in the vendored fork at third_party/lerobot/. So this
 # script does `pip install -e third_party/lerobot[smolvla,pi]` instead.
 #
-# Idempotent. Run on Brev after rsync.
+# Idempotent. Run on the training VM after `sync_to_vm.sh`.
 set -euo pipefail
 
 ENV_NAME=lemonkey
@@ -89,7 +89,7 @@ echo
 echo "=== HF auth ==="
 TOKEN_FILE="$REPO_ROOT/secrets/huggingface/token_hbortiz"
 if [ ! -f "$TOKEN_FILE" ]; then
-  echo "[WARN] token file missing: $TOKEN_FILE - re-run sync_to_brev.sh from dev box"
+  echo "[WARN] token file missing: $TOKEN_FILE - re-run sync_to_vm.sh from dev box"
 else
   if hf auth whoami >/dev/null 2>&1; then
     echo "  [OK] already logged in: $(hf auth whoami 2>&1 | head -1)"
@@ -105,4 +105,4 @@ echo "=== Pi0.5 setup complete ==="
 echo "  Activate in new shell:"
 echo "    source ~/miniconda3/etc/profile.d/conda.sh && conda activate $ENV_NAME"
 echo "  Launch training:"
-echo "    cd ~/LeMonkey && bash eval_3/scripts/brev/train_pi05.sh"
+echo "    cd ~/LeMonkey && bash eval_3/scripts/training_vm/train_pi05.sh"

@@ -82,7 +82,7 @@ python3 eval_3/scripts/pi05_vl_cotrain/build_keep_list_and_weights.py \
 
 # Summary.
 echo
-echo "==> Done. Artifacts ready for Brev launch:"
+echo "==> Done. Artifacts ready for training-VM launch:"
 echo "    - $AUDIT_PARQUET"
 echo "    - eval_3/scripts/pi05_vl_cotrain/keep_episodes.txt"
 echo "    - eval_3/scripts/pi05_vl_cotrain/hardneg_weights.npy"
@@ -90,4 +90,4 @@ echo "    - eval_3/scripts/pi05_vl_cotrain/build_keep_list_summary.json"
 echo
 echo "==> Next: the Pi0.5 + VL cotrain wrapper is a scaffold only"
 echo "    (eval_3/scripts/pi05_vl_cotrain/train_pi05_vl_cotrain_scaffold.py)."
-echo "    The deployed Pi0.5 checkpoint was produced by eval_3/scripts/brev/train_pi05.sh."
+echo "    The deployed Pi0.5 checkpoint was produced by eval_3/scripts/training_vm/train_pi05.sh."

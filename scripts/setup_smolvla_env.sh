@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Bootstrap script for a fresh Brev H100 instance.
+# Bootstrap script for a fresh GPU host (e.g. AWS / Lambda / RunPod / Brev H100).
 # Idempotent - safe to re-run. Logs every fallback per the no-silent-fallbacks rule.
 #
 # What it does:
@@ -8,8 +8,8 @@
 #   3. pip install lerobot[smolvla] + a couple of tiny extras we need
 #   4. Verify imports + GPU
 #
-# Run on the Brev VM after rsync:
-#   bash ~/LeMonkey/scripts/brev_setup_smolvla.sh
+# Run on the training VM after rsync:
+#   bash ~/LeMonkey/scripts/setup_smolvla_env.sh
 set -euo pipefail
 
 # ─── 0. Sanity: must be on a CUDA host ───────────────────────────────────────
@@ -85,7 +85,7 @@ esac
 # lerobot==0.5.1 is the deployed version. DON'T use the
 # third_party/lerobot submodule in this repo - it's missing
 # `lerobot.datasets` and friends. For Eval 3 Pi0.5, install the vendored
-# fork via eval_3/scripts/brev/setup_pi05.sh instead of this script.
+# fork via eval_3/scripts/training_vm/setup_pi05.sh instead of this script.
 echo "=== pip install lerobot[smolvla]==0.5.1 ==="
 pip install --quiet --upgrade pip
 pip install --quiet 'lerobot[smolvla]==0.5.1' 2>&1 | tail -5

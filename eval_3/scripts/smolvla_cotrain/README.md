@@ -5,7 +5,7 @@ This is the trainer that produced the two SmolVLA models deployed on Eval 3 day:
 | HF repo | Recipe | Launcher |
 |---|---|---|
 | [`HBOrtiz/so101_smolvla_eval3_cotrain`](https://huggingface.co/HBOrtiz/so101_smolvla_eval3_cotrain) | 5:1 robot:VL, 3 in-distribution celebrities | `launch_single_gpu.sh` or `launch_multi_gpu.sh` |
-| [`HBOrtiz/so101_smolvla_eval3_broad`](https://huggingface.co/HBOrtiz/so101_smolvla_eval3_broad) | 10:1 robot:VL, 192 celebrities | `eval_3/scripts/brev/train_smolvla_broad.sh` |
+| [`HBOrtiz/so101_smolvla_eval3_broad`](https://huggingface.co/HBOrtiz/so101_smolvla_eval3_broad) | 10:1 robot:VL, 192 celebrities | `eval_3/scripts/training_vm/train_smolvla_broad.sh` |
 
 Both are SmolVLA-450M from `lerobot/smolvla_base` with the SmolVLM2 backbone trainable and SigLIP frozen.
 

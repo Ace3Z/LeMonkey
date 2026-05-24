@@ -13,10 +13,10 @@ bash third_party/lerobot_patches/apply.sh
 ```
 
 `apply.sh` is idempotent (it checks for the patched markers before
-applying). The Eval 3 setup scripts under `eval_3/scripts/brev/` and
+applying). The Eval 3 setup scripts under `eval_3/scripts/training_vm/` and
 `eval_3/scripts/smolvla_cotrain/setup_env.sh` invoke it automatically
 after `pip install -e third_party/lerobot[...]`. (The shared
-`scripts/brev_setup_smolvla.sh` installs lerobot from PyPI and does
+`scripts/setup_smolvla_env.sh` installs lerobot from PyPI and does
 NOT need these patches.)
 
 ## Patch 1: `01-groot-skip-strict.patch`

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Pi0.5 (PaliGemma-2B + Gemma-300M expert) via LoRA fine-tune on Brev RTX PRO 6000 Blackwell.
+# Pi0.5 (PaliGemma-2B + Gemma-300M expert) via LoRA fine-tune on an RTX PRO 6000 Blackwell host.
 #
 # PRE-FLIGHT (must be true before running this):
 #   1. Quantile stats recomputed on the merged dataset:
@@ -12,7 +12,7 @@
 #        python eval_3/scripts/data/push_dataset_to_hf.py \
 #            --local $HOME/LeMonkey/datasets/eval3_cotrain_merged \
 #            --repo HBOrtiz/so101_eval3_cotrain
-#   3. Brev VM has the conda 'lemonkey' env + this repo synced.
+#   3. training VM has the conda 'lemonkey' env + this repo synced.
 
 set -euo pipefail
 

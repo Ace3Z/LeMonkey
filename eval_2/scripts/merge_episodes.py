@@ -8,7 +8,7 @@ The 180 per-episode dirs each look like:
 After merge, the merged dataset lives at:
   ~/LeMonkey/datasets/eval2_merged/
 
-Use that single root when training on Brev — much simpler than 180 inputs.
+Use that single root when training on the training VM — much simpler than 180 inputs.
 
 Usage:
     merge_episodes.py                     # default paths

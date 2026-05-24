@@ -4,12 +4,12 @@
 # checkpoint events, cyan = the periodic % progress line.
 #
 # Usage:
-#   bash scripts/brev/follow_training.sh /path/to/lerobot-train.log
+#   bash scripts/training_vm/follow_training.sh /path/to/lerobot-train.log
 #
 # Or:
-#   LOG=/path/to/file.log bash scripts/brev/follow_training.sh
+#   LOG=/path/to/file.log bash scripts/training_vm/follow_training.sh
 #
-# This is the shared launcher invoked by each eval's brev README. The eval-
+# This is the shared launcher invoked by each eval's training_vm README. The eval-
 # specific defaults (log filename, systemd unit, checkpoint dir) live next
 # to the README that documents them; this script takes them as a CLI arg.
 set -u

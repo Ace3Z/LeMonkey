@@ -9,9 +9,9 @@
 # The HF repo nests checkpoints under step_NNNNNN/ (5k…45k).
 #
 # Usage (run with the `lemonkey` conda env active, from anywhere in the repo):
-#   ./run_rollout_smolvla_cotrain.sh                 # default step_045000
-#   ./run_rollout_smolvla_cotrain.sh step_020000     # an earlier checkpoint
-#   ./run_rollout_smolvla_cotrain.sh /local/dir      # a custom local pretrained dir
+#   ./eval_3/scripts/rollout/smolvla_cotrain.sh                 # default step_045000
+#   ./eval_3/scripts/rollout/smolvla_cotrain.sh step_020000     # an earlier checkpoint
+#   ./eval_3/scripts/rollout/smolvla_cotrain.sh /local/dir      # a custom local pretrained dir
 set -euo pipefail
 
 REPO_ID="HBOrtiz/so101_smolvla_eval3_cotrain"

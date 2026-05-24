@@ -125,11 +125,11 @@ Everything runs in one conda environment, `lemonkey` (Python 3.12, PyTorch CUDA 
 ```bash
 git clone https://github.com/Ace3Z/LeMonkey.git
 cd LeMonkey
-bash scripts/brev_setup_smolvla.sh     # canonical env recipe: miniconda, lerobot 0.5.1, ffmpeg
+bash scripts/setup_smolvla_env.sh     # canonical env recipe: miniconda, lerobot 0.5.1, ffmpeg
 conda activate lemonkey
 ```
 
-`brev_setup_smolvla.sh` is written for a fresh NVIDIA Brev training VM, but the package set is the same on a laptop. On a consumer GPU also install: `feetech-servo-sdk`, `rerun-sdk==0.26.2`, `peft==0.19.1`, and `opencv-python` (not the `-headless` build). Eval 3 Pi0.5 needs the vendored-lerobot variant under [`eval_3/scripts/brev/setup_pi05.sh`](eval_3/scripts/brev/setup_pi05.sh) instead.
+`setup_smolvla_env.sh` is written for a fresh GPU host (Brev, Lambda, RunPod, etc.), but the package set is the same on a laptop. On a consumer GPU also install: `feetech-servo-sdk`, `rerun-sdk==0.26.2`, `peft==0.19.1`, and `opencv-python` (not the `-headless` build). Eval 3 Pi0.5 needs the vendored-lerobot variant under [`eval_3/scripts/training_vm/setup_pi05.sh`](eval_3/scripts/training_vm/setup_pi05.sh) instead.
 
 ### 2. Authenticate with Hugging Face
 
@@ -206,13 +206,13 @@ LeMonkey/
 │   │   ├── smolvla_cotrain/     SmolVLA co-training trainer (deployed)
 │   │   ├── pi05_vl_cotrain/     Pi0.5 + VL bbox-grounded VQA cotrain (published variant)
 │   │   ├── warmstart/           PaliGemma VQA warm-start (init for Pi0.5)
-│   │   └── brev/                Brev-VM training entrypoints (all four recipes)
+│   │   └── training_vm/         training-VM entrypoints (env setup, sync, trainers, warmstart)
 │   └── tools/                   dataset-verification tooling
 ├── scripts/                     shared, non-eval-specific scripts
 │   ├── auto_home.py                arm-home capture / drive helper for rollouts
 │   ├── rest_arms.py                release SO-101 follower + leader torque
-│   ├── brev_setup_smolvla.sh       Brev VM bootstrap (miniconda + lerobot 0.5.1 PyPI)
-│   └── brev/                       training-VM systemd wrap + log tail + status (eval-agnostic; driven by env vars)
+│   ├── setup_smolvla_env.sh        training-VM bootstrap (miniconda + lerobot 0.5.1 PyPI)
+│   └── training_vm/                systemd wrap + log tail + status (eval-agnostic; driven by env vars)
 ├── calibration/                 per-arm SO-101 calibration JSONs
 ├── media/                       logos (figures/) and demo GIFs (gifs/)
 └── third_party/lerobot/         LeRobot framework as a git submodule
@@ -226,7 +226,7 @@ Per-eval `train/`, `rollouts/`, `evals/`, and `state/` folders stay local (check
 
 - **Robot:** SO-101 6-DOF arm (follower plus leader for teleop), USB overhead camera (mounted above the workspace, looking down) at 640x480, 30 fps.
 - **Inference:** any NVIDIA GPU with at least 6 GB of VRAM. A laptop GPU is enough, since SmolVLA-450M is small.
-- **Training:** an NVIDIA Brev H100 or RTX PRO 6000, or a local RTX 5090. A 25k to 45k step run takes a few hours.
+- **Training:** an NVIDIA H100 or RTX PRO 6000, or a local RTX 5090. A 25k to 45k step run takes a few hours.
 
 ---
 

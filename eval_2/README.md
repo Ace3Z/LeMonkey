@@ -102,10 +102,10 @@ the prompt and target bowl, and records one 20 s teleop episode per step.
 ## Training pipeline
 
 `scripts/merge_episodes.py` merges the 180 per-episode directories into one
-LeRobot v3 dataset, which is then trained on a Brev GPU VM. The eval-2
-specific recipe lives in `scripts/brev/run_training.sh`; the systemd-wrap
+LeRobot v3 dataset, which is then trained on a cloud GPU VM. The eval-2
+specific recipe lives in `scripts/training_vm/run_training.sh`; the systemd-wrap
 launcher, log tail, and status snapshot are the shared scripts under
-[`../scripts/brev/`](../scripts/brev/) (driven via env vars, see that dir's
+[`../scripts/training_vm/`](../scripts/training_vm/) (driven via env vars, see that dir's
 docstrings). Key settings: from `lerobot/smolvla_base`, batch size 192,
 25k steps, colour-jitter augmentation only, `empty_cameras=2` to zero-pad
 the unused camera slots.
@@ -115,11 +115,11 @@ To start a training run:
 ```bash
 UNIT=lerobot-train-eval2 \
 DESCRIPTION="LeRobot SmolVLA Eval 2 training (compositional, 180 ep)" \
-TRAIN_SCRIPT=$PWD/eval_2/scripts/brev/run_training.sh \
+TRAIN_SCRIPT=$PWD/eval_2/scripts/training_vm/run_training.sh \
 LOG_FILE=$HOME/outputs/train/so101_smolvla_eval2.log \
-    bash scripts/brev/start_training.sh
+    bash scripts/training_vm/start_training.sh
 
-bash scripts/brev/follow_training.sh $HOME/outputs/train/so101_smolvla_eval2.log
+bash scripts/training_vm/follow_training.sh $HOME/outputs/train/so101_smolvla_eval2.log
 ```
 
 ## Layout
@@ -133,8 +133,8 @@ eval_2/
 │   ├── run_rollout_structured.py   script-picked arrangement + sampled prompt loop
 │   ├── run_rollout_freeplay.py     fixed arrangement + sampled prompt loop
 │   ├── filter_prompt.py            strips OOD "from the robot perspective" qualifier
-│   └── brev/run_training.sh        eval-2 specific lerobot-train invocation
-│                                   (systemd wrap + log tail + status: ../../scripts/brev/)
+│   └── training_vm/run_training.sh eval-2 specific lerobot-train invocation
+│                                   (systemd wrap + log tail + status: ../../scripts/training_vm/)
 ├── state/                          plan.json, persistent recording state (gitignored)
 ├── train/                          model checkpoints (gitignored)
 ├── rollouts/                       per-rollout dataset dumps (gitignored)

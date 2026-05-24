@@ -11,7 +11,7 @@ Why a warm-start: PaliGemma's WebLI pretrain was DLP-filtered - celebrity faces 
 | `prepare_vggface2_vqa.py` | Builds a VQA parquet from a VGGFace2 raw directory - one row per (identity, photo) pair with `image_path`, prompt `"<image>Who is the person in this image?"`, target name, identity id. |
 | `train_paligemma_vqa.py` | LoRA fine-tune (r=32, alpha=64, dropout=0.05) on PaliGemma's `q/k/v/o + gate/up/down` projections inside `lerobot/pi05_base`. Freezes vision_tower, multi_modal_projector, lm_head, and the whole Gemma-300M action expert. Pushes the merged adapter as a Pi0.5 checkpoint. |
 
-The Brev-side launcher is [`../brev/train_paligemma_warmstart.sh`](../brev/train_paligemma_warmstart.sh).
+The training-VM launcher is [`../training_vm/train_paligemma_warmstart.sh`](../training_vm/train_paligemma_warmstart.sh).
 
 ## Build the manifest (one-time)
 
@@ -23,13 +23,13 @@ python eval_3/scripts/warmstart/prepare_vggface2_vqa.py \
 
 Schema: `image_path`, `prompt`, `target`, `identity_id`.
 
-## Train (on a Brev H100 80 GB)
+## Train (on a H100 80 GB host)
 
 ```bash
-ssh <brev-host>
+ssh <vm-host>
 cd ~/LeMonkey
-bash eval_3/scripts/brev/setup_paligemma_warmstart.sh   # idempotent env install
-nohup bash eval_3/scripts/brev/train_paligemma_warmstart.sh \
+bash eval_3/scripts/training_vm/setup_paligemma_warmstart.sh   # idempotent env install
+nohup bash eval_3/scripts/training_vm/train_paligemma_warmstart.sh \
     > ~/outputs/paligemma_warm.log 2>&1 &
 ```
 

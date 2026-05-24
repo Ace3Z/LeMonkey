@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Sync code + dataset to a fresh Brev VM. Run from the dev box.
+# Sync code + dataset to a fresh training VM. Run from the dev box.
 #
 # What gets synced:
 #   - the LeMonkey git repo (excluding heavy artefacts: third_party/sam2,
@@ -8,15 +8,15 @@
 #   - the HBOrtiz HF token so the policy push at end-of-training works
 #
 # Usage:
-#   eval_3/scripts/brev/sync_to_brev.sh user@<vm-host>:~/LeMonkey
+#   eval_3/scripts/training_vm/sync_to_vm.sh user@<vm-host>:~/LeMonkey
 #
-# Tested on Brev/Shadeform/generic CUDA VMs.
+# Tested on the training VM / Shadeform / generic CUDA VMs.
 #
 # After sync, on the VM:
-#   bash ~/LeMonkey/eval_3/scripts/brev/setup_pi05.sh        # idempotent env install for Pi0.5
-#   # or: bash ~/LeMonkey/eval_3/scripts/brev/setup_paligemma_warmstart.sh   # for the PaliGemma warm-start path
-#   # launch training via the shared systemd-wrap launcher (see eval_3/scripts/brev/README.md for the full invocation):
-#   UNIT=lerobot-train-eval3 TRAIN_SCRIPT=~/LeMonkey/eval_3/scripts/brev/train_pi05.sh ... bash ~/LeMonkey/scripts/brev/start_training.sh
+#   bash ~/LeMonkey/eval_3/scripts/training_vm/setup_pi05.sh        # idempotent env install for Pi0.5
+#   # or: bash ~/LeMonkey/eval_3/scripts/training_vm/setup_paligemma_warmstart.sh   # for the PaliGemma warm-start path
+#   # launch training via the shared systemd-wrap launcher (see eval_3/scripts/training_vm/README.md for the full invocation):
+#   UNIT=lerobot-train-eval3 TRAIN_SCRIPT=~/LeMonkey/eval_3/scripts/training_vm/train_pi05.sh ... bash ~/LeMonkey/scripts/training_vm/start_training.sh
 set -euo pipefail
 
 if [ "$#" -lt 1 ]; then
@@ -64,5 +64,5 @@ echo
 echo "==> sync complete."
 echo
 echo "Next steps on the VM:"
-echo "  bash ~/LeMonkey/eval_3/scripts/brev/setup_pi05.sh   # or setup_paligemma_warmstart.sh"
-echo "  # then launch training via the shared launcher; see eval_3/scripts/brev/README.md for the full env-var invocation."
+echo "  bash ~/LeMonkey/eval_3/scripts/training_vm/setup_pi05.sh   # or setup_paligemma_warmstart.sh"
+echo "  # then launch training via the shared launcher; see eval_3/scripts/training_vm/README.md for the full env-var invocation."

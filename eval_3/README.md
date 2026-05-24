@@ -355,7 +355,7 @@ The two deployed variants use different LoRA hyperparameters:
 | Variant | Target modules | Layers | rank $r$ | $\alpha$ | dropout |
 |---|---|---|---|---|---|
 | **SmolVLA cotrain** ([`lora_smolvla.py`](scripts/smolvla_cotrain/lora_smolvla.py)) | `q_proj, k_proj, v_proj, o_proj` (attention only) | $[9, 10, \ldots, 15]$ | 16 | 32 | 0 |
-| **Pi0.5 cotrain** ([`scripts/brev/train_pi05.sh`](scripts/brev/train_pi05.sh) + [`scripts/pi05_vl_cotrain/precomputed/layer_rank.json`](scripts/pi05_vl_cotrain/precomputed/layer_rank.json)) | `q_proj, k_proj, v_proj, o_proj, gate_proj, up_proj, down_proj` (full Gemma block) | $[0, 1, \ldots, 17]$ all 18 layers, per-layer rank | 16 to 64 per layer (uniform fallback: 32) | 64 | 0.05 |
+| **Pi0.5 cotrain** ([`scripts/training_vm/train_pi05.sh`](scripts/training_vm/train_pi05.sh) + [`scripts/pi05_vl_cotrain/precomputed/layer_rank.json`](scripts/pi05_vl_cotrain/precomputed/layer_rank.json)) | `q_proj, k_proj, v_proj, o_proj, gate_proj, up_proj, down_proj` (full Gemma block) | $[0, 1, \ldots, 17]$ all 18 layers, per-layer rank | 16 to 64 per layer (uniform fallback: 32) | 64 | 0.05 |
 
 The Pi0.5 per-layer rank profile concentrates capacity in the
 face-discrimination zone of PaliGemma's Gemma-2B tower
@@ -444,7 +444,7 @@ for three reasons:
 A Pi0.5 reference variant was trained
 ([`HBOrtiz/so101_pi05_eval3`](https://huggingface.co/HBOrtiz/so101_pi05_eval3))
 via a PaliGemma VQA warm-start ([`scripts/warmstart/`](scripts/warmstart/))
-plus a Pi0.5 LoRA fine-tune ([`scripts/brev/train_pi05.sh`](scripts/brev/train_pi05.sh))
+plus a Pi0.5 LoRA fine-tune ([`scripts/training_vm/train_pi05.sh`](scripts/training_vm/train_pi05.sh))
 and is published for reproducibility, but the two deployed eval-day policies
 are both SmolVLA.
 
@@ -539,7 +539,7 @@ eval_3/
 │   ├── smolvla_cotrain/     deployed SmolVLA cotrain trainer
 │   ├── pi05_vl_cotrain/     Pi0.5 + VL cotrain (published variant)
 │   ├── warmstart/           PaliGemma VQA warm-start (init for Pi0.5)
-│   └── brev/                cloud-VM (Brev) launcher kit
+│   └── training_vm/         training-VM launcher kit
 ├── tools/                dataset-verification renderers
 └── train/, rollouts/, state/   gitignored: checkpoints, recordings, state
 ```
