@@ -123,14 +123,13 @@ exhaustively enumerates every permutation of:
 
 $$
 \underbrace{3}_{\text{target celeb}}
-\;\times\;
+\times
 \underbrace{8}_{\text{target photos per celeb}}
-\;\times\;
+\times
 \underbrace{6}_{\text{slot layouts (3!)}}
-\;\times\;
+\times
 \underbrace{8 \times 8}_{\text{distractor-photo combos}}
-\;=\;
-9{,}216 \text{ variants}
+= 9{,}216 \text{ variants}
 $$
 
 Plus the 178 base teleops, that gives **9,394 episodes / 5.05 M frames**
