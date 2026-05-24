@@ -71,10 +71,12 @@ import torch.distributed as dist
 import torch.nn.functional as F
 from torch.utils.data import DataLoader, Dataset, DistributedSampler, Subset
 
-# LoRA + KLAL helpers live in eval_3/aug/training/. Add to path so the bare
-# `import klal_*` / `import lora_*` statements resolve regardless of CWD.
-REPO_ROOT = Path(__file__).resolve().parents[3]
-sys.path.insert(0, str(REPO_ROOT / "eval_3/aug/training"))
+# LoRA + KLAL helpers (`klal_core`, `klal_smolvla_*`, `lora_smolvla`) sit next
+# to this trainer. Python's script-mode auto-adds this dir to sys.path, so the
+# bare `import klal_*` / `import lora_*` statements below resolve without any
+# manual sys.path surgery. When run as a module (`python -m`) we still want
+# absolute resolution; explicitly insert this file's dir to cover that case.
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 
 # -----------------------------------------------------------------------------

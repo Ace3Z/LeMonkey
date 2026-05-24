@@ -312,8 +312,8 @@ $\sim \mathcal{L}_\text{action} + (1 / r_{\text{vl}}) \cdot (\mathcal{L}_\text{V
 The WACV 2026 paper builds $P_\text{target}$ from the bbox's **centre line of
 patches** (tuned for elongated RefCOCO objects). For a compact face bbox we
 use a **2-D isotropic Gaussian on the bbox centroid** instead. See
-[`eval_3/aug/training/klal_core.py`](aug/training/klal_core.py) function
-`gaussian_target_from_mask`.
+[`scripts/smolvla_cotrain/klal_core.py`](scripts/smolvla_cotrain/klal_core.py)
+function `gaussian_target_from_mask`.
 
 <div align="center">
 <img src="../media/figures/aug/klal_target_construction.png" width="780" alt="KLAL target construction on a real episode: bbox highlighted, isotropic 2D Gaussian, downsampled to 8x8 patch grid"/>
@@ -354,7 +354,7 @@ The two deployed variants use different LoRA hyperparameters:
 
 | Variant | Target modules | Layers | rank $r$ | $\alpha$ | dropout |
 |---|---|---|---|---|---|
-| **SmolVLA cotrain** ([`lora_smolvla.py`](aug/training/lora_smolvla.py)) | `q_proj, k_proj, v_proj, o_proj` (attention only) | $[9, 10, \ldots, 15]$ | 16 | 32 | 0 |
+| **SmolVLA cotrain** ([`lora_smolvla.py`](scripts/smolvla_cotrain/lora_smolvla.py)) | `q_proj, k_proj, v_proj, o_proj` (attention only) | $[9, 10, \ldots, 15]$ | 16 | 32 | 0 |
 | **Pi0.5 cotrain** ([`scripts/brev/train_pi05.sh`](scripts/brev/train_pi05.sh) + [`scripts/pi05_vl_cotrain/precomputed/layer_rank.json`](scripts/pi05_vl_cotrain/precomputed/layer_rank.json)) | `q_proj, k_proj, v_proj, o_proj, gate_proj, up_proj, down_proj` (full Gemma block) | $[0, 1, \ldots, 17]$ all 18 layers, per-layer rank | 16 to 64 per layer (uniform fallback: 32) | 64 | 0.05 |
 
 The Pi0.5 per-layer rank profile concentrates capacity in the
@@ -376,7 +376,7 @@ were frozen (as they are under SmolVLA's `train_expert_only=True` default),
 KLAL would back-propagate into frozen weights and learn nothing. The
 `LoRAConfig.layers` set must therefore be a superset of the KLAL-supervised
 layers; this is the caller's responsibility (see the docstring note in
-[`lora_smolvla.py`](aug/training/lora_smolvla.py)).
+[`lora_smolvla.py`](scripts/smolvla_cotrain/lora_smolvla.py)).
 
 ### Putting it together
 

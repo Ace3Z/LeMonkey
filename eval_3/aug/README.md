@@ -1,7 +1,7 @@
 # Augmentation pipeline
 
-The identity-preserving augmentation pipeline + training-time loss/adapter
-modules that produced the deployed Eval 3 SmolVLA policies
+The identity-preserving augmentation pipeline that produced the deployed
+Eval 3 SmolVLA policies
 ([`HBOrtiz/so101_smolvla_eval3_cotrain`](https://huggingface.co/HBOrtiz/so101_smolvla_eval3_cotrain),
 [`...eval3_broad`](https://huggingface.co/HBOrtiz/so101_smolvla_eval3_broad),
 [`...eval3_cotrain_klal`](https://huggingface.co/HBOrtiz/so101_smolvla_eval3_cotrain_klal)).
@@ -14,14 +14,16 @@ automatically alongside. Co-training SmolVLA on both streams installs the
 celebrity knowledge into the policy weights themselves.
 
 For the task description, deployed models, and the cotrain + KLAL + LoRA
-write-up, see [`eval_3/README.md`](../README.md).
+write-up, see [`eval_3/README.md`](../README.md). The training-side
+modules that consume the output of this pipeline (KLAL loss, LoRA adapter,
+SmolVLA cotrain trainer) live under
+[`eval_3/scripts/smolvla_cotrain/`](../scripts/smolvla_cotrain/).
 
 - [End-to-end pipeline](#end-to-end-pipeline)
 - [Stage 1: Mining the celebrity bank](#stage-1-mining-the-celebrity-bank)
 - [Stage 2: Detect the 3 portraits + track occluders](#stage-2-detect-the-3-portraits--track-occluders)
 - [Stage 3: Sub-pixel paper-quad refinement](#stage-3-sub-pixel-paper-quad-refinement)
 - [Stage 4: Identity-preserving inpainting](#stage-4-identity-preserving-inpainting)
-- [Training-time modules: KLAL and LoRA](#training-time-modules-klal-and-lora)
 - [File layout](#file-layout)
 - [References](#references)
 
@@ -57,17 +59,18 @@ flowchart TB
 | **4.** Render inpainted variant | augmented MP4 with new celebrity faces | once **per (episode, variant)** pair | [`stages/inpaint_video.py`](stages/inpaint_video.py) |
 
 Read sequentially: Stages 1, 2a, 2b, 3 prepare; Stage 4 renders. The
-dataset half lives under `eval_3/aug/`; the training half is
-[`eval_3/scripts/smolvla_cotrain/`](../scripts/smolvla_cotrain/) with the
-loss + adapter modules consumed from [`training/`](training/).
+training-side modules that consume what this pipeline emits (KLAL loss,
+LoRA adapter, the cotrain trainer itself) all live under
+[`eval_3/scripts/smolvla_cotrain/`](../scripts/smolvla_cotrain/).
 
 ---
 
 ## Stage 1: Mining the celebrity bank
 
-**Module**: [`mining/mine_celeb_photos.py`](mining/mine_celeb_photos.py)
-(legacy 3-IID-celeb path) and [`scripts/celebs/scrape_headshots.py`](../scripts/celebs/scrape_headshots.py)
-(deployed 192-celebrity bank).
+**Module**: [`scripts/celebs/scrape_headshots.py`](../scripts/celebs/scrape_headshots.py)
+(deployed 192-celebrity bank) and [`scripts/celebs/mine_celeb_photos.py`](../scripts/celebs/mine_celeb_photos.py)
+(legacy 3-IID-celeb path). Both feed the same photo-bank format consumed
+by Stage 4.
 
 The scraper is a cascade with one design principle: every photo that ends up
 in the bank must pass an InsightFace + ArcFace identity check against a
@@ -400,83 +403,14 @@ operator subtracts the occluder mask (a SAM 2 video-predictor track from
 the gripper-can-hand seed) from the inpaint mask, so the original frame
 pixels show through where they should.
 
----
-
-## Training-time modules: KLAL and LoRA
-
-These are not part of the dataset-building pipeline; they live under
-[`training/`](training/) and are imported by the SmolVLA cotrain trainer at
-[`eval_3/scripts/smolvla_cotrain/cotrain.py`](../scripts/smolvla_cotrain/cotrain.py).
-The full math, motivation, and integration details are in the
-[Eval 3 README](../README.md#our-training-approach-co-training--klal--lora);
-this section is the module-level summary.
-
-### KLAL hooksets
-
-The KL Attention Loss from [WACV 2026](https://arxiv.org/abs/2511.12738)
-(Wu et al., 2026) supervises the model's attention from name-tokens to
-image-patches against a Gaussian target built from the known portrait
-bbox.
-
-| File | Forward path |
-|---|---|
-| [`training/klal_core.py`](training/klal_core.py) | Model-agnostic loss + target + Pi0.5/PaliGemma hookset. |
-| [`training/klal_smolvla_action.py`](training/klal_smolvla_action.py) | SmolVLA action-forward hookset. |
-| [`training/klal_smolvla_vl.py`](training/klal_smolvla_vl.py) | SmolVLA VL-forward hookset (deployed under `enable_klal=True`). |
-
-#### Formulation recap
-
-For each monitored layer $\ell \in \mathcal{L}$ the attention from name
-tokens to image patches is recomputed (RoPE applied) and the loss is
-
-$$
-\mathcal{L}_\text{KLAL} = \frac{1}{|\mathcal{L}|} \sum_{\ell \in \mathcal{L}} \mathrm{KL}\bigl( P_\text{target}(\mathcal{S}) \mathrel{\Vert} Q^{(\ell)}(\mathcal{S}) \bigr)
-$$
-
-with $P_\text{target}$ an isotropic 2-D Gaussian on the bbox centroid (our
-deviation from the WACV 2026 paper, which uses an elongated target tuned
-for RefCOCO). See [`klal_core.py`](training/klal_core.py) module docstring
-for the full derivation.
-
-<div align="center">
-<img src="../../media/figures/aug/klal_target_construction.png" width="780" alt="KLAL target construction: input frame with the prompted target bbox highlighted in green; 2D Gaussian centered on the target bbox centroid; the same Gaussian downsampled to the VLM's 8x8 patch grid (the actual P_target the loss compares against)"/>
-</div>
-
-Panel A is the overhead-cam frame 0 with the three portrait quads (green is
-the prompted target, red are distractors). Panel B is the per-pixel
-isotropic Gaussian centered on the target centroid with standard
-deviations scaled to the bbox extents. Panel C downsamples that Gaussian
-to the 8x8 patch grid SmolVLM2 actually receives, normalised to a
-probability distribution. This grid is $P_\text{target}(\mathcal{S})$; the
-loss compares the model's softmax attention $Q^{(\ell)}(\mathcal{S})$
-against it via KL divergence.
-
-### LoRA
-
-[`training/lora_smolvla.py`](training/lora_smolvla.py) is a minimal
-LoRA implementation ([Hu et al., 2021](https://arxiv.org/abs/2106.09685))
-that wraps each `nn.Linear` in `q_proj, k_proj, v_proj, o_proj` with a
-trainable low-rank delta:
-
-$$
-y = W_0 x + \frac{\alpha}{r} \cdot B A x
-$$
-
-with $A \in \mathbb{R}^{r \times d_\text{in}}$ Kaiming-initialised,
-$B \in \mathbb{R}^{d_\text{out} \times r}$ zero-initialised, and the
-base linear frozen. We use $r = 16, \alpha = 32$ on layers $[9..15]$ of
-SmolVLM2's text model. The LoRA delta is **merged into the base weights at
-checkpoint time** so the published policy loads as a vanilla
-`SmolVLAPolicy` with no extra inference dependency. Figure 1 of the LoRA
-paper gives the canonical visualisation of the rank-decomposition
-parameterisation.
-
-LoRA is required for KLAL to do anything: KLAL supervises the attention
-computed from $q_\ell, k_\ell$ at layers $\ell \in \mathcal{L}_\text{KLAL}$.
-If those projections were frozen (as they are under SmolVLA's
-`train_expert_only=True` default), KLAL would back-propagate into frozen
-weights and learn nothing. The LoRA layer set must therefore be a superset
-of the KLAL-supervised layers (caller's responsibility).
+> [!NOTE]
+> **The training-side modules that consume this pipeline (KLAL loss, LoRA
+> adapter) used to live at `eval_3/aug/training/`. They've moved to
+> [`eval_3/scripts/smolvla_cotrain/`](../scripts/smolvla_cotrain/)** because
+> they have nothing to do with augmentation: they patch the policy at
+> training time, not the data. Their write-up (formulation, target
+> construction, integration) lives in the parent
+> [Eval 3 README](../README.md#our-training-approach-co-training--klal--lora).
 
 ---
 
@@ -493,41 +427,35 @@ eval_3/aug/
 │   ├── inpaint_video.py                composite engine (Lanczos warp + MTF blur + alpha-feather)
 │   └── video_io.py                     AV1 -> H.264 sidecar transcode + frame iterators
 │
-├── mining/
-│   └── mine_celeb_photos.py            Wikimedia + icrawler scrape + ArcFace verifier
-│
 ├── generators/                         variant dataset builders (call into stages/)
 │   ├── broad.py                        192-celeb out-of-distribution generator
 │   ├── broad_topup.py                   patch run for celebs missed by broad.py
 │   ├── cotrain.py                      3-IID-celeb full-enumeration generator
 │   └── build_cotrain_bank.py           8-photo-per-celeb bank for cotrain.py
 │
-├── merge_prep/                         post-augmentation LeRobotDataset fixups
-│   ├── prep_for_merge.py
-│   ├── patch_episodes_parquet.py
-│   ├── relabel_cotrain_prompts.py
-│   ├── fix_merged_tasks.py
-│   ├── regen_default_prompts.py        deterministic default-bucket paraphrase regenerator
-│   └── validate_merged.py
-│
-├── training/                           consumed by eval_3/scripts/smolvla_cotrain/cotrain.py
-│   ├── klal_core.py                    KLALConfig + klal_loss + gaussian_target_from_mask
-│   ├── klal_smolvla_action.py          KLAL hookset on the robot-action forward
-│   ├── klal_smolvla_vl.py              KLAL hookset on the VL co-training forward (deployed)
-│   └── lora_smolvla.py                 LoRA on SmolVLA VLM attention projections
-│
 ├── dbg/                                visual-gate scripts
 │   ├── compare_gif.py                  side-by-side original vs augmented
 │   ├── mask_overlay.py                 portrait quad + occluder mask overlay
+│   ├── refine_quad_panels.py           Stage 3 refit pipeline (5-step composite)
 │   ├── segmentation_video.py           full-clip mask overlay
 │   ├── stage2_panels.py                detect_static.py decision panels
-│   ├── refine_quad_panels.py           Stage 3 refit pipeline (5-step composite)
 │   └── stage4_steps_panel.py           Stage 4 step-by-step before/after panel
 │
 └── tests/
-    ├── test_replace_portrait.py        synthetic regression on inpaint_video.replace_portrait
-    └── test_klal_lora_smoke.py         two-tier pure-logic + real-SmolVLA forward gate
+    └── test_replace_portrait.py        synthetic regression on inpaint_video.replace_portrait
 ```
+
+Code that USED to live here but is not augmentation has moved:
+
+- **Photo-bank scrapers** (`mining/mine_celeb_photos.py`) →
+  [`eval_3/scripts/celebs/`](../scripts/celebs/) (joins `scrape_headshots.py`).
+- **Post-augmentation dataset surgery** (`merge_prep/*.py`) →
+  [`eval_3/scripts/data/merge_prep/`](../scripts/data/merge_prep/) (joins
+  `merge_episodes.py` and friends).
+- **Training-time policy patches** (KLAL loss, LoRA adapter, the
+  KLAL+LoRA smoke test) →
+  [`eval_3/scripts/smolvla_cotrain/`](../scripts/smolvla_cotrain/) (sits
+  next to `cotrain.py`, the only consumer).
 
 ---
 

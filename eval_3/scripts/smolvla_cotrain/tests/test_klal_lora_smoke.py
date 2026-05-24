@@ -10,15 +10,15 @@ Covers, with real torch:
 Full integration smoke runs are gated on the GPU box; this file covers
 the unit-level checks.
 
-Run:  <lemonkey-env-python> eval_3/aug/tests/test_klal_lora_smoke.py
+Run:  <lemonkey-env-python> eval_3/scripts/smolvla_cotrain/tests/test_klal_lora_smoke.py
 """
 from __future__ import annotations
 
 import sys
 from pathlib import Path
 
-REPO = Path(__file__).resolve().parents[3]
-sys.path.insert(0, str(REPO / "eval_3/aug/training"))
+# Modules under test live one dir up (eval_3/scripts/smolvla_cotrain/).
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 import torch
 import torch.nn as nn

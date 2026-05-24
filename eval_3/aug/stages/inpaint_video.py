@@ -3,7 +3,7 @@
 
 For each episode, produces N augmented variants. Each variant replaces all
 3 printed portraits with NEW photos of the same celebrities (drawn from
-the photo bank built by eval_3/aug/mining/mine_celeb_photos.py), plus picks a separate
+the photo bank built by eval_3/scripts/celebs/mine_celeb_photos.py), plus picks a separate
 held-out reference photo for the TARGET celeb (used as image-as-prompt
 at training time).
 
@@ -839,7 +839,7 @@ def main() -> int:
     p.add_argument("--out-root", default=str(Path.home() / "LeMonkey/datasets/eval3_aug"),
                    help="where augmented variants are written")
     p.add_argument("--photo-bank", default=str(Path.home() / "LeMonkey/datasets/eval3_celebs/web"),
-                   help="root of the verified photo bank from eval_3/aug/mining/mine_celeb_photos.py")
+                   help="root of the verified photo bank from eval_3/scripts/celebs/mine_celeb_photos.py")
     p.add_argument("--num-variants", type=int, default=5,
                    help="Number of augmented variants to render per episode")
     p.add_argument("--seed", type=int, default=42,
@@ -856,7 +856,7 @@ def main() -> int:
 
     bank = load_photo_bank(Path(args.photo_bank))
     if not bank:
-        print(f"[ERROR] no photos in bank at {args.photo_bank}, run eval_3/aug/mining/mine_celeb_photos.py first",
+        print(f"[ERROR] no photos in bank at {args.photo_bank}, run eval_3/scripts/celebs/mine_celeb_photos.py first",
               file=sys.stderr)
         return 1
     print(f"photo bank: {sum(len(v) for v in bank.values())} photos across "

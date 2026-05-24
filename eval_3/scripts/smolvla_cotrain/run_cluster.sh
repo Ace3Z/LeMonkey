@@ -55,7 +55,7 @@ PRETRAINED="${PRETRAINED:-lerobot/smolvla_base}"
 OUT_DIR="${OUT_DIR:-outputs/smolvla_klal_lora_25k}"
 # KLAL + LoRA
 KLAL_LAYERS="${KLAL_LAYERS:-10,12,14}"
-KLAL_LAMBDA="${KLAL_LAMBDA:-1.0}"   # KLAL is on the VL step (vs the VQA loss) - see eval_3/aug/training/klal_smolvla_vl.py for the loss definition
+KLAL_LAMBDA="${KLAL_LAMBDA:-1.0}"   # KLAL is on the VL step (vs the VQA loss) - see klal_smolvla_vl.py (same dir as this script) for the loss definition
 KLAL_SIGMA="${KLAL_SIGMA:-1.0}"
 LORA_R="${LORA_R:-16}"
 LORA_ALPHA="${LORA_ALPHA:-32}"
