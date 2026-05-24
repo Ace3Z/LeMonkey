@@ -9,7 +9,7 @@
 #   export HF_TOKEN=hf_...
 #   cd ~/LeMonkey
 #   STEPS=200 BATCH_SIZE=4 VL_BATCH_SIZE=2 LOG_EVERY=1 \
-#       bash eval_3/scripts/smolvla_cotrain/launch.sh 2>&1 | tee smoke.log
+#       bash eval_3/scripts/smolvla_cotrain/launch_single_gpu.sh 2>&1 | tee smoke.log
 #
 # GPU: 2× NVIDIA RTX PRO 6000 Blackwell (97 GB each), driver CUDA 13.0.
 # PyTorch: 2.11.0+cu128 (CUDA 12.8 bundle; latest wheel that fits
@@ -107,9 +107,9 @@ echo ""
 echo "   # 200-step smoke test:"
 echo "   cd ~/LeMonkey"
 echo "   STEPS=200 BATCH_SIZE=4 VL_BATCH_SIZE=2 LOG_EVERY=1 \\"
-echo "       bash eval_3/scripts/smolvla_cotrain/launch.sh 2>&1 | tee smoke.log"
+echo "       bash eval_3/scripts/smolvla_cotrain/launch_single_gpu.sh 2>&1 | tee smoke.log"
 echo ""
 echo "   # Check the 5 gates in README.md §Smoke-test gates, then:"
 echo "   PUSH_REPO=HBOrtiz/smolvla_eval3_cotrain_10to1 \\"
-echo "       bash eval_3/scripts/smolvla_cotrain/launch.sh"
+echo "       bash eval_3/scripts/smolvla_cotrain/launch_single_gpu.sh"
 echo "================================================================="

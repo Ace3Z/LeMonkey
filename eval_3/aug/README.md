@@ -429,7 +429,7 @@ eval_3/aug/
 │
 ├── generators/                         variant dataset builders (call into stages/)
 │   ├── broad.py                        192-celeb out-of-distribution generator
-│   ├── broad_topup.py                   patch run for celebs missed by broad.py
+│   ├── broad_missing_celebs.py          fills in celebs that the main broad.py run dropped
 │   ├── cotrain.py                      3-IID-celeb full-enumeration generator
 │   └── build_cotrain_bank.py           8-photo-per-celeb bank for cotrain.py
 │

@@ -54,7 +54,7 @@ fi
 
 if [[ "$STEP" == "all" || "$STEP" == "validate" ]]; then
     echo "==> [2/3] validating merged dataset against LeRobot v3 schema"
-    python eval_3/scripts/data/validate_v3_schema.py --root "$MERGED_DST" || {
+    python eval_3/scripts/data/validate_lerobot_v3_schema.py --root "$MERGED_DST" || {
         echo "[FATAL] validation failed; not pushing" >&2
         exit 1
     }

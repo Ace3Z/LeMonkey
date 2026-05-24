@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# run_cluster.sh - multi-GPU KLAL + LoRA co-training launch.
+# launch_multi_gpu.sh - multi-GPU KLAL + LoRA co-training launch.
 #
 # One command for the whole run: autodetects every GPU on the node and
-# launches `cotrain.py` under torchrun with manual data-parallel gradient
-# all-reduce. Checkpoint + HF push every SAVE_FREQ steps.
+# launches `train_smolvla_cotrain.py` under torchrun with manual data-parallel
+# gradient all-reduce. Checkpoint + HF push every SAVE_FREQ steps.
 #
 # Prereqs (see README.md for the full step-by-step):
 #   1. repo cloned with submodules (third_party/lerobot populated)
@@ -13,7 +13,7 @@
 #
 # Run from anywhere:
 #   HF_TOKEN=hf_... PUSH_REPO=youruser/smolvla_klal_lora_25k \
-#       bash eval_3/scripts/smolvla_cotrain/run_cluster.sh
+#       bash eval_3/scripts/smolvla_cotrain/launch_multi_gpu.sh
 #
 # Single node, several GPUs. For a multi-node job, set the torchrun rendezvous
 # args yourself instead of --standalone.
@@ -94,7 +94,7 @@ echo
 
 cd "$REPO_ROOT"
 exec torchrun --standalone --nproc_per_node="$NGPU" \
-    eval_3/scripts/smolvla_cotrain/cotrain.py \
+    eval_3/scripts/smolvla_cotrain/train_smolvla_cotrain.py \
     --robot_dataset="$ROBOT_DATASET" \
     --vl_manifest="$VL_MANIFEST" \
     --pretrained_path="$PRETRAINED" \

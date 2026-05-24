@@ -6,8 +6,8 @@ SmolVLM2's LM head), the rest are robot batches (SmolVLA flow-matching
 action loss). Both losses share one optimizer; both gradients flow into
 the SmolVLM2 body.
 
-This is the SmolVLA-450M sibling of eval_3/scripts/pi05_vl_cotrain/lerobot_train_with_vl_cotrain.py
-(which is Pi0.5-3B). Unlike that one, this is NOT a scaffold — the training loop
+This is the SmolVLA-450M sibling of eval_3/scripts/pi05_vl_cotrain/train_pi05_vl_cotrain_scaffold.py
+(which is Pi0.5-3B). Unlike that one, this is NOT a scaffold - the training loop
 is integrated end-to-end so it runs as-is on a single GPU AWS node.
 
 Per RT-2 §3.2: keeping web/VQA data alongside robot data during fine-tuning
@@ -21,7 +21,7 @@ Every fallback emits [WARN] with context.
 Usage
 =====
 
-    python eval_3/scripts/smolvla_cotrain/cotrain.py \\
+    python eval_3/scripts/smolvla_cotrain/train_smolvla_cotrain.py \\
         --robot_dataset=HBOrtiz/so101_eval3_cotrain \\
         --vl_manifest=HBOrtiz/so101_eval3_cotrain_grounding \\
         --vl_ratio=10 \\

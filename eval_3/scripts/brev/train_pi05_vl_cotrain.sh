@@ -92,7 +92,7 @@ echo "    layer_rank: $LAYER_RANK_FLAG"
 echo "    ema       : $USE_EMA (alpha=$EMA_ALPHA)"
 echo
 
-python -u eval_3/scripts/pi05_vl_cotrain/lerobot_train_with_vl_cotrain.py \
+python -u eval_3/scripts/pi05_vl_cotrain/train_pi05_vl_cotrain_scaffold.py \
     --policy.type=pi05 \
     --policy.pretrained_path="$PRETRAINED" \
     --policy.dtype=bfloat16 \

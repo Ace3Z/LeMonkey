@@ -2,7 +2,7 @@
 # SmolVLA + VL co-train launch - single-node AWS / Brev / generic CUDA box.
 #
 # Override any value via env vars before invoking, e.g.:
-#   VL_RATIO=5 STEPS=20000 PUSH_REPO=HBOrtiz/my_run bash launch.sh
+#   VL_RATIO=5 STEPS=20000 PUSH_REPO=HBOrtiz/my_run bash launch_single_gpu.sh
 #
 # PRE-FLIGHT (must be true):
 #   1. HF_TOKEN exported (read+write) - needed for HBOrtiz/* repos
@@ -19,7 +19,7 @@ set -euo pipefail
 # ---- Defaults (override via env) ----------------------------------------------
 
 ROBOT_DATASET="${ROBOT_DATASET:-HBOrtiz/so101_eval3_cotrain}"
-VL_MANIFEST="${VL_MANIFEST:-HBOrtiz/so101_eval3_broad_grounding}"
+VL_MANIFEST="${VL_MANIFEST:-HBOrtiz/so101_eval3_cotrain_grounding}"
 VL_IMAGE_ROOT="${VL_IMAGE_ROOT:-}"          # leave empty to auto-download
 PRETRAINED="${PRETRAINED:-lerobot/smolvla_base}"   # or HBOrtiz/smolvlm2_celeb_warm
 VLM_OVERRIDE="${VLM_OVERRIDE:-}"            # set to a warm VLM repo to swap inner VLM
@@ -72,7 +72,7 @@ python -c "import lerobot.policies.smolvla.modeling_smolvla" \
 # ---- Launch -------------------------------------------------------------------
 
 REPO_ROOT="$(cd "$(dirname "$0")/../../.." && pwd)"
-SCRIPT="$REPO_ROOT/eval_3/scripts/smolvla_cotrain/cotrain.py"
+SCRIPT="$REPO_ROOT/eval_3/scripts/smolvla_cotrain/train_smolvla_cotrain.py"
 
 echo "==> SmolVLA cotrain launching"
 echo "    robot      : $ROBOT_DATASET"

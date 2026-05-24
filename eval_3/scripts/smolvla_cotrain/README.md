@@ -4,7 +4,7 @@ This is the trainer that produced the two SmolVLA models deployed on Eval 3 day:
 
 | HF repo | Recipe | Launcher |
 |---|---|---|
-| [`HBOrtiz/so101_smolvla_eval3_cotrain`](https://huggingface.co/HBOrtiz/so101_smolvla_eval3_cotrain) | 5:1 robot:VL, 3 in-distribution celebrities | `launch.sh` (single GPU) or `run_cluster.sh` (multi-GPU) |
+| [`HBOrtiz/so101_smolvla_eval3_cotrain`](https://huggingface.co/HBOrtiz/so101_smolvla_eval3_cotrain) | 5:1 robot:VL, 3 in-distribution celebrities | `launch_single_gpu.sh` or `launch_multi_gpu.sh` |
 | [`HBOrtiz/so101_smolvla_eval3_broad`](https://huggingface.co/HBOrtiz/so101_smolvla_eval3_broad) | 10:1 robot:VL, 192 celebrities | `eval_3/scripts/brev/train_smolvla_broad.sh` |
 
 Both are SmolVLA-450M from `lerobot/smolvla_base` with the SmolVLM2 backbone trainable and SigLIP frozen.
@@ -16,16 +16,16 @@ Every `vl_ratio + 1`-th step is a vision-language VQA batch with CE loss on the 
 ## File layout
 
 ```
-cotrain.py                the training script (single-process or torchrun multi-GPU)
-klal_core.py              KLALConfig + klal_loss + gaussian_target_from_mask
-klal_smolvla_action.py    KLAL hookset on the robot-action forward
-klal_smolvla_vl.py        KLAL hookset on the VL co-training forward (deployed)
-lora_smolvla.py           LoRA on SmolVLA VLM attention projections
-launch.sh                 single-GPU env-var-driven launcher
-run_cluster.sh            multi-GPU launcher; autodetects every GPU on the node
-setup_env.sh              one-time conda env bootstrap
-predl_vl.sh               one-time VL dataset pre-download (HF rate-limit workaround)
-tests/                    smoke test (test_klal_lora_smoke.py)
+train_smolvla_cotrain.py        the training script (single-process or torchrun multi-GPU)
+klal_core.py                    KLALConfig + klal_loss + gaussian_target_from_mask
+klal_smolvla_action.py          KLAL hookset on the robot-action forward
+klal_smolvla_vl.py              KLAL hookset on the VL co-training forward (deployed)
+lora_smolvla.py                 LoRA on SmolVLA VLM attention projections
+launch_single_gpu.sh            single-GPU env-var-driven launcher
+launch_multi_gpu.sh             multi-GPU launcher; autodetects every GPU on the node
+setup_env.sh                    one-time conda env bootstrap
+predownload_vl_dataset.sh       one-time VL dataset pre-download (HF rate-limit workaround)
+tests/                          smoke test (test_klal_lora_smoke.py)
 ```
 
 ## Quickstart (single GPU)
@@ -36,10 +36,10 @@ conda activate lemonkey
 export HF_TOKEN=hf_...             # read + write
 
 # Smoke first (200 steps, small batch, no push):
-STEPS=200 BATCH_SIZE=4 VL_BATCH_SIZE=2 LOG_EVERY=1 bash launch.sh 2>&1 | tee smoke.log
+STEPS=200 BATCH_SIZE=4 VL_BATCH_SIZE=2 LOG_EVERY=1 bash launch_single_gpu.sh 2>&1 | tee smoke.log
 
 # Real run:
-PUSH_REPO=youruser/smolvla_eval3_cotrain bash launch.sh
+PUSH_REPO=youruser/smolvla_eval3_cotrain bash launch_single_gpu.sh
 ```
 
 ## Quickstart (multi-GPU cluster)
@@ -70,7 +70,7 @@ export PUSH_REPO=youruser/smolvla_cotrain_run       # auto-created
 Run:
 
 ```bash
-nohup bash run_cluster.sh > cotrain.log 2>&1 &
+nohup bash launch_multi_gpu.sh > cotrain.log 2>&1 &
 tail -f cotrain.log
 ```
 
@@ -109,7 +109,7 @@ First run downloads ~15 GB of datasets before training starts. Checkpoints push 
 | `NUM_WORKERS` | 4 | 16 | dataloader workers per process |
 | `OUT_DIR` | `outputs/smolvla_cotrain` | `outputs/smolvla_klal_lora_25k` | local checkpoint dir |
 
-For a multi-node job, replace `--standalone` in `run_cluster.sh` with your cluster's torchrun rendezvous arguments.
+For a multi-node job, replace `--standalone` in `launch_multi_gpu.sh` with your cluster's torchrun rendezvous arguments.
 
 ## Abort gates during the run
 
