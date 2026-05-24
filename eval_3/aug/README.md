@@ -408,7 +408,7 @@ These are not part of the dataset-building pipeline; they live under
 [`training/`](training/) and are imported by the SmolVLA cotrain trainer at
 [`eval_3/scripts/smolvla_cotrain/cotrain.py`](../scripts/smolvla_cotrain/cotrain.py).
 The full math, motivation, and integration details are in the
-[Eval 3 README](../README.md#our-approach-co-training--klal--lora);
+[Eval 3 README](../README.md#our-training-approach-co-training--klal--lora);
 this section is the module-level summary.
 
 ### KLAL hooksets
