@@ -468,7 +468,7 @@ inference on placeholder frames.
 | Model | Use | Recipe |
 |---|---|---|
 | [`HBOrtiz/so101_smolvla_eval3_cotrain`](https://huggingface.co/HBOrtiz/so101_smolvla_eval3_cotrain) | in-distribution celebrities | SmolVLA-450M, robot + VL co-training at 5:1, single-camera contract. Checkpoints nested under `step_NNNNNN/`. |
-| [`HBOrtiz/so101_smolvla_eval3_broad`](https://huggingface.co/HBOrtiz/so101_smolvla_eval3_broad) | broad and out-of-distribution | SmolVLA-450M, robot + VL co-training on the 192-celebrity dataset, 10:1 ratio. Final 25 k checkpoint at the repo root. |
+| [`HBOrtiz/so101_smolvla_eval3_broad`](https://huggingface.co/HBOrtiz/so101_smolvla_eval3_broad) | broad and out-of-distribution | SmolVLA-450M, robot + VL co-training on the 192-celebrity dataset, 10:1 ratio. The 25k checkpoint is deployed at the repo root. |
 
 Both are fine-tuned from
 [`lerobot/smolvla_base`](https://huggingface.co/lerobot/smolvla_base): the
