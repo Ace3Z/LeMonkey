@@ -520,7 +520,9 @@ eval_3/aug/
 │   ├── compare_gif.py                  side-by-side original vs augmented
 │   ├── mask_overlay.py                 portrait quad + occluder mask overlay
 │   ├── segmentation_video.py           full-clip mask overlay
-│   └── stage2_panels.py                detect_static.py decision panels
+│   ├── stage2_panels.py                detect_static.py decision panels
+│   ├── refine_quad_panels.py           Stage 3 refit pipeline (5-step composite)
+│   └── stage4_steps_panel.py           Stage 4 step-by-step before/after panel
 │
 └── tests/
     ├── test_replace_portrait.py        synthetic regression on inpaint_video.replace_portrait
