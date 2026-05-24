@@ -217,14 +217,32 @@ objective above. We apply [LoRA](https://arxiv.org/abs/2106.09685)
 so:
 
 - The pre-trained VLM weights are **frozen**.
-- A trainable low-rank delta is added to `q_proj`, `k_proj`, `v_proj`,
-  `o_proj` of layers $[9, 10, ..., 15]$ (`LoRAConfig.layers` default in
-  [`lora_smolvla.py`](aug/training/lora_smolvla.py)).
-- The forward becomes $y = W_0 x + \frac{\alpha}{r} B A x$ with rank
-  $r = 16$, $\alpha = 32$, dropout $= 0$.
+- A trainable low-rank delta is added on selected attention / MLP
+  projections of mid-late VLM layers.
+- The forward becomes $y = W_0 x + \frac{\alpha}{r} B A x$.
 - At checkpoint time the LoRA delta is **merged into the base weights**, so
-  the published policy loads as a vanilla `SmolVLAPolicy` with no extra
-  inference dependency.
+  the published policy loads as a vanilla policy with no extra inference
+  dependency.
+
+The two deployed variants use different LoRA hyperparameters:
+
+| Variant | Target modules | Layers | rank $r$ | $\alpha$ | dropout |
+|---|---|---|---|---|---|
+| **SmolVLA cotrain** ([`lora_smolvla.py`](aug/training/lora_smolvla.py)) | `q_proj, k_proj, v_proj, o_proj` (attention only) | $[9, 10, \ldots, 15]$ | 16 | 32 | 0 |
+| **Pi0.5 cotrain** ([`scripts/brev/train_pi05.sh`](scripts/brev/train_pi05.sh) + [`scripts/pi05_vl_cotrain/precomputed/layer_rank.json`](scripts/pi05_vl_cotrain/precomputed/layer_rank.json)) | `q_proj, k_proj, v_proj, o_proj, gate_proj, up_proj, down_proj` (full Gemma block) | $[0, 1, \ldots, 17]$ all 18 layers, per-layer rank | 16–64 per layer (uniform fallback: 32) | 64 | 0.05 |
+
+The Pi0.5 per-layer rank profile concentrates capacity in the
+face-discrimination zone of PaliGemma's Gemma-2B tower
+([`scripts/pi05_vl_cotrain/precomputed/layer_rank.json`](scripts/pi05_vl_cotrain/precomputed/layer_rank.json)):
+
+- layers 0–4: $r = 16$ (preserve warm-PG WebLI prior)
+- layers 5–7, 13–14: $r = 32$ (default scaffold)
+- layers 8–12: $r = 64$ (the BlindVLA mid-LM face-discrimination zone, ≈ 50–67% LM depth)
+- layers 15–17: $r = 48$ (top-LM name-token alignment, what the LM head reads)
+
+Sum of ranks across the 18 layers is 704, averaging $r \approx 39$. If the
+installed PEFT version cannot ingest per-layer ranks the launcher falls
+back to a uniform $r = 32$ with a `[WARN]`.
 
 LoRA also matters for KLAL: KLAL supervises the attention computed from
 $q_\ell$, $k_\ell$ at layers $\ell \in \mathcal{L}$. If those projections
