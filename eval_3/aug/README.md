@@ -141,14 +141,6 @@ green frame is the prompted target; the others are distractors. Rendered by
 [`dbg/stage2_panels.py`](dbg/stage2_panels.py) and saved per episode as
 `dbg_stage2_portraits.png`.
 
-<div align="center">
-<img src="../../media/figures/aug/stage2_occluders.png" width="780" alt="Occluder detection panel: gripper + can + hand bboxes propagated through the clip"/>
-</div>
-
-The occluder-detection panel shows the per-frame gripper / can / hand
-detections that get subtracted from the inpaint mask in Stage 4 so the
-original pixels show through wherever an occluder crosses the portrait.
-
 #### Visual gate: portrait masks at frame 0
 
 <div align="center">
@@ -161,18 +153,23 @@ overlaid on the raw overhead-cam frame. This is the per-portrait mask the
 Stage 4 inpainter uses as its `dst_mask`. Rendered by
 [`dbg/mask_overlay.py`](dbg/mask_overlay.py).
 
-#### Visual gate: per-frame occluder + portrait masks
+#### Visual gate: per-frame portrait + occluder masks
 
 <div align="center">
 <img src="../../media/gifs/eval3_aug_segmentation.gif" width="720" alt="GIF: per-frame portrait + occluder mask overlay across a full episode"/>
 </div>
 
-The full-episode mask overlay produced by
+Full-episode mask overlay produced by
 [`dbg/segmentation_video.py`](dbg/segmentation_video.py). Each portrait
 keeps its fixed quad (static camera); the gripper / can / hand are tracked
 through the clip by SAM 2's video predictor seeded from frame 0. The
 inpainter subtracts these from the portrait mask per frame so the original
-foreground passes through cleanly.
+foreground passes through cleanly. This GIF is the canonical occluder
+visualisation: a per-frame view is the only reliable way to see the
+tracker working, because any static frame-0 panel is dominated by the
+first-frame detections (which may include false positives that the
+filter at [`detect_static.py:218`](stages/detect_static.py#L218) drops
+later, or that SAM 2 corrects via its multi-frame propagation).
 
 ### GroundingDINO
 
@@ -299,6 +296,26 @@ A static three-frame composite from the same script, useful for diff'ing
 the photo seams and color cast without the GIF's flicker.
 
 ### Step-by-step
+
+<div align="center">
+<img src="../../media/figures/aug/stage4_step_by_step.png" width="780" alt="4-row before/after panel showing each Stage 4 transform: Lanczos warp, Gaussian MTF blur, Reinhard Lab color transfer, Poisson boundary blend"/>
+</div>
+
+The panel above pairs the **before** (output of the previous step, left
+column) against the **after** (this step's output, right column) for the
+four substantive transforms. Same source photo, same destination quad,
+same overhead-cam frame throughout, so the visual delta is exactly the
+effect of that step alone. Rendered by
+[`dbg/stage4_steps_panel.py`](dbg/stage4_steps_panel.py) on a real
+base-teleop frame, swapping the existing portrait with a different
+celebrity photo from our scraped bank.
+
+The Reinhard row carries the caveat noted in the code ([`apply_reinhard
+defaults to False`](stages/inpaint_video.py#L151)): on a white-table
+dominated ring the std-clamp pulls colours toward white and bleaches the
+photo, so production leaves it off and relies on Poisson's gradient
+domain blend to absorb the local lighting. The Poisson row therefore
+uses the **blurred** (non-color-matched) warp as its input.
 
 **Lanczos warp.** A homography is fitted from the source photo's four
 corners (assumed axis-aligned, top-left clockwise) to the refined target
