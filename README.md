@@ -204,6 +204,7 @@ LeMonkey/
 │   │   ├── pi05_vl_cotrain/     Pi0.5 + VL bbox-grounded VQA cotrain (published variant)
 │   │   └── warmstart/           PaliGemma VQA warm-start (init for Pi0.5)
 │   └── tools/                   dataset-verification tooling
+├── scripts/                     shared rollout helpers (auto_home.py: arm-home capture/drive)
 ├── calibration/                 per-arm SO-101 calibration JSONs
 ├── media/                       logos (figures/) and demo GIFs (gifs/)
 └── third_party/lerobot/         LeRobot framework as a git submodule
