@@ -25,7 +25,7 @@ The Pi0.5 Eval 3 variant is published as [`HBOrtiz/so101_pi05_eval3`](https://hu
 |---|---|
 | `lerobot_train_with_vl_cotrain.py` | Mixed-batch Pi0.5 + VL cotrain wrapper around `lerobot-train`. Includes warm-PG start, audit/filter, hard-negative weights, per-layer LoRA rank (`layer_rank.json`), two-phase curriculum (`curriculum_sampler.py`), EMA. |
 | `curriculum_sampler.py` | Two-phase weighted sampler (easy variants until step 5000, then full distribution). |
-| `layer_rank.json` | Per-layer LoRA rank config (r=64 on layers 8-12, r=48 on layers 15-17). |
+| `precomputed/layer_rank.json` | Per-layer LoRA rank config (r=64 on layers 8-12, r=48 on layers 15-17). |
 | `probe_pi05_inference.py` | Standalone Pi0.5 VRAM + latency probe (pass criteria: peak under 14 GB, p95 forward under 20 s). |
 
 ## How `HBOrtiz/so101_pi05_eval3` was produced
