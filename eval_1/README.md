@@ -82,7 +82,6 @@ and per-prompt-type success rates.
 | `scripts/dagger_record.py` | HG-DAgger correction recorder (`SPACE` toggles teleop, `n` ends an episode early) |
 | `scripts/rest_arms.py` | Release torques and manually home both arms |
 | `scripts/brev_setup.sh` | Idempotent bootstrap for a fresh Brev training VM |
-| `scripts/_archive/normalize_dagger_to_bc_schema.py` | One-shot: rewrite DAgger episodes into the BC schema so the two sets can be merged |
 
 ## Hardware
 

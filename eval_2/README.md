@@ -119,8 +119,7 @@ eval_2/
 │   ├── run_rollout_structured.py   script-picked arrangement + sampled prompt loop
 │   ├── run_rollout_freeplay.py     fixed arrangement + sampled prompt loop
 │   ├── filter_prompt.py            strips OOD "from the robot perspective" qualifier
-│   ├── brev/                       Brev training-VM launch scripts
-│   └── _archive/                   superseded scripts kept for provenance
+│   └── brev/                       Brev training-VM launch scripts
 ├── state/                          plan.json, persistent recording state (gitignored)
 ├── train/                          model checkpoints (gitignored)
 ├── rollouts/                       per-rollout dataset dumps (gitignored)

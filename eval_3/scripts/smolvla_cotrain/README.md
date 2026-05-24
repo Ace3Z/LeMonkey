@@ -121,17 +121,3 @@ For a multi-node job, replace `--standalone` in `run_cluster.sh` with your clust
 | Random NaN losses | confirm `DTYPE=bfloat16`; SmolVLM2 weights are bf16, fp16 NaN-outs |
 | `vqa_loss` count not approximately `flow_loss / VL_RATIO` | VL batches not actually firing - check log routing |
 
-## Known caveats
-
-- **torchcodec host-RAM leak on large multi-mp4 datasets.** lerobot 0.5.1's default video backend leaks host RAM per distinct mp4 opened (~10 MB / 100 iterations); the broad set (8,390 mp4s) OOMs a DataLoader worker after about 30 minutes with the default 4 workers. Workaround: `--dataset.video_backend=pyav`. The broad launcher `eval_3/scripts/brev/train_smolvla_broad.sh` already sets this; pass the flag manually if running `cotrain.py` on a dataset with thousands of mp4 files.
-- **bf16 only.** SmolVLM2 weights are bf16; fp16 NaN-outs the loss.
-- **`torch.compile` off by default.** Flaky over SmolVLA's custom forward in some lerobot versions; enable only after smoke passes.
-- **VL collator runs the SmolVLM2 processor twice per batch** (prompt-only and prompt+target) to get correct label-masking around the `<image>` tokens. If `vqa_loss` plateaus at an elevated floor, dump a couple of `labels` rows and verify the `-100` boundary lands exactly where the target starts; tokenizer leading-special drift would shift the boundary by 1-2 tokens.
-- **Action-head dim mismatch (low-probability).** If checkpoint `action_in_proj` / `action_out_proj` dims disagree with the config's `max_action_dim`, lerobot's `strict=False` silently keeps random-init projections - step 0-10 `flow_loss` will be very large.
-- **HF push failures are non-fatal** - they emit `[WARN]` and continue; the local checkpoint under `OUT_DIR` is kept.
-
-## Troubleshooting
-
-- `third_party/lerobot` empty -> `git submodule update --init --recursive`.
-- `cannot import lerobot SmolVLA` -> env not active or pip install incomplete.
-- `nvidia-smi not found` -> run on a GPU node.
