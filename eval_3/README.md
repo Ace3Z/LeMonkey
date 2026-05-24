@@ -2,7 +2,7 @@
 
 Place a Coke can on the printed portrait of the person named in the prompt.
 
-> *"Put the coke on Barack Obama."*
+> *"Put the Coke on Barack Obama."*
 
 <div align="center">
 <img src="../media/gifs/eval3_obama.gif" width="480" alt="SO-101 arm placing a Coke can on the printed portrait of Barack Obama"/>
@@ -30,7 +30,7 @@ face-recognition model, no external VLM call at inference.
 
 - Three printed celebrity portraits are placed on the workspace.
 - An empty Coke can sits in front of the robot.
-- Prompt: `"Put the coke on <celebrity name>."`
+- Prompt: `"Put the Coke on <celebrity name>."`
 - 25 s per rollout. The policy places the can on the matching portrait.
 - Three tiers of increasing difficulty:
   1. **In distribution**: the three celebrities seen at training (Taylor Swift, Barack Obama, Yann LeCun).
@@ -50,7 +50,7 @@ Two failure modes block the straightforward solutions.
 
 ### 1. Behaviour cloning learns a positional shortcut
 
-A behaviour-cloning policy trained on `(image, "Put the coke on Obama", action)`
+A behaviour-cloning policy trained on `(image, "Put the Coke on Obama", action)`
 tuples will quickly minimise loss by ignoring the prompt and memorising the
 arm's average trajectory toward whichever slot Obama was placed in most often
 during training. This is the canonical [LIBERO-Plus shortcut-learning
@@ -385,7 +385,7 @@ live in [`scripts/rollout/`](scripts/rollout/):
 ```
 
 Each script downloads its checkpoint from the Hub on first use, then loops:
-type a prompt (`Put the coke on <name>.`), the arm captures its home pose,
+type a prompt (`Put the Coke on <name>.`), the arm captures its home pose,
 runs the policy for one 25 s episode against the live wrist camera, and
 drives back home. Type `q` to quit. Pass a checkpoint name as the first
 argument to use an earlier step, for example

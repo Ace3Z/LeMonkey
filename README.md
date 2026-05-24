@@ -67,7 +67,7 @@ The project is split into three evaluations, each a harder reasoning problem on 
 |---|---|---|---|
 | **Eval 1** | Banana into a colored bowl | Direct, e.g. *"Put the banana in the blue bowl."* | deployed |
 | **Eval 2** | Banana into a bowl, bowls reshuffled | Compositional, e.g. *"the 2nd bowl from the left."* | deployed |
-| **Eval 3** | Coke can onto a celebrity portrait | Identity, e.g. *"Put the coke on Barack Obama."* | deployed |
+| **Eval 3** | Coke can onto a celebrity portrait | Identity, e.g. *"Put the Coke on Barack Obama."* | deployed |
 
 Each eval has its own runtime folder, README, deployed model, and dataset. This root README is the map; each `eval_N/README.md` is the detailed runbook.
 
@@ -106,7 +106,7 @@ The banana stays put, but the bowls are reshuffled across positions and the prom
 
 Three printed celebrity portraits are laid out on the workspace. The policy places a Coke can on the portrait of the person named in the prompt, including, in the hardest tier, celebrities never seen in training.
 
-> *"Put the coke on Barack Obama."*
+> *"Put the Coke on Barack Obama."*
 
 The course rule: no separate face-recognition model or external VLM may run at inference, so the deployed VLA has to do the identity reasoning itself. We solve this with **co-training**, training the policy jointly on robot manipulation episodes and on a vision-language grounding dataset, so celebrity knowledge ends up inside the policy weights.
 
@@ -166,7 +166,7 @@ conda activate lemonkey
 ./run_eval_3.sh --broad          # Eval 3: broad / out-of-distribution celebrities
 ```
 
-Type the prompt at the menu (for example `Put the coke on Barack Obama.`), watch the rollout, then type the next one or `q` to quit. Each `eval_N/README.md` documents the per-eval scripts, checkpoints, and structured-evaluation tooling.
+Type the prompt at the menu (for example `Put the Coke on Barack Obama.`), watch the rollout, then type the next one or `q` to quit. Each `eval_N/README.md` documents the per-eval scripts, checkpoints, and structured-evaluation tooling.
 
 ---
 
