@@ -16,11 +16,16 @@ Every `vl_ratio + 1`-th step is a vision-language VQA batch with CE loss on the 
 ## File layout
 
 ```
-cotrain.py        the training script (single-process or torchrun multi-GPU)
-launch.sh         single-GPU env-var-driven launcher
-run_cluster.sh    multi-GPU launcher; autodetects every GPU on the node
-setup_env.sh      one-time conda env bootstrap
-predl_vl.sh       one-time VL dataset pre-download (HF rate-limit workaround)
+cotrain.py                the training script (single-process or torchrun multi-GPU)
+klal_core.py              KLALConfig + klal_loss + gaussian_target_from_mask
+klal_smolvla_action.py    KLAL hookset on the robot-action forward
+klal_smolvla_vl.py        KLAL hookset on the VL co-training forward (deployed)
+lora_smolvla.py           LoRA on SmolVLA VLM attention projections
+launch.sh                 single-GPU env-var-driven launcher
+run_cluster.sh            multi-GPU launcher; autodetects every GPU on the node
+setup_env.sh              one-time conda env bootstrap
+predl_vl.sh               one-time VL dataset pre-download (HF rate-limit workaround)
+tests/                    smoke test (test_klal_lora_smoke.py)
 ```
 
 ## Quickstart (single GPU)
