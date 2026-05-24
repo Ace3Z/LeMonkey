@@ -30,7 +30,7 @@ Usage
         --batch_size=32 \\
         --vl_batch_size=8 \\
         --lr=5e-5 \\
-        --push_to_hub_repo=HBOrtiz/smolvla_eval3_cotrain_10to1
+        --push_to_hub_repo=HBOrtiz/so101_smolvla_eval3_cotrain_10to1
 
 For a smoke test, drop --steps=200 and --batch_size=4.
 
@@ -134,6 +134,12 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--episodes_limit", type=int, default=None,
                    help="If set, only load this many episodes from the robot dataset "
                         "(for smoke tests). Default: all episodes.")
+    p.add_argument("--empty_cameras", type=int, default=2,
+                   help="Number of synthetic empty-camera slots SmolVLA should pad. "
+                        "Default 2 matches the deployed cotrain checkpoint config "
+                        "(camera1 from dataset, empty_camera_0/1 padded by the "
+                        "policy to fill SmolVLA's 3-camera image_features slot). "
+                        "For the broad recipe (reference renamed to camera2) use 1.")
     # LoRA — parameter-efficient VLM adaptation. With --enable_lora the VLM
     # base is frozen and adapted only via low-rank adapters (instead of
     # full-fine-tuning the VLM body); both VQA-CE and action gradients flow
@@ -146,9 +152,9 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--lora_layers", default="all",
                    help="Comma-separated VLM layer indices to LoRA, or 'all'.")
     p.add_argument("--lora_target_modules", default="q_proj,k_proj,v_proj,o_proj")
-    # KLAL — name-token -> face-patch attention supervision on robot batches.
+    # KLAL — name-token -> face-patch attention supervision on VL batches.
     p.add_argument("--enable_klal", action="store_true",
-                   help="Add the KLAL attention-supervision loss on robot steps.")
+                   help="Add the KLAL attention-supervision loss on VL steps.")
     p.add_argument("--klal_lambda", type=float, default=1.0,
                    help="KLAL loss weight (WACV 2026 uses 1.0).")
     p.add_argument("--klal_layers", default="10,12,14",
@@ -476,7 +482,20 @@ def load_policy_and_processor(args, device: torch.device):
     # both the VQA-CE and the action gradients into the VLM instead.
     cfg.train_expert_only = bool(args.enable_lora)
     cfg.freeze_vision_encoder = True # Keep SigLIP frozen — RT-2 doesn't tune it either.
-    cfg.empty_cameras = max(0, cfg.empty_cameras) if hasattr(cfg, "empty_cameras") else 0
+    # Set empty_cameras explicitly so the policy pads the right number of
+    # missing-camera slots to match SmolVLA's 3-camera image_features. Default
+    # 2 matches the deployed cotrain checkpoint. [WARN] on any silent fallback
+    # from the user-supplied value (e.g., negative input or missing config field).
+    user_empty = args.empty_cameras
+    if user_empty < 0:
+        print(f"[WARN] --empty_cameras={user_empty} is negative; "
+              f"falling back to 0", flush=True)
+        user_empty = 0
+    if not hasattr(cfg, "empty_cameras"):
+        print(f"[WARN] {type(cfg).__name__} has no empty_cameras field; "
+              f"--empty_cameras={user_empty} ignored", flush=True)
+    else:
+        cfg.empty_cameras = user_empty
     if args.vlm_model_name is not None:
         cfg.vlm_model_name = args.vlm_model_name
     # The cfg.device read in subordinate constructors should match our device.

@@ -10,10 +10,12 @@ DTS-monotonicity bug). The --lerobot-bin argparse flag is currently unused
 and held for compatibility with an earlier subprocess-based path.
 
 Sources:
-  --base-root  datasets/eval3/                 (179 base teleops)
-  --aug-root   datasets/eval3_aug_v3/          (4017 augmented variants)
+  --base-root  datasets/eval3/         (~180 real teleops)
+  --aug-root   datasets/eval3_aug_*/   (per-augmentation-run variants)
 
-Total:        4196 episodes after merge.
+Total: deployed cotrain has 9,394 episodes (178 base + 9,216 variants);
+deployed broad has 9,842 episodes (180 base + ~9,662 variants). Numbers
+vary by augmentation run; the merger composes whatever the producers wrote.
 
 Usage:
     merge_episodes.py                         # default paths
@@ -78,10 +80,11 @@ def main() -> int:
     )
     p.add_argument("--base-root", type=Path,
                    default=Path("datasets/eval3"),
-                   help="Root containing 179 base teleop episode dirs")
+                   help="Root containing the ~180 real-teleop base episode dirs")
     p.add_argument("--aug-root", type=Path,
-                   default=Path("datasets/eval3_aug_v3"),
-                   help="Root containing augmented variant dirs")
+                   default=Path("datasets/eval3_aug_broad"),
+                   help="Root containing augmented variant dirs from "
+                        "aug/generators/{broad,cotrain,broad_missing_celebs}.py")
     p.add_argument("--aug-pattern", default="__var",
                    help="Substring identifying augmented variants. "
                         "'__var' matches the broad augmentation output (per-episode 5-variant pipeline); "

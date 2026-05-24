@@ -6,10 +6,10 @@ By default scans ~/LeMonkey/datasets/eval3_quick/ and ~/LeMonkey/datasets/eval3/
 reference.json sidecar and the video file, prints a table.
 
 Usage:
-    list_eval3_episodes.py
-    list_eval3_episodes.py --root ~/LeMonkey/datasets/eval3_quick
-    list_eval3_episodes.py --paths-only       # just the video paths, one per line
-    list_eval3_episodes.py --open             # xdg-open each video (needs a display)
+    list_episodes.py
+    list_episodes.py --root ~/LeMonkey/datasets/eval3_quick
+    list_episodes.py --paths-only       # just the video paths, one per line
+    list_episodes.py --open             # xdg-open each video (needs a display)
 """
 from __future__ import annotations
 

@@ -37,7 +37,7 @@ USAGE
 
     # Or with a specific checkpoint (e.g. warm-PG):
     python eval_3/scripts/pi05_vl_cotrain/probe_pi05_inference.py \\
-        --policy-path HBOrtiz/pi05_paligemma_celeb_warm
+        --policy-path HBOrtiz/paligemma_vqa_warm
 
     # 4. Read the PASS/FAIL summary at the bottom.
 

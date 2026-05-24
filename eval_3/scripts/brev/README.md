@@ -39,7 +39,6 @@ sync_to_brev.sh   --rsync-->  ~/LeMonkey/
 | `train_smolvla_broad.sh` | [`HBOrtiz/so101_smolvla_eval3_broad`](https://huggingface.co/HBOrtiz/so101_smolvla_eval3_broad) | 192-celeb cotrain. Sets `--dataset.video_backend=pyav` to dodge the torchcodec host-RAM leak on the broad dataset (see Known issues). |
 | `train_pi05.sh` | [`HBOrtiz/so101_pi05_eval3`](https://huggingface.co/HBOrtiz/so101_pi05_eval3) | Pi0.5 LoRA fine-tune from `lerobot/pi05_base` (or from the PaliGemma warm-start). 30k steps. |
 | `train_paligemma_warmstart.sh` | [`HBOrtiz/paligemma_vqa_warm`](https://huggingface.co/HBOrtiz/paligemma_vqa_warm) | PaliGemma VQA LoRA warm-start (see [`../warmstart/`](../warmstart/)). |
-| `train_pi05_vl_cotrain.sh` | (variant, not deployed) | Launcher for the Pi0.5 + ObjectVLA VL-cotrain wrapper in [`../pi05_vl_cotrain/`](../pi05_vl_cotrain/). |
 
 ## Quickstart (Pi0.5 reference policy, end-to-end)
 

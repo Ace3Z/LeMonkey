@@ -1,7 +1,5 @@
 #!/usr/bin/env bash
-# Pi0.5 (PaliGemma-2B + Gemma-300M expert) on Brev RTX PRO 6000 Blackwell.
-#
-# Pi0.5 (PaliGemma-2B + Gemma-300M expert) via LoRA fine-tune.
+# Pi0.5 (PaliGemma-2B + Gemma-300M expert) via LoRA fine-tune on Brev RTX PRO 6000 Blackwell.
 #
 # PRE-FLIGHT (must be true before running this):
 #   1. Quantile stats recomputed on the merged dataset:
@@ -34,7 +32,7 @@ LORA_ALPHA="${LORA_ALPHA:-64}"
 # adapters to absorb celeb-discriminative features in the VLM.
 LORA_TARGETS='["q_proj","k_proj","v_proj","o_proj","gate_proj","up_proj","down_proj"]'
 
-echo "==> Pi0.5 (Pi0.5) launching"
+echo "==> Pi0.5 launching"
 echo "    dataset : $DATASET"
 echo "    output  : $OUT_DIR"
 echo "    push to : $PUSH_REPO"
@@ -62,7 +60,7 @@ lerobot-train \
     --peft.lora_dropout=0.05 \
     \
     --dataset.repo_id="$DATASET" \
-    --dataset.rename_map='{"observation.images.camera1":"observation.images.right_wrist_0_rgb"}' \
+    --rename_map='{"observation.images.camera1":"observation.images.right_wrist_0_rgb"}' \
     \
     --batch_size="$BATCH_SIZE" \
     --steps="$STEPS" \

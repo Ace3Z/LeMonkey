@@ -109,7 +109,7 @@ def main() -> int:
                         default=Path("data/arcface_toolkit/celeb_embeddings.json"),
                         help="the celeb_embeddings.json")
     parser.add_argument("--output", type=Path,
-                        default=Path("eval_3/scripts/pi05_vl_cotrain/task_index_to_centroid.json"))
+                        default=Path("eval_3/scripts/pi05_vl_cotrain/precomputed/task_index_to_centroid.json"))
     args = parser.parse_args()
 
     try:

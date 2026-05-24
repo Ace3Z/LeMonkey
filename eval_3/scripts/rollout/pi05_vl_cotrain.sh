@@ -6,16 +6,17 @@
 # prompt to the policy through lerobot-record.
 #
 # Same control flow as the SmolVLA rollouts in this directory, with
-# Pi0.5-specific defaults (camera renaming + 4-camera empty_cameras).
+# Pi0.5-specific defaults (camera renaming + 3-camera empty_cameras).
 #
 # Eval-day input contract:
 #   observation.images.camera1 + observation.state + task
 #   (no reference image, no asset table at inference)
 #
-# Pi0.5 expects 4 cameras; we feed only `camera1` and rely on the policy's
-# `--policy.empty_cameras=N` (baked into the checkpoint) to zero-pad the
-# rest. The `--dataset.rename_map` flag matches training-time naming
-# (`observation.images.camera1` -> `observation.images.right_wrist_0_rgb`).
+# Pi0.5 expects 3 image streams (`base_0_rgb`, `left_wrist_0_rgb`,
+# `right_wrist_0_rgb`); we feed only `camera1` renamed to `right_wrist_0_rgb`
+# and rely on the policy's `--policy.empty_cameras=2` (baked into the
+# checkpoint) to zero-pad the remaining two slots. The `--rename_map` flag
+# matches training-time naming.
 #
 # Usage:
 #   ./run_rollout_pi05_vl_cotrain.sh                       # default revision: main
@@ -23,11 +24,11 @@
 #   ./run_rollout_pi05_vl_cotrain.sh <commit-sha>          # pin to a specific HF revision
 #   ./run_rollout_pi05_vl_cotrain.sh /path/to/pretrained   # local pretrained_model dir
 #
-# Trained celebs: ~193 from the scraped bank + 3 IID (Swift/Obama/LeCun).
+# Trained celebs: 192 from the scraped bank + 3 IID (Swift/Obama/LeCun).
 # Recommended prompt: 'Place the can on the photo of <Name>.' or
 #                     'Place the coke on <Name>.'
-# Either prompt form should work - Pi0.5 VL cotrain trains on both (6 prompt patterns
-# per eval_3/scripts/pi05_vl_cotrain/task_index_to_centroid.json).
+# Either prompt form should work - Pi0.5 VL cotrain trains on both (5 prompt patterns
+# per eval_3/scripts/pi05_vl_cotrain/precomputed/task_index_to_centroid.json).
 #
 # Press right-arrow during a rollout to end it early.
 # Type 'q' at the prompt to quit.
@@ -74,7 +75,7 @@ echo "Rollouts saved to: $ROLLOUT_DIR"
 echo
 echo "Prompt format:     'Place the can on the photo of <Name>.'"
 echo "                   'Place the coke on <Name>.'  (also OK)"
-echo "Trained celebs:    ~193 from scraped bank + Swift/Obama/LeCun"
+echo "Trained celebs:    192 from scraped bank + Swift/Obama/LeCun"
 echo
 
 i=1
@@ -100,7 +101,7 @@ while true; do
   fi
 
   # Pi0.5 uses PaliGemma (not SmolVLM): plain lerobot-record applies.
-  # Camera renaming: training used --dataset.rename_map so the policy expects
+  # Camera renaming: training used --rename_map so the policy expects
   # `right_wrist_0_rgb`. We supply the same map at inference for consistency.
   lerobot-record \
     --robot.type=so101_follower --robot.port=/dev/so101-follower --robot.id=my_follower \
@@ -112,7 +113,7 @@ while true; do
     --dataset.episode_time_s=25 \
     --dataset.reset_time_s=10 \
     --dataset.single_task="$PROMPT" \
-    --dataset.rename_map='{"observation.images.camera1":"observation.images.right_wrist_0_rgb"}' \
+    --rename_map='{"observation.images.camera1":"observation.images.right_wrist_0_rgb"}' \
     --dataset.streaming_encoding=true --dataset.encoder_threads=2 \
     --dataset.push_to_hub=false \
     --policy.path="$POLICY_PATH"

@@ -320,7 +320,7 @@ for celeb in "${TARGETS[@]}"; do
       echo "    Episodes intended this batch: $EPISODES_PER_BATCH"
 
       # Identify the most-recent run dir - likely a partial if rc != 0.
-      latest_dir=$(ls -1td "$ROOT"/quick_${celeb}_${LAYOUT}_*/ 2>/dev/null | head -1)
+      latest_dir=$(ls -1td "$ROOT"/quick_${celeb}_${layout}_*/ 2>/dev/null | head -1)
       if [[ -n "$latest_dir" ]]; then
         # A "partial" dir typically has empty data/ or videos/ subdirs.
         if [[ ! -s "$latest_dir/data/chunk-000/file-000.parquet" ]] 2>/dev/null \

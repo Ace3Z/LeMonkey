@@ -53,7 +53,7 @@ Eval 3 publishes several models. The two deployed on eval day are the **5:1 cotr
 
 | Repo | Use | Description |
 |---|---|---|
-| [`HBOrtiz/so101_smolvla_eval3_cotrain`](https://huggingface.co/HBOrtiz/so101_smolvla_eval3_cotrain) | in-distribution celebrities | SmolVLA-450M co-trained on robot episodes and vision-language grounding pairs at a 5:1 robot-to-vision-language ratio. Single-camera inference contract (`cam1`). Checkpoints nested under `step_NNNNNN/`. |
+| [`HBOrtiz/so101_smolvla_eval3_cotrain`](https://huggingface.co/HBOrtiz/so101_smolvla_eval3_cotrain) | in-distribution celebrities | SmolVLA-450M co-trained on robot episodes and vision-language grounding pairs at a 5:1 robot-to-vision-language ratio. Single-camera inference contract (`camera1`). Checkpoints nested under `step_NNNNNN/`. |
 | [`HBOrtiz/so101_smolvla_eval3_broad`](https://huggingface.co/HBOrtiz/so101_smolvla_eval3_broad) | broad and out-of-distribution | SmolVLA-450M co-trained on the 192-celebrity robot dataset plus the 192-celebrity vision-language grounding pairs. The 25k checkpoint is deployed at the repo root, intermediates under `checkpoints/`. |
 
 ### Other published variants

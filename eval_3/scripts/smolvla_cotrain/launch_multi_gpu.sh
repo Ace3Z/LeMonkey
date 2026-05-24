@@ -52,6 +52,7 @@ NUM_WORKERS="${NUM_WORKERS:-16}"      # dataloader workers per GPU process
 ROBOT_DATASET="${ROBOT_DATASET:-HBOrtiz/so101_eval3_cotrain}"
 VL_MANIFEST="${VL_MANIFEST:-HBOrtiz/so101_eval3_cotrain_grounding}"
 PRETRAINED="${PRETRAINED:-lerobot/smolvla_base}"
+EMPTY_CAMERAS="${EMPTY_CAMERAS:-2}"   # match deployed cotrain checkpoint: camera1 + 2 empty pads
 OUT_DIR="${OUT_DIR:-outputs/smolvla_klal_lora_25k}"
 # KLAL + LoRA
 KLAL_LAYERS="${KLAL_LAYERS:-10,12,14}"
@@ -105,6 +106,7 @@ exec torchrun --standalone --nproc_per_node="$NGPU" \
     --vl_ratio="$VL_RATIO" \
     --lr="$LR" \
     --num_workers="$NUM_WORKERS" \
+    --empty_cameras="$EMPTY_CAMERAS" \
     --output_dir="$OUT_DIR" \
     --push_to_hub_repo="$PUSH_REPO" \
     --enable_lora --lora_r="$LORA_R" --lora_alpha="$LORA_ALPHA" \

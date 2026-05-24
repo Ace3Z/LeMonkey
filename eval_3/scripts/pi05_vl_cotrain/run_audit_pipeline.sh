@@ -21,7 +21,7 @@ fi
 
 INPUT="$1"
 HERE="$(dirname "$(readlink -f "$0")")"
-REPO_ROOT="$(dirname "$(dirname "$HERE")")"
+REPO_ROOT="$(cd "$HERE/../../.." && pwd)"
 cd "$REPO_ROOT"
 
 WORK_DIR="${WORK_DIR:-$HOME/.cache/pi05_vl_cotrain_audit}"
@@ -88,5 +88,6 @@ echo "    - eval_3/scripts/pi05_vl_cotrain/keep_episodes.txt"
 echo "    - eval_3/scripts/pi05_vl_cotrain/hardneg_weights.npy"
 echo "    - eval_3/scripts/pi05_vl_cotrain/build_keep_list_summary.json"
 echo
-echo "==> Next: launch Pi0.5 VL cotrain smoke test on the training VM:"
-echo "    STEPS=200 bash eval_3/scripts/brev/train_pi05_vl_cotrain.sh"
+echo "==> Next: the Pi0.5 + VL cotrain wrapper is a scaffold only"
+echo "    (eval_3/scripts/pi05_vl_cotrain/train_pi05_vl_cotrain_scaffold.py)."
+echo "    The deployed Pi0.5 checkpoint was produced by eval_3/scripts/brev/train_pi05.sh."

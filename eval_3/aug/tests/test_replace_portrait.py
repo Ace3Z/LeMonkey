@@ -6,7 +6,7 @@ runs replace_portrait() with a known replacement photo, and verifies:
 
   - the output shape matches input
   - the mask region's mean color is close to the replacement's mean color
-    (homography + Reinhard + Poisson preserved the new content)
+    (homography + MTF blur + alpha-feather preserved the new content)
   - the surrounding (non-mask) region is unchanged
   - no NaN / Inf in the output
   - the replacement preserves the new photo's identity-relevant content

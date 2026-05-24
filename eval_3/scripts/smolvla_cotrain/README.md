@@ -103,7 +103,7 @@ First run downloads ~15 GB of datasets before training starts. Checkpoints push 
 | `STEPS` | 30000 | 50000 | total training steps |
 | `SAVE_FREQ` | 5000 | 5000 | checkpoint + push interval |
 | `BATCH_SIZE` | 32 | 200 per GPU (sized for 141 GB H200) | scale to VRAM: `(0.80 * VRAM_GB - 1.9) / 0.55` |
-| `VL_BATCH_SIZE` | 8 | 100 per GPU | keep at `BATCH_SIZE / 2` for cluster, equal for single GPU |
+| `VL_BATCH_SIZE` | 8 | `BATCH_SIZE` per GPU (200) | equal to `BATCH_SIZE` on cluster (true 5:1 effective ratio); `BATCH_SIZE / 4` on single GPU |
 | `VL_RATIO` | 10 | 5 | the deployed cotrain used 5; ObjectVLA default is 10 |
 | `LR` | 5e-5 | 5e-5 | half the LeRobot default; protects pretrained features |
 | `NUM_WORKERS` | 4 | 16 | dataloader workers per process |

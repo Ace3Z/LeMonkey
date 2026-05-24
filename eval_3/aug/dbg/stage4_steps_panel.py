@@ -1,17 +1,21 @@
 #!/usr/bin/env python3
-"""Render a 4-row before/after panel showing every Stage 4 inpainting step.
+"""Render a 3-row before/after panel showing every Stage 4 inpainting step.
 
 For one chosen portrait of one episode, this script:
 
   Row 1.  Lanczos warp          (source photo  ->  warped to dst quad)
   Row 2.  Gaussian MTF blur     (sharp warp    ->  sigma=0.8 px blur)
-  Row 3.  Reinhard Lab transfer (blurred warp  ->  + ring-sampled color match)
-  Row 4.  Poisson seamlessClone (naive paste   ->  NORMAL_CLONE composite)
+  Row 3.  Alpha-feather paste   (blurred warp  ->  feathered composite,
+                                 the deployed blend_mode="alpha_feather")
 
 Each row is rendered as a left/right pair on the same target frame's pixel
 canvas, so the inserted patch sits at its real location and the boundary
 treatments are visible against the rest of the scene. Output is a single
-8-panel PNG written under media/figures/aug/.
+6-panel PNG written under media/figures/aug/.
+
+The Reinhard Lab color transfer and Poisson seamlessClone paths exist in
+inpaint_video.py for ablation only; the deployed recipe is the 3-row
+chain above (alpha-feather).
 
 Usage:
     python eval_3/aug/dbg/stage4_steps_panel.py \\

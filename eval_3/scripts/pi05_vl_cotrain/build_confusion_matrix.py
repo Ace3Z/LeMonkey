@@ -52,13 +52,13 @@ def main() -> int:
                         default=Path("data/arcface_toolkit/celeb_embeddings.json"),
                         help="Path to celeb_embeddings.json (per-slug 512-d ArcFace centroid).")
     parser.add_argument("--output-matrix", type=Path,
-                        default=Path("eval_3/scripts/pi05_vl_cotrain/confusion_matrix.npy"),
+                        default=Path("eval_3/scripts/pi05_vl_cotrain/precomputed/confusion_matrix.npy"),
                         help="Output .npy for the dense NxN cosine matrix (diagonal set to -1.0).")
     parser.add_argument("--output-slugs", type=Path,
-                        default=Path("eval_3/scripts/pi05_vl_cotrain/confusion_slugs.json"),
+                        default=Path("eval_3/scripts/pi05_vl_cotrain/precomputed/confusion_slugs.json"),
                         help="Output JSON with slug ordering aligned to the matrix rows/cols.")
     parser.add_argument("--output-topk", type=Path,
-                        default=Path("eval_3/scripts/pi05_vl_cotrain/confusable_topk.json"),
+                        default=Path("eval_3/scripts/pi05_vl_cotrain/precomputed/confusable_topk.json"),
                         help="Output JSON mapping each slug to its top-K most-confusable peers.")
     parser.add_argument("--threshold", type=float,
                         default=DEFAULT_CONFUSABLE_THRESHOLD,

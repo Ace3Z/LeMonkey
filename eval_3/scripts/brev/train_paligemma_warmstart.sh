@@ -14,7 +14,7 @@
 set -euo pipefail
 
 OUT_DIR="${OUT_DIR:-outputs/paligemma_celeb_warm}"
-PUSH_REPO="${PUSH_REPO:-HBOrtiz/pi05_paligemma_celeb_warm}"
+PUSH_REPO="${PUSH_REPO:-HBOrtiz/paligemma_vqa_warm}"
 MANIFEST_PATH="${MANIFEST_PATH:-$HOME/LeMonkey/datasets/vggface2_vqa_train.parquet}"
 PRETRAINED_PI05="${PRETRAINED_PI05:-lerobot/pi05_base}"
 EPOCHS="${EPOCHS:-1}"

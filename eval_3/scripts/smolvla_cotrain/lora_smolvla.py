@@ -2,7 +2,8 @@
 
 Why this exists
 ---------------
-KLAL (`klal_smolvla_action.py`) supervises the VLM's name-token -> image-patch
+KLAL (`klal_smolvla_vl.py`, deployed; `klal_smolvla_action.py` is the action-side
+hookset variant) supervises the VLM's name-token -> image-patch
 attention. For that loss to change anything, the VLM's q/k projections must be
 trainable. SmolVLA trained with `train_expert_only=True` freezes the *whole*
 VLM, so KLAL would back-prop into frozen weights and learn nothing.

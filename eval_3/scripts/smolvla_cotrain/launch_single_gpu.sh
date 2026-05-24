@@ -34,6 +34,9 @@ LOG_EVERY="${LOG_EVERY:-10}"
 NUM_WORKERS="${NUM_WORKERS:-4}"
 SEED="${SEED:-42}"
 DTYPE="${DTYPE:-bfloat16}"
+EMPTY_CAMERAS="${EMPTY_CAMERAS:-2}"          # cotrain default: pad 2 missing slots
+                                              # so SmolVLA's 3-cam image_features is
+                                              # camera1 + 2 empty pads (no reference)
 
 OUT_DIR="${OUT_DIR:-outputs/smolvla_cotrain_${VL_RATIO}to1}"
 PUSH_REPO="${PUSH_REPO:-}"                  # leave empty to skip HF push
@@ -103,6 +106,7 @@ CMD=( python -u "$SCRIPT"
       --num_workers="$NUM_WORKERS"
       --seed="$SEED"
       --dtype="$DTYPE"
+      --empty_cameras="$EMPTY_CAMERAS"
       --output_dir="$OUT_DIR" )
 
 [ -n "$VL_IMAGE_ROOT" ] && CMD+=( --vl_image_root="$VL_IMAGE_ROOT" )

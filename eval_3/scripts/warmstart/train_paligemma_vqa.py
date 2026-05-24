@@ -68,7 +68,7 @@ USAGE
     python eval_3/scripts/warmstart/train_paligemma_vqa.py \\
         --manifest /shared/vggface2_vqa_train.parquet \\
         --output-dir outputs/paligemma_celeb_warm \\
-        --push-repo HBOrtiz/pi05_paligemma_celeb_warm \\
+        --push-repo HBOrtiz/paligemma_vqa_warm \\
         --batch-size 8 --grad-accum 4 --epochs 1 --lr 1e-5
 
 """
@@ -92,7 +92,7 @@ def main() -> int:
                      help="HF PaliGemma processor (tokenizer + image processor)")
     ap.add_argument("--output-dir", type=Path, required=True)
     ap.add_argument("--push-repo", default=None,
-                     help="HF Hub repo to push the merged warmed Pi0.5 to (e.g. HBOrtiz/pi05_paligemma_celeb_warm)")
+                     help="HF Hub repo to push the merged warmed Pi0.5 to (e.g. HBOrtiz/paligemma_vqa_warm)")
     ap.add_argument("--lora-r", type=int, default=32)
     ap.add_argument("--lora-alpha", type=int, default=64)
     ap.add_argument("--lora-dropout", type=float, default=0.05)

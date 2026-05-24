@@ -455,7 +455,7 @@ Code that USED to live here but is not augmentation has moved:
 - **Training-time policy patches** (KLAL loss, LoRA adapter, the
   KLAL+LoRA smoke test) →
   [`eval_3/scripts/smolvla_cotrain/`](../scripts/smolvla_cotrain/) (sits
-  next to `cotrain.py`, the only consumer).
+  next to `train_smolvla_cotrain.py`, the only consumer).
 
 ---
 
