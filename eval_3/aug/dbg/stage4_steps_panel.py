@@ -34,12 +34,12 @@ import cv2
 import numpy as np
 
 
-def panel_header(img: np.ndarray, title: str, *, bg_h: int = 46) -> np.ndarray:
+def panel_header(img: np.ndarray, title: str, *, bg_h: int = 32) -> np.ndarray:
     """Stamp a title bar above the image."""
     H, W = img.shape[:2]
     bar = np.full((bg_h, W, 3), 28, dtype=np.uint8)  # dark grey
-    cv2.putText(bar, title, (14, bg_h - 14),
-                cv2.FONT_HERSHEY_SIMPLEX, 0.75, (240, 240, 240), 2, cv2.LINE_AA)
+    cv2.putText(bar, title, (10, bg_h - 11),
+                cv2.FONT_HERSHEY_SIMPLEX, 0.5, (240, 240, 240), 1, cv2.LINE_AA)
     return np.vstack([bar, img])
 
 
@@ -217,11 +217,11 @@ def main() -> int:
     # 4. Crop to the portrait region + assemble the 4x2 grid ------------------
     # Each panel is rendered at a fixed width so the final composite is
     # readable when embedded in a README.
-    PANEL_W = 540
+    PANEL_W = 360
     rows = []
     for title, left_caption, right_caption, before, after in pairs:
-        before_crop = crop_to_portrait(before, dst_corners, pad=120)
-        after_crop = crop_to_portrait(after, dst_corners, pad=120)
+        before_crop = crop_to_portrait(before, dst_corners, pad=70)
+        after_crop = crop_to_portrait(after, dst_corners, pad=70)
         # Make them the same shape, then resize to a fixed panel width.
         h = min(before_crop.shape[0], after_crop.shape[0])
         w = min(before_crop.shape[1], after_crop.shape[1])
@@ -234,10 +234,10 @@ def main() -> int:
         before_panel = panel_header(before_crop, left_caption)
         after_panel = panel_header(after_crop, right_caption)
         row = np.hstack([before_panel, after_panel])
-        sec_h = 52
+        sec_h = 38
         sec = np.full((sec_h, row.shape[1], 3), 12, dtype=np.uint8)
-        cv2.putText(sec, title, (18, sec_h - 18),
-                     cv2.FONT_HERSHEY_SIMPLEX, 0.85, (250, 250, 250), 2,
+        cv2.putText(sec, title, (14, sec_h - 13),
+                     cv2.FONT_HERSHEY_SIMPLEX, 0.6, (250, 250, 250), 1,
                      cv2.LINE_AA)
         rows.append(np.vstack([sec, row]))
 
