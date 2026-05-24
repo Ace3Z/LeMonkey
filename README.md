@@ -75,6 +75,13 @@ Each eval has its own runtime folder, README, deployed model, and dataset. This 
 
 ## 🧩 The Three Evals
 
+| Eval | Task | Deployed model | Trained on | Runbook |
+|---|---|---|---|---|
+| **1** | Direct color-conditioned pick and place | [`so101_smolvla_eval1`](https://huggingface.co/HBOrtiz/so101_smolvla_eval1) | [`so101_eval1`](https://huggingface.co/datasets/HBOrtiz/so101_eval1), 153 episodes (BC + HG-DAgger) | [`eval_1/README.md`](eval_1/README.md) |
+| **2** | Compositional instruction following | [`so101_smolvla_eval2`](https://huggingface.co/HBOrtiz/so101_smolvla_eval2) | [`so101_eval2`](https://huggingface.co/datasets/HBOrtiz/so101_eval2), 180 episodes, 6 bowl arrangements × 6 prompt families | [`eval_2/README.md`](eval_2/README.md) |
+| **3 (IID)** | Coke can onto a celebrity portrait, 3 known celebrities | [`so101_smolvla_eval3_cotrain`](https://huggingface.co/HBOrtiz/so101_smolvla_eval3_cotrain) | [`so101_eval3_cotrain`](https://huggingface.co/datasets/HBOrtiz/so101_eval3_cotrain) + [`so101_eval3_cotrain_grounding`](https://huggingface.co/datasets/HBOrtiz/so101_eval3_cotrain_grounding) | [`eval_3/README.md`](eval_3/README.md) |
+| **3 (broad)** | Same task, 192 celebrities, OOD at eval time | [`so101_smolvla_eval3_broad`](https://huggingface.co/HBOrtiz/so101_smolvla_eval3_broad) | [`so101_eval3_broad`](https://huggingface.co/datasets/HBOrtiz/so101_eval3_broad) + [`so101_eval3_broad_grounding`](https://huggingface.co/datasets/HBOrtiz/so101_eval3_broad_grounding) | [`eval_3/README.md`](eval_3/README.md) |
+
 ### Eval 1: direct color-conditioned pick and place
 
 <img src="media/gifs/eval1_red.gif" align="right" width="300"/>
@@ -82,10 +89,6 @@ Each eval has its own runtime folder, README, deployed model, and dataset. This 
 A banana sits in a fixed position. Three colored bowls (blue, red, green) sit in fixed positions. The policy places the banana in the bowl named by the prompt.
 
 > *"Put the banana in the blue colored bowl."*
-
-- **Deployed model:** [`HBOrtiz/so101_smolvla_eval1`](https://huggingface.co/HBOrtiz/so101_smolvla_eval1)
-- **Trained on:** [`HBOrtiz/so101_eval1`](https://huggingface.co/datasets/HBOrtiz/so101_eval1), 153 teleop episodes (behavior-cloning demos plus HG-DAgger corrections)
-- **Runbook:** [`eval_1/README.md`](eval_1/README.md)
 
 ### Eval 2: compositional instruction following
 
@@ -96,10 +99,6 @@ The banana stays put, but the bowls are reshuffled across positions and the prom
 > *"Put the banana into the 2nd bowl from the left."*
 > *"Put the banana into the bowl that is not green and not blue."*
 
-- **Deployed model:** [`HBOrtiz/so101_smolvla_eval2`](https://huggingface.co/HBOrtiz/so101_smolvla_eval2)
-- **Trained on:** [`HBOrtiz/so101_eval2`](https://huggingface.co/datasets/HBOrtiz/so101_eval2), 180 teleop episodes balanced over 6 bowl arrangements and 6 compositional prompt families
-- **Runbook:** [`eval_2/README.md`](eval_2/README.md)
-
 ### Eval 3: coke can onto a celebrity portrait
 
 <img src="media/gifs/eval3_obama.gif" align="right" width="300"/>
@@ -109,10 +108,6 @@ Three printed celebrity portraits are laid out on the workspace. The policy plac
 > *"Put the Coke on Barack Obama."*
 
 The course rule: no separate face-recognition model or external VLM may run at inference, so the deployed VLA has to do the identity reasoning itself. We solve this with **co-training**, training the policy jointly on robot manipulation episodes and on a vision-language grounding dataset, so celebrity knowledge ends up inside the policy weights.
-
-- **Deployed model (in-distribution celebrities):** [`HBOrtiz/so101_smolvla_eval3_cotrain`](https://huggingface.co/HBOrtiz/so101_smolvla_eval3_cotrain), trained on [`HBOrtiz/so101_eval3_cotrain`](https://huggingface.co/datasets/HBOrtiz/so101_eval3_cotrain) (robot episodes) plus [`HBOrtiz/so101_eval3_cotrain_grounding`](https://huggingface.co/datasets/HBOrtiz/so101_eval3_cotrain_grounding) (grounding pairs)
-- **Deployed model (broad celebrities):** [`HBOrtiz/so101_smolvla_eval3_broad`](https://huggingface.co/HBOrtiz/so101_smolvla_eval3_broad), co-trained on [`HBOrtiz/so101_eval3_broad`](https://huggingface.co/datasets/HBOrtiz/so101_eval3_broad) (192-celebrity robot data) plus [`HBOrtiz/so101_eval3_broad_grounding`](https://huggingface.co/datasets/HBOrtiz/so101_eval3_broad_grounding) (192-celebrity grounding pairs)
-- **Runbook:** [`eval_3/README.md`](eval_3/README.md)
 
 ---
 
@@ -174,14 +169,7 @@ Type the prompt at the menu (for example `Put the Coke on Barack Obama.`), watch
 
 Every trained policy and every dataset is published under the [`HBOrtiz/`](https://huggingface.co/HBOrtiz) organization on the Hugging Face Hub. The full inventory, what each artifact is and how it was built, is in **[`DATASETS_AND_MODELS.md`](DATASETS_AND_MODELS.md)**.
 
-Deployed models at a glance:
-
-| Eval | Model | Backbone | Trained on |
-|---|---|---|---|
-| 1 | [`so101_smolvla_eval1`](https://huggingface.co/HBOrtiz/so101_smolvla_eval1) | SmolVLA-450M | `so101_eval1` (153 ep) |
-| 2 | [`so101_smolvla_eval2`](https://huggingface.co/HBOrtiz/so101_smolvla_eval2) | SmolVLA-450M | `so101_eval2` (180 ep) |
-| 3 | [`so101_smolvla_eval3_cotrain`](https://huggingface.co/HBOrtiz/so101_smolvla_eval3_cotrain) | SmolVLA-450M | `so101_eval3_cotrain` + `so101_eval3_cotrain_grounding` (3 celebrities) |
-| 3 | [`so101_smolvla_eval3_broad`](https://huggingface.co/HBOrtiz/so101_smolvla_eval3_broad) | SmolVLA-450M | `so101_eval3_broad` + `so101_eval3_broad_grounding` (192 celebrities) |
+All four deployed policies use **SmolVLA-450M** initialised from `lerobot/smolvla_base`. See [`DATASETS_AND_MODELS.md`](DATASETS_AND_MODELS.md) for additional published variants (Pi0.5, KLAL, 10:1 cotrain ablations).
 
 ---
 
@@ -215,7 +203,10 @@ LeMonkey/
 │   └── training_vm/                systemd wrap + log tail + status (eval-agnostic; driven by env vars)
 ├── calibration/                 per-arm SO-101 calibration JSONs
 ├── media/                       logos (figures/) and demo GIFs (gifs/)
-└── third_party/lerobot/         LeRobot framework as a git submodule
+└── third_party/
+    ├── lerobot/                    LeRobot framework as a git submodule
+    ├── lerobot_patches/            patches applied to the lerobot submodule (env compat)
+    └── sam2/                       SAM 2 (vendored for the aug pipeline's video predictor)
 ```
 
 Per-eval `train/`, `rollouts/`, `evals/`, and `state/` folders stay local (checkpoints, recordings, and session state are not committed).

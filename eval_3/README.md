@@ -541,7 +541,7 @@ eval_3/
 │   ├── warmstart/           PaliGemma VQA warm-start (init for Pi0.5)
 │   └── training_vm/         training-VM launcher kit
 ├── tools/                dataset-verification renderers
-└── train/, rollouts/, state/   gitignored: checkpoints, recordings, state
+└── train/, rollouts/, evals/, outputs/, state/   gitignored: checkpoints, recordings, state
 ```
 
 ---
