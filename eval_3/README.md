@@ -84,8 +84,8 @@ fine-tuning time**, in a way the BC loss alone will not produce.
 For the policy to reliably pick up the can and place it on the correct face
 regardless of which face is named or where it sits on the table, it has to
 see a **lot** of demonstrations: many celebrities × many table layouts ×
-many trajectories. A modest matrix — say 30 celebrities × 6 layouts × 50
-demos each — is 9,000 episodes. At ~20 s per episode plus reset, that is
+many trajectories. A modest matrix (say 30 celebrities × 6 layouts × 50
+demos each) is 9,000 episodes. At ~20 s per episode plus reset, that is
 weeks of continuous teleoperation we did not have.
 
 A recipe of "record 180 demos by hand, then train on those 180" hits the
@@ -102,8 +102,8 @@ teleoperation" into "one weekend of teleoperation plus one GPU-week of
 rendering". The recipe is:
 
 1. **Teleop a small base set.** ~180 real episodes (~178 cotrain, ~180
-   broad) of the Coke can placed on three printed portraits — Taylor Swift,
-   Barack Obama, Yann LeCun — across varied layouts, lighting, hand
+   broad) of the Coke can placed on three printed portraits of Taylor
+   Swift, Barack Obama, and Yann LeCun, across varied layouts, lighting, hand
    approaches, and slot orderings.
 2. **Multiply each base episode by inpainting new celebrity faces onto the
    same printed portraits**, frame by frame, without touching the action
@@ -122,8 +122,8 @@ The multiplication:
 | 178 base teleops × 3 portrait slots × ~53 celebrity variants per episode | **9,394 episodes / 5.05 M frames** in [`so101_eval3_cotrain`](https://huggingface.co/datasets/HBOrtiz/so101_eval3_cotrain) |
 | 180 base teleops × 3 portrait slots × ~54 variants from a 192-celeb bank | **9,842 episodes / 5.29 M frames** in [`so101_eval3_broad`](https://huggingface.co/datasets/HBOrtiz/so101_eval3_broad) |
 
-Because the swap is identity-preserving — pixel-accurate face replacement
-on the printed quads, with the gripper / can / hand never overdrawn — the
+Because the swap is identity-preserving (pixel-accurate face replacement
+on the printed quads, with the gripper / can / hand never overdrawn), the
 action labels stay valid. The policy sees ~50× more (face, layout, name)
 combinations than we ever teleoperated, which is what breaks the
 positional shortcut from §1.
@@ -132,7 +132,7 @@ The pipeline uses [GroundingDINO](https://arxiv.org/abs/2303.05499) for
 open-vocabulary portrait detection, [SAM 2](https://arxiv.org/abs/2408.00714)
 for per-frame mask propagation (so the gripper and can are preserved when
 they cross a portrait), a sub-pixel paper-quad refit on Canny edges, and
-Lanczos-warped alpha-feathered face composites — see
+Lanczos-warped alpha-feathered face composites. See
 [`aug/README.md`](aug/README.md) for the full stage-by-stage architecture
 and visual gates. [ArcFace](https://arxiv.org/abs/1801.07698) is used at
 *training* time only, to verify that each variant's swapped face is still
@@ -321,16 +321,16 @@ The two deployed variants use different LoRA hyperparameters:
 | Variant | Target modules | Layers | rank $r$ | $\alpha$ | dropout |
 |---|---|---|---|---|---|
 | **SmolVLA cotrain** ([`lora_smolvla.py`](aug/training/lora_smolvla.py)) | `q_proj, k_proj, v_proj, o_proj` (attention only) | $[9, 10, \ldots, 15]$ | 16 | 32 | 0 |
-| **Pi0.5 cotrain** ([`scripts/brev/train_pi05.sh`](scripts/brev/train_pi05.sh) + [`scripts/pi05_vl_cotrain/precomputed/layer_rank.json`](scripts/pi05_vl_cotrain/precomputed/layer_rank.json)) | `q_proj, k_proj, v_proj, o_proj, gate_proj, up_proj, down_proj` (full Gemma block) | $[0, 1, \ldots, 17]$ all 18 layers, per-layer rank | 16–64 per layer (uniform fallback: 32) | 64 | 0.05 |
+| **Pi0.5 cotrain** ([`scripts/brev/train_pi05.sh`](scripts/brev/train_pi05.sh) + [`scripts/pi05_vl_cotrain/precomputed/layer_rank.json`](scripts/pi05_vl_cotrain/precomputed/layer_rank.json)) | `q_proj, k_proj, v_proj, o_proj, gate_proj, up_proj, down_proj` (full Gemma block) | $[0, 1, \ldots, 17]$ all 18 layers, per-layer rank | 16 to 64 per layer (uniform fallback: 32) | 64 | 0.05 |
 
 The Pi0.5 per-layer rank profile concentrates capacity in the
 face-discrimination zone of PaliGemma's Gemma-2B tower
 ([`scripts/pi05_vl_cotrain/precomputed/layer_rank.json`](scripts/pi05_vl_cotrain/precomputed/layer_rank.json)):
 
-- layers 0–4: $r = 16$ (preserve warm-PG WebLI prior)
-- layers 5–7, 13–14: $r = 32$ (default scaffold)
-- layers 8–12: $r = 64$ (the BlindVLA mid-LM face-discrimination zone, ≈ 50–67% LM depth)
-- layers 15–17: $r = 48$ (top-LM name-token alignment, what the LM head reads)
+- layers 0 to 4: $r = 16$ (preserve warm-PG WebLI prior)
+- layers 5 to 7 and 13 to 14: $r = 32$ (default scaffold)
+- layers 8 to 12: $r = 64$ (the BlindVLA mid-LM face-discrimination zone, roughly 50 to 67% LM depth)
+- layers 15 to 17: $r = 48$ (top-LM name-token alignment, what the LM head reads)
 
 Sum of ranks across the 18 layers is 704, averaging $r \approx 39$. If the
 installed PEFT version cannot ingest per-layer ranks the launcher falls
