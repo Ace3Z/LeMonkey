@@ -339,7 +339,7 @@ $$
 
 where $\mathbf{v} = \nabla g$ is the source-photo gradient field and $f^*$
 is the destination frame. The Euler-Lagrange equation reduces to a Poisson
-PDE with Dirichlet boundary conditions, $\Delta f = \text{div}\,\mathbf{v}$.
+PDE with Dirichlet boundary conditions, $\Delta f = \mathrm{div}(\mathbf{v})$.
 The `NORMAL_CLONE` flag uses the pure source gradient (vs `MIXED_CLONE`
 which mixes the larger of the source and target gradients per pixel).
 For our use case the source-pure variant is correct: we want the new
@@ -401,7 +401,7 @@ For each monitored layer $\ell \in \mathcal{L}$ the attention from name
 tokens to image patches is recomputed (RoPE applied) and the loss is
 
 $$
-\mathcal{L}_\text{KLAL} \;=\; \frac{1}{|\mathcal{L}|} \sum_{\ell \in \mathcal{L}} \mathrm{KL}\bigl(\, P_\text{target}(\mathcal{S}) \,\Vert\, Q^{(\ell)}(\mathcal{S}) \,\bigr)
+\mathcal{L}_\text{KLAL} = \frac{1}{|\mathcal{L}|} \sum_{\ell \in \mathcal{L}} \mathrm{KL}\bigl( P_\text{target}(\mathcal{S}) \mathrel{\Vert} Q^{(\ell)}(\mathcal{S}) \bigr)
 $$
 
 with $P_\text{target}$ an isotropic 2-D Gaussian on the bbox centroid (our
