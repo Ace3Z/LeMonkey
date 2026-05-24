@@ -32,14 +32,14 @@ write-up, see [`eval_3/README.md`](../README.md).
 
 ```mermaid
 flowchart TB
-    A[Real teleop episodes<br/>179 base demos] --> B[Stage 2: detect_static.py<br/>GroundingDINO + SAM 2]
+    A[Real teleop episodes<br/>179 base demos] --> B[Stage 2: detect_static.py<br/>GroundingDINO + SAM 2 + ArcFace]
     B --> C[Stage 3: refine_paper_quad.py<br/>Canny + Hough + cornerSubPix]
     C --> D{Per-episode<br/>portrait corners +<br/>occluder masks}
     M[Stage 1: scrape_headshots.py<br/>Wikimedia + TMDB + Bing<br/>+ ArcFace verifier] --> N[(Celebrity photo bank<br/>192 identities)]
-    D --> E[Stage 4: inpaint_video.replace_portrait<br/>warp + Reinhard + MTF + Poisson]
+    D --> E[Stage 4: inpaint_video.replace_portrait<br/>warp + MTF blur + alpha-feather]
     N --> E
     E --> F[Augmented variants<br/>9 394 / 9 842 episodes]
-    F --> G[Stage 5: 5_verify_identity.py<br/>ArcFace cos &gt;= 0.4]
+    F --> G[Stage 5: ArcFace gate<br/>cos &gt;= 0.40]
     G --> H[(Robot dataset<br/>so101_eval3_cotrain<br/>so101_eval3_broad)]
     F --> I[VL grounding pairs<br/>bbox + celebrity name]
     I --> J[(VL dataset<br/>so101_eval3_*_grounding)]
@@ -48,9 +48,21 @@ flowchart TB
     K --> L[Deployed SmolVLA policies]
 ```
 
-The dataset half (stages 1-5) lives under `eval_3/aug/`; the training half is
-[`eval_3/scripts/smolvla_cotrain/`](../scripts/smolvla_cotrain/) with the
-loss + adapter modules consumed from [`training/`](training/).
+### Pipeline at a glance
+
+| Stage | What it produces | When it runs | Module |
+|---|---|---|---|
+| **1.** Build photo bank | 192 ArcFace-verified celebrity photos | **once** for the project | [`scripts/celebs/scrape_headshots.py`](../scripts/celebs/scrape_headshots.py) |
+| **2a.** Find the 3 portraits (frame 0) | bbox + SAM mask + identity per portrait | once per base teleop, **frame 0 only** | [`stages/detect_static.py`](stages/detect_static.py) |
+| **2b.** Track occluders | per-frame mask of gripper / can / hand | once per base teleop, **all frames** | same module |
+| **3.** Refine portrait boundaries | 4 sub-pixel corners per portrait | once per base teleop, frame 0 | [`stages/refine_paper_quad.py`](stages/refine_paper_quad.py) |
+| **4.** Render inpainted variant | augmented MP4 with new celebrity faces | once **per (episode, variant)** pair | [`stages/inpaint_video.py`](stages/inpaint_video.py) |
+| **5.** ArcFace identity gate | drops variants with cosine `< 0.40` | once **per variant** | inline in [`generators/broad.py`](generators/broad.py) |
+
+Read sequentially: Stages 1, 2a, 2b, 3 prepare; Stage 4 renders; Stage 5
+filters. The dataset half (Stages 1 to 5) lives under `eval_3/aug/`; the
+training half is [`eval_3/scripts/smolvla_cotrain/`](../scripts/smolvla_cotrain/)
+with the loss + adapter modules consumed from [`training/`](training/).
 
 ---
 
@@ -103,15 +115,20 @@ for the cosine-distance distribution that motivates our 0.40 threshold.
 
 ---
 
-## Stage 2: Static-camera portrait detection
+## Stage 2: Detect the 3 portraits + track occluders
 
 **Module**: [`stages/detect_static.py`](stages/detect_static.py)
 
-The SO-101 overhead camera is mechanically fixed for the whole episode, and the
-three printed portraits do not move across frames. Stage 2 leverages this:
-run the heavy detection pipeline **once on frame 0** to find the portrait
-quadrilaterals, then propagate a lightweight per-frame **occluder mask**
-(gripper, can, hand) by frame-differencing.
+The SO-101 overhead camera is mechanically fixed for the whole episode and the
+three printed portraits do not move. Stage 2 leverages this with **two
+distinct sub-tasks** that share one pass through the video:
+
+- **Stage 2a (frame 0 only)** runs the heavy detector to find the portrait
+  quadrilaterals and identify which celebrity sits at each slot. Output
+  feeds Stage 3 (boundary refinement) and Stage 4 (inpainting).
+- **Stage 2b (all frames)** propagates a lightweight per-frame occluder
+  mask (gripper, can, hand) by frame-differencing against frame 0. Output
+  feeds Stage 4 directly.
 
 ```mermaid
 flowchart LR
@@ -128,48 +145,52 @@ flowchart LR
     K --> L[(portrait_masks.pkl<br/>per-frame occluder masks<br/>RLE-encoded)]
 ```
 
-#### Visual gate: GroundingDINO + SAM 2 panels
+### Stage 2a. Detect + identify the 3 portraits at frame 0
+
+GroundingDINO (open-vocab text-prompted detector) returns the top three
+bbox candidates; SAM 2's image predictor turns each bbox into a pixel-tight
+mask; ArcFace embeds each mask region and assigns the celebrity whose
+centroid yields the highest cosine.
 
 <div align="center">
 <img src="../../media/figures/aug/stage2_portraits.png" width="780" alt="Portrait detection panels: GroundingDINO bbox scores + SAM 2 mask + ArcFace identity cosines per portrait"/>
 </div>
 
-The portrait-detection panel (one panel per portrait) shows the GroundingDINO
-score (`gdino`), the SAM 2 mask area as a fraction of the bbox (`sam`), and
-the ArcFace cosine against the prompted-celebrity centroid (`arcface`). The
-green frame is the prompted target; the others are distractors. Rendered by
-[`dbg/stage2_panels.py`](dbg/stage2_panels.py) and saved per episode as
+Per-portrait panel (one per slot): GroundingDINO score (`gdino`), SAM 2
+mask area as a fraction of the bbox (`sam`), ArcFace cosine to the
+prompted celebrity (`arcface`). The green frame is the prompted target;
+the others are distractors. Rendered by
+[`dbg/stage2_panels.py`](dbg/stage2_panels.py); saved per episode as
 `dbg_stage2_portraits.png`.
-
-#### Visual gate: portrait masks at frame 0
 
 <div align="center">
 <img src="../../media/figures/aug/mask_overlay_frame0.png" width="720" alt="Frame 0 of a real episode with the three portrait masks overlaid in green/blue/red, contours drawn"/>
 </div>
 
-The three colored regions are the SAM 2 portrait masks (one per pid),
-extracted from `portrait_masks.pkl["M_0_per_pid"]` at frame 0 and
-overlaid on the raw overhead-cam frame. This is the per-portrait mask the
-Stage 4 inpainter uses as its `dst_mask`. Rendered by
-[`dbg/mask_overlay.py`](dbg/mask_overlay.py).
+The three colored regions are the SAM 2 portrait masks at frame 0
+(`portrait_masks.pkl["M_0_per_pid"]`) overlaid on the raw overhead-cam
+frame. This is the per-portrait mask Stage 4's inpainter uses as its
+`dst_mask`. Rendered by [`dbg/mask_overlay.py`](dbg/mask_overlay.py).
 
-#### Visual gate: per-frame portrait + occluder masks
+### Stage 2b. Track the gripper / can / hand across the clip
+
+SAM 2's video predictor is seeded with frame-0 occluder boxes (from
+GroundingDINO prompts `"robot gripper"` and `"coca cola can"`) and
+propagates the masks through every frame. The inpainter subtracts these
+per-frame masks from the portrait mask so the gripper / can / hand pass
+through cleanly without being inpainted over.
 
 <div align="center">
-<img src="../../media/gifs/eval3_aug_segmentation.gif" width="720" alt="GIF: per-frame portrait + occluder mask overlay across a full episode"/>
+<img src="../../media/gifs/eval3_aug_segmentation.gif" width="720" alt="GIF: per-frame portrait + occluder mask overlay across a full episode. Each portrait keeps its fixed quad; the gripper and can are tracked as they cross the portraits."/>
 </div>
 
-Full-episode mask overlay produced by
-[`dbg/segmentation_video.py`](dbg/segmentation_video.py). Each portrait
-keeps its fixed quad (static camera); the gripper / can / hand are tracked
-through the clip by SAM 2's video predictor seeded from frame 0. The
-inpainter subtracts these from the portrait mask per frame so the original
-foreground passes through cleanly. This GIF is the canonical occluder
-visualisation: a per-frame view is the only reliable way to see the
-tracker working, because any static frame-0 panel is dominated by the
-first-frame detections (which may include false positives that the
-filter at [`detect_static.py:218`](stages/detect_static.py#L218) drops
-later, or that SAM 2 corrects via its multi-frame propagation).
+Full-episode mask overlay from [`dbg/segmentation_video.py`](dbg/segmentation_video.py).
+Each portrait keeps its fixed quad (static camera); watch the yellow
+occluder mask track the gripper + can as they cross the portraits. A
+per-frame view is the only reliable way to see the tracker working: any
+static frame-0 panel can include false positives that the filter at
+[`detect_static.py:218`](stages/detect_static.py#L218) drops later, or
+that SAM 2 corrects via its multi-frame propagation.
 
 ### GroundingDINO
 
@@ -289,10 +310,9 @@ printed-face region with a new celebrity photo while preserving:
 flowchart TB
     A[Source celebrity photo<br/>HD frontal portrait] --> B[Lanczos warp<br/>via homography to quad]
     B --> C[Gaussian MTF blur<br/>sigma = 0.8 px]
-    C --> D[Reinhard Lab transfer<br/>sampled from 5-px outer ring]
-    D --> E[Mask erosion = 1 px]
-    E --> F[cv2.seamlessClone<br/>NORMAL_CLONE Pérez 2003]
-    F --> G[Output frame<br/>+ per-variant metadata]
+    C --> D[Mask erosion = 1 px<br/>drop JPEG-halo pixels]
+    D --> E[Alpha-feather blend<br/>Gaussian-feathered alpha,<br/>clamped to SAM mask]
+    E --> F[Output frame<br/>+ per-variant metadata]
 ```
 
 #### Visual gate: original vs augmented, side by side
@@ -312,80 +332,56 @@ action loss. Generated by [`dbg/compare_gif.py`](dbg/compare_gif.py).
 ### Step-by-step
 
 <div align="center">
-<img src="../../media/figures/aug/stage4_step_by_step.png" width="780" alt="4-row before/after panel showing each Stage 4 transform: Lanczos warp, Gaussian MTF blur, Reinhard Lab color transfer, Poisson boundary blend"/>
+<img src="../../media/figures/aug/stage4_step_by_step.png" width="780" alt="3-row before/after panel showing each deployed Stage 4 transform: Lanczos warp, Gaussian MTF blur, alpha-feather composite"/>
 </div>
 
-The panel above pairs the **before** (output of the previous step, left
-column) against the **after** (this step's output, right column) for the
-four substantive transforms. Same source photo, same destination quad,
-same overhead-cam frame throughout, so the visual delta is exactly the
-effect of that step alone. Rendered by
+The panel pairs the **before** (output of the previous step, left column)
+against the **after** (this step's output, right column) for the three
+transforms the deployed pipeline actually runs. Same source photo, same
+destination quad, same overhead-cam frame throughout, so the visual delta
+is exactly the effect of that step alone. Rendered by
 [`dbg/stage4_steps_panel.py`](dbg/stage4_steps_panel.py) on a real
-base-teleop frame, swapping the existing portrait with a different
-celebrity photo from our scraped bank.
+base-teleop frame, swapping the existing portrait with a Taylor Swift
+photo from our scraped bank.
 
-The Reinhard row carries the caveat noted in the code ([`apply_reinhard
-defaults to False`](stages/inpaint_video.py#L151)): on a white-table
-dominated ring the std-clamp pulls colours toward white and bleaches the
-photo, so production leaves it off and relies on Poisson's gradient
-domain blend to absorb the local lighting. The Poisson row therefore
-uses the **blurred** (non-color-matched) warp as its input.
+**Row 1. Lanczos warp.** A homography is fitted from the source photo's
+four corners (assumed axis-aligned, top-left clockwise) to the refined
+target quad from Stage 3. The warp uses `cv2.INTER_LANCZOS4` resampling
+for high-frequency detail preservation.
 
-**Lanczos warp.** A homography is fitted from the source photo's four
-corners (assumed axis-aligned, top-left clockwise) to the refined target
-quad from Stage 3. The warp uses
-`cv2.INTER_LANCZOS4` resampling for high-frequency detail preservation.
-
-**Gaussian MTF blur** ($\sigma = 0.8$ px). The source celebrity photo is a
+**Row 2. Gaussian MTF blur** ($\sigma = 0.8$ px). The source photo is a
 clean high-resolution image; the overhead camera is a consumer USB webcam
 with measurable optical blur. A single isotropic Gaussian with
 $\sigma \approx 0.8$ px matches the average modulation-transfer-function
-of 640×480 USB webcams ([Mosleh et al., CVPR 2015, *Camera Intrinsic Blur
+of 640x480 USB webcams ([Mosleh et al., CVPR 2015, *Camera Intrinsic Blur
 Kernel Estimation*](https://openaccess.thecvf.com/content_cvpr_2015/papers/Mosleh_Camera_Intrinsic_Blur_2015_CVPR_paper.pdf)).
 Without this step the inpainted region looks suspiciously sharp.
 
-**Reinhard Lab-space color transfer.** Sample a thin 5-px-wide ring of
-pixels *just outside* the portrait quad, convert to the
-[Lab color space](https://en.wikipedia.org/wiki/CIELAB_color_space), and
-re-mean / re-stddev the warped photo so its (L, a, b) statistics match the
-ring:
+**Row 3. Alpha-feather composite** (the deployed default
+[`blend_mode="alpha_feather"`](stages/inpaint_video.py#L309)):
 
-$$
-L'_p = \frac{\sigma^{L}_\text{ring}}{\sigma^{L}_\text{photo}} \cdot (L_p - \mu^{L}_\text{photo}) + \mu^{L}_\text{ring}
-$$
+1. Erode the SAM mask `M_0` by 1 px to drop one-pixel JPEG-halo
+   artefacts. (OpenCV's `seamlessClone` already erodes ~3 px internally
+   when used; we'd be over-eroding with a second pass. One pixel is
+   enough.)
+2. Gaussian-blur the eroded mask (`sigma=1.2`) to get a soft inward
+   transition.
+3. Clamp the blurred mask back to the un-eroded mask so alpha is
+   **exactly zero outside `M_0`**. Without the clamp the Gaussian
+   extends ~3 sigma past the mask boundary and bleeds the new photo
+   onto the gripper / can / hand. (SAM 2 already excludes the
+   occluders by construction; the clamp respects that.)
+4. Normalize the feather to [0, 1] and linearly blend new vs. original.
 
-(and analogously for $a, b$). This is [Reinhard et al., 2001, *Color Transfer
-between Images*, IEEE CG&A](https://www.cs.tau.ac.il/~turkel/imagepapers/ColorTransfer.pdf).
-It is what makes the inpainted portrait inherit the table's warm tungsten
-lighting cast and feel like part of the same scene. The standard deviation
-ratio is clamped to $[0.3, 2.0]$ to preserve dynamic range when the ring is
-near-uniform.
-
-**Mask erosion** (1 px). Without erosion, the Poisson seamless-clone in the
-next step would have to integrate over discretisation-noisy boundary
-pixels, which causes a faint halo. One pixel of erosion is enough to avoid
-the issue; more (the OpenCV default of 3+) over-erodes and shrinks the
-visible portrait.
-
-**Poisson seamless cloning** (`cv2.seamlessClone(..., NORMAL_CLONE)`). This
-is [Pérez et al., SIGGRAPH 2003, *Poisson Image Editing*](http://www.irisa.fr/vista/Papers/2003_siggraph_perez.pdf)
-Eq. 11. The cloning solves for an inpainted region $f$ that has the
-**gradient field of the source** but matches the **boundary values of the
-target**:
-
-$$
-\min_f \iint_\Omega |\nabla f - \mathbf{v}|^2 \quad \text{s.t.} \quad f|_{\partial \Omega} = f^*|_{\partial \Omega}
-$$
-
-where $\mathbf{v} = \nabla g$ is the source-photo gradient field and $f^*$
-is the destination frame. The Euler-Lagrange equation reduces to a Poisson
-PDE with Dirichlet boundary conditions, $\Delta f = \mathrm{div}(\mathbf{v})$.
-The `NORMAL_CLONE` flag uses the pure source gradient (vs `MIXED_CLONE`
-which mixes the larger of the source and target gradients per pixel).
-For our use case the source-pure variant is correct: we want the new
-celebrity face fully transplanted, with the destination only contributing
-its boundary lighting. See Figures 2-3 of the Pérez paper for the
-canonical comparison.
+We evaluated `cv2.seamlessClone(NORMAL_CLONE)` (Pérez et al., SIGGRAPH
+2003) as an alternative blend mode. It produces a smooth gradient-domain
+boundary integration but bleaches the inpainted photo when the ring is
+white-table-dominated (a problem with the `apply_reinhard` color-match
+step that the original recipe paired with Poisson). Alpha-feather is
+cheaper, doesn't bleach, and respects the SAM-2 occluder boundary
+exactly, so it's the deployed default. The Poisson path is still wired
+in [`inpaint_video.py`](stages/inpaint_video.py) behind
+`--blend-mode=poisson_normal` for ablation.
 
 ### Per-frame composition
 
@@ -529,7 +525,7 @@ eval_3/aug/
 │   ├── detect_static.py                static-camera portrait detection + per-frame occluders
 │   ├── refine_paper_quad.py            sub-pixel paper-edge refit (Canny + Hough + cornerSubPix)
 │   ├── refine_corners_frame0.py        one-shot refit of frame-0 corners post-detect_static
-│   ├── inpaint_video.py                composite engine (warp + Reinhard + MTF + seamlessClone)
+│   ├── inpaint_video.py                composite engine (Lanczos warp + MTF blur + alpha-feather)
 │   └── video_io.py                     AV1 -> H.264 sidecar transcode + frame iterators
 │
 ├── mining/

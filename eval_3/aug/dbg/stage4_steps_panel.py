@@ -77,47 +77,53 @@ def warp_to_quad(new_photo: np.ndarray, dst_corners: np.ndarray,
     return cv2.warpPerspective(new_photo, M, (W, H), flags=cv2.INTER_LANCZOS4)
 
 
-def reinhard_lab(src_bgr: np.ndarray, ref_bgr: np.ndarray,
-                  sample_mask: np.ndarray, *, std_clip: tuple[float, float] = (0.3, 2.0)
-                  ) -> np.ndarray:
-    """Match (L,a,b) mean+std of src_bgr to those of ref_bgr sampled at
-    sample_mask>0. Per-channel std ratio clamped to ``std_clip``."""
-    src_lab = cv2.cvtColor(src_bgr, cv2.COLOR_BGR2LAB).astype(np.float32)
-    ref_lab = cv2.cvtColor(ref_bgr, cv2.COLOR_BGR2LAB).astype(np.float32)
-    ring = ref_lab[sample_mask > 0]
-    if len(ring) < 10:
-        return src_bgr
-    src_mean = src_lab.mean((0, 1)); src_std = src_lab.std((0, 1)) + 1e-6
-    ring_mean = ring.mean(0); ring_std = ring.std(0) + 1e-6
-    ratio = np.clip(ring_std / src_std, std_clip[0], std_clip[1])
-    out_lab = (src_lab - src_mean) * ratio + ring_mean
-    out_lab = np.clip(out_lab, 0, 255).astype(np.uint8)
-    return cv2.cvtColor(out_lab, cv2.COLOR_LAB2BGR)
-
-
 def alpha_paste(warped: np.ndarray, src_frame: np.ndarray,
                   mask: np.ndarray) -> np.ndarray:
-    """Hard alpha paste — no feathering. Shows the seam crisply for the
-    'before' panel of the Poisson row."""
+    """Hard alpha paste with no feathering: every mask>0 pixel of
+    src_frame is replaced by the corresponding warped pixel."""
     out = src_frame.copy()
     out[mask > 0] = warped[mask > 0]
     return out
 
 
-def poisson_clone(warped: np.ndarray, src_frame: np.ndarray,
-                    mask: np.ndarray, ring: np.ndarray) -> np.ndarray:
-    """Replicate the inpaint_video.py 'poisson_normal' blend mode."""
-    ring_pix = src_frame[ring > 0]
-    dst = src_frame.copy()
-    if len(ring_pix) >= 10:
-        ring_mean = ring_pix.astype(np.float32).mean(0).astype(np.uint8)
-        dst[mask > 0] = ring_mean
-    ys, xs = np.where(mask > 0)
-    if len(ys) == 0:
+def alpha_feather_blend(warped: np.ndarray, src_frame: np.ndarray,
+                          mask: np.ndarray, *,
+                          feather_sigma: float = 1.2) -> np.ndarray:
+    """Replicate the inpaint_video.py 'alpha_feather' production blend.
+
+    Mirrors inpaint_video.replace_portrait when blend_mode='alpha_feather'
+    (the deployed default):
+      1. Erode the mask by 1 px to drop one-pixel JPEG-halo artefacts.
+      2. Gaussian-blur the binary mask for a soft inward transition.
+      3. Clamp the feather to the un-eroded mask so alpha is exactly zero
+         outside (otherwise the new photo would bleed onto adjacent
+         gripper/can/hand pixels).
+      4. Normalise the feather to [0, 1] and linearly blend.
+    """
+    erode_px = 1
+    mask_eroded = cv2.erode(
+        mask, np.ones((erode_px * 2 + 1, erode_px * 2 + 1), np.uint8)
+    )
+    if mask_eroded.sum() == 0:
         return src_frame
-    cx = int(round((xs.min() + xs.max()) / 2))
-    cy = int(round((ys.min() + ys.max()) / 2))
-    return cv2.seamlessClone(warped, dst, mask, (cx, cy), cv2.NORMAL_CLONE)
+    feather = cv2.GaussianBlur(
+        mask_eroded.astype(np.float32), (0, 0), sigmaX=feather_sigma
+    )
+    feather = np.minimum(feather, mask.astype(np.float32))
+    m = feather.max()
+    if m > 1e-6:
+        feather = feather / m
+    feather = feather[:, :, None]
+    out = (warped.astype(np.float32) * feather
+            + src_frame.astype(np.float32) * (1 - feather))
+    return np.clip(out, 0, 255).astype(np.uint8)
+
+
+def quad_polygon_mask(H: int, W: int, dst_corners: np.ndarray) -> np.ndarray:
+    """Filled quadrilateral mask from 4 corners (uint8, 0/255)."""
+    poly = np.zeros((H, W), dtype=np.uint8)
+    cv2.fillConvexPoly(poly, dst_corners.astype(np.int32), 255)
+    return poly
 
 
 def crop_to_portrait(img: np.ndarray, corners: np.ndarray,
@@ -143,11 +149,9 @@ def main() -> int:
     p.add_argument("--new-photo", required=True, type=Path,
                     help="HD photo to inpaint into the chosen portrait quad")
     p.add_argument("--out", required=True, type=Path,
-                    help="Output PNG path (8-panel composite)")
+                    help="Output PNG path (3-row, 6-panel composite)")
     p.add_argument("--mtf-sigma", type=float, default=0.8,
                     help="Gaussian sigma for MTF blur (default 0.8 px)")
-    p.add_argument("--ring-dilate-px", type=int, default=11,
-                    help="Dilation for Reinhard ring sampling (default 11)")
     args = p.parse_args()
 
     # 1. Load inputs ----------------------------------------------------------
@@ -171,47 +175,46 @@ def main() -> int:
     )
 
     # 2. Step through the inpaint pipeline ------------------------------------
+    # We show ONLY the steps that the deployed pipeline actually runs:
+    #     Lanczos warp -> Gaussian MTF blur -> alpha-feather composite
+    # (the optional Reinhard color transfer is OFF by default in production
+    # because it bleaches on a white-table-dominated ring; the Poisson
+    # NORMAL_CLONE blend is similarly an opt-in alternative. We don't
+    # visualise either of them since neither is in the deployed recipe.)
     warped = warp_to_quad(new_photo, dst_corners, H, W)
     blurred = cv2.GaussianBlur(warped, (0, 0), sigmaX=args.mtf_sigma)
-    ring_dilated = cv2.dilate(M_0, np.ones((args.ring_dilate_px,
-                                                 args.ring_dilate_px), np.uint8))
-    ring = cv2.subtract(ring_dilated, M_0)
-    color_matched = reinhard_lab(blurred, frame, sample_mask=ring)
-    # Row 4 demonstrates the boundary-blend step. Production defaults to
-    # alpha_feather with Reinhard OFF (apply_reinhard=False, see
-    # inpaint_video.py:151 + the line 254-262 comment): Reinhard tends to
-    # bleach on a white-table-dominated ring, so we use the BLURRED warp
-    # (no color match) as the Poisson input here. This is the recipe a
-    # reader sees actually deployed.
-    naive_pasted = alpha_paste(blurred, frame, M_0)
-    poisson = poisson_clone(blurred, frame, M_0, ring)
+
+    # For the WARP and BLUR rows we want the new photo to fully replace the
+    # original portrait, so we paste over the *dst_quad polygon* rather than
+    # M_0. M_0 (the SAM mask) is typically smaller than the visible printed
+    # portrait, so pasting only at M_0 lets the original face leak around the
+    # edges of the swap. The polygon mask covers the full paper region.
+    dst_poly = quad_polygon_mask(H, W, dst_corners)
+    warp_paste = alpha_paste(warped, frame, dst_poly)
+    blur_paste = alpha_paste(blurred, frame, dst_poly)
+
+    # The FINAL composite row uses the deployed alpha-feather blend with
+    # the actual M_0 mask, so the reader sees exactly what production
+    # writes to disk (1-px erosion + Gaussian feather clamped to M_0).
+    final_composite = alpha_feather_blend(blurred, frame, M_0)
 
     # 3. Build per-step before/after pairs ------------------------------------
-    # Row 1 "before" is the ORIGINAL frame (with the existing portrait still
-    # there); every other "before" is the cumulative result of prior steps,
-    # alpha-pasted at the portrait location so the surrounding scene is visible.
-    # Row 4 shows the full composite of the final two blend variants.
     pairs = [
         ("Row 1.  Lanczos warp",
          "before: original frame",
-         "after: warped to dst quad",
-         frame.copy(),                                     # before: untouched frame
-         alpha_paste(warped, frame, M_0)),                 # after: warped paste, no blur/color
+         "after: new photo warped to dst quad",
+         frame.copy(),                                     # before: untouched
+         warp_paste),                                      # after: full-quad paste
         ("Row 2.  Gaussian MTF blur (sigma = 0.8 px)",
-         "before: warped, full sharpness",
-         "after: + Gaussian sigma 0.8",
-         alpha_paste(warped, frame, M_0),
-         alpha_paste(blurred, frame, M_0)),
-        ("Row 3.  Reinhard Lab color transfer  (off by default in production)",
-         "before: warped + blurred",
-         "after: + ring-sampled color match",
-         alpha_paste(blurred, frame, M_0),
-         alpha_paste(color_matched, frame, M_0)),
-        ("Row 4.  Boundary blend",
-         "before: hard alpha paste (seam visible)",
-         "after: Poisson NORMAL_CLONE",
-         naive_pasted,
-         poisson),
+         "before: warped, full Lanczos sharpness",
+         "after: + Gaussian sigma 0.8 (matches USB webcam MTF)",
+         warp_paste,
+         blur_paste),
+        ("Row 3.  Alpha-feather composite (deployed blend)",
+         "before: hard paste over dst quad (visible seam)",
+         "after: alpha-feather at M_0 (1-px erosion + sigma feather)",
+         blur_paste,
+         final_composite),
     ]
 
     # 4. Crop to the portrait region + assemble the 4x2 grid ------------------
