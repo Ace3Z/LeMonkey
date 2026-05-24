@@ -18,10 +18,9 @@ write-up, see [`eval_3/README.md`](../README.md).
 
 - [End-to-end pipeline](#end-to-end-pipeline)
 - [Stage 1: Mining the celebrity bank](#stage-1-mining-the-celebrity-bank)
-- [Stage 2: Static-camera portrait detection](#stage-2-static-camera-portrait-detection)
+- [Stage 2: Detect the 3 portraits + track occluders](#stage-2-detect-the-3-portraits--track-occluders)
 - [Stage 3: Sub-pixel paper-quad refinement](#stage-3-sub-pixel-paper-quad-refinement)
 - [Stage 4: Identity-preserving inpainting](#stage-4-identity-preserving-inpainting)
-- [Stage 5: Identity verification](#stage-5-identity-verification)
 - [Training-time modules: KLAL and LoRA](#training-time-modules-klal-and-lora)
 - [File layout](#file-layout)
 - [References](#references)
@@ -39,8 +38,7 @@ flowchart TB
     D --> E[Stage 4: inpaint_video.replace_portrait<br/>warp + MTF blur + alpha-feather]
     N --> E
     E --> F[Augmented variants<br/>9 394 / 9 842 episodes]
-    F --> G[Stage 5: ArcFace gate<br/>cos &gt;= 0.40]
-    G --> H[(Robot dataset<br/>so101_eval3_cotrain<br/>so101_eval3_broad)]
+    F --> H[(Robot dataset<br/>so101_eval3_cotrain<br/>so101_eval3_broad)]
     F --> I[VL grounding pairs<br/>bbox + celebrity name]
     I --> J[(VL dataset<br/>so101_eval3_*_grounding)]
     H --> K[smolvla_cotrain trainer<br/>RT-2 §3.2 mixed batches<br/>+ KLAL + LoRA]
@@ -57,12 +55,11 @@ flowchart TB
 | **2b.** Track occluders | per-frame mask of gripper / can / hand | once per base teleop, **all frames** | same module |
 | **3.** Refine portrait boundaries | 4 sub-pixel corners per portrait | once per base teleop, frame 0 | [`stages/refine_paper_quad.py`](stages/refine_paper_quad.py) |
 | **4.** Render inpainted variant | augmented MP4 with new celebrity faces | once **per (episode, variant)** pair | [`stages/inpaint_video.py`](stages/inpaint_video.py) |
-| **5.** ArcFace identity gate | drops variants with cosine `< 0.40` | once **per variant** | inline in [`generators/broad.py`](generators/broad.py) |
 
-Read sequentially: Stages 1, 2a, 2b, 3 prepare; Stage 4 renders; Stage 5
-filters. The dataset half (Stages 1 to 5) lives under `eval_3/aug/`; the
-training half is [`eval_3/scripts/smolvla_cotrain/`](../scripts/smolvla_cotrain/)
-with the loss + adapter modules consumed from [`training/`](training/).
+Read sequentially: Stages 1, 2a, 2b, 3 prepare; Stage 4 renders. The
+dataset half lives under `eval_3/aug/`; the training half is
+[`eval_3/scripts/smolvla_cotrain/`](../scripts/smolvla_cotrain/) with the
+loss + adapter modules consumed from [`training/`](training/).
 
 ---
 
@@ -181,16 +178,27 @@ per-frame masks from the portrait mask so the gripper / can / hand pass
 through cleanly without being inpainted over.
 
 <div align="center">
-<img src="../../media/gifs/eval3_aug_segmentation.gif" width="720" alt="GIF: per-frame portrait + occluder mask overlay across a full episode. Each portrait keeps its fixed quad; the gripper and can are tracked as they cross the portraits."/>
+<img src="../../media/gifs/eval3_aug_segmentation.gif" width="720" alt="GIF: per-frame portrait + occluder mask overlay across a full episode. Three portrait masks in green/blue/red; the gripper + can are drawn in yellow wherever they cross a portrait."/>
 </div>
 
 Full-episode mask overlay from [`dbg/segmentation_video.py`](dbg/segmentation_video.py).
+Color legend:
+
+- **Green / blue / red:** the three portrait masks (visible paper at the
+  current frame), one color per pid (`M_0_per_pid` minus whatever is on
+  top of it at frame `fi`).
+- **Yellow:** the **occluder mask** at the current frame, computed as
+  `M_0_pid AND NOT visible_pid` and unioned across the three portraits.
+  This is exactly the region the inpainter must NOT overwrite at this
+  frame, because something (gripper, can, hand) is sitting on top of
+  the paper there.
+
 Each portrait keeps its fixed quad (static camera); watch the yellow
-occluder mask track the gripper + can as they cross the portraits. A
-per-frame view is the only reliable way to see the tracker working: any
-static frame-0 panel can include false positives that the filter at
-[`detect_static.py:218`](stages/detect_static.py#L218) drops later, or
-that SAM 2 corrects via its multi-frame propagation.
+occluder mask track the gripper + can across the clip as they reach for
+the target. The per-frame view is the only reliable way to see the
+tracker working: any static frame-0 panel can include false positives
+that the filter at [`detect_static.py:218`](stages/detect_static.py#L218)
+drops later, or that SAM 2 corrects via its multi-frame propagation.
 
 ### GroundingDINO
 
@@ -391,49 +399,6 @@ operator hand) intermittently cover parts of the portrait. The composition
 operator subtracts the occluder mask (a SAM 2 video-predictor track from
 the gripper-can-hand seed) from the inpaint mask, so the original frame
 pixels show through where they should.
-
----
-
-## Stage 5: Identity verification
-
-**Module**: applied inline by the production generators (see
-[`generators/broad.py`](generators/broad.py) `process_episode`).
-
-For each augmented variant, sample five frames, ArcFace-embed the
-inpainted portrait, and assert the cosine similarity to the new celebrity's
-reference embedding is `>= 0.40`. Variants that fail this check are dropped
-from the dataset. This is the same threshold and the same embedding model
-used in Stage 1 mining; it certifies that the inpainting did not destroy
-the source identity.
-
-#### Visual gate: ArcFace cosine matrix on a real inpainted variant
-
-<div align="center">
-<img src="../../media/figures/aug/stage5_arcface_verification.png" width="720" alt="Top: three inpainted portrait thumbnails from one aug variant. Bottom: 3x3 ArcFace cosine matrix with diagonal cells being the verification check (target celeb) and off-diagonal cells showing separation against the other two."/>
-</div>
-
-Top strip: the three portrait thumbnails are cropped from frame 0 of one
-aug variant (the augmentation pipeline's output, not the source photos).
-Bottom: the 3x3 ArcFace cosine matrix between each inpainted portrait
-(rows) and the per-celebrity reference centroid (columns). Cells colored
-green pass the **0.40** verification threshold; red cells fail.
-
-Reading the matrix:
-
-- **Diagonal cells are the actual verification check.** Each diagonal cell
-  is `cos(ArcFace(inpainted portrait i), centroid of the celeb painted at
-  slot i)`. Variants in which any diagonal cell falls below 0.40 are
-  dropped from the dataset.
-- **Off-diagonal cells are evidence of identity separation.** They should
-  be much lower than the diagonal because ArcFace embeddings cluster
-  tightly within identity and spread apart across identities (this is
-  exactly the additive-angular-margin geometry from the
-  [ArcFace paper](https://arxiv.org/abs/1801.07698)).
-
-Rendered by [`dbg/arcface_verification_panel.py`](dbg/arcface_verification_panel.py).
-The script reads `augmentation.json` to learn which celeb sits at each
-slot, runs InsightFace `buffalo_l` on the variant's frame 0 + the
-scraped reference photos, and writes the matrix.
 
 ---
 

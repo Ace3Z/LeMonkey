@@ -35,6 +35,7 @@ ensure_h264 = _vio.ensure_h264
 
 
 COLORS = [(0, 255, 0), (255, 0, 0), (0, 0, 255)]   # BGR: green, blue, red
+OCCLUDER_COLOR = (0, 255, 255)                       # BGR: yellow
 # Default labels for the 3-celeb in-distribution baseline; otherwise read
 # identity from portrait_seeds.json.
 CELEB_BY_PID = {0: "swift", 1: "obama", 2: "lecun"}
@@ -71,6 +72,9 @@ def render_one(ep_dir: Path, *, fps: int = 30) -> dict:
         for i, c in enumerate(celebs):
             celeb_by_pid[i] = c
 
+    # Frame-0 portrait masks (constant across the clip; the inpainter's dst_mask).
+    M_0_per_pid = cache.get("M_0_per_pid", {})
+
     work = Path(tempfile.mkdtemp(prefix="seg_video_"))
     try:
         fi = 0
@@ -80,21 +84,38 @@ def render_one(ep_dir: Path, *, fps: int = 30) -> dict:
                 break
             overlay = frame.copy()
             fmasks = cache["masks"].get(fi, {})
+            # Aggregate the OCCLUDER region across all 3 portraits:
+            #   occluder_pid = M_0_pid AND NOT visible_pid
+            # i.e. the part of the original paper area that's currently
+            # covered by something (gripper / can / hand).
+            occluder_total = np.zeros(frame.shape[:2], dtype=bool)
+            visible_per_pid: dict[int, np.ndarray] = {}
             for pid in (0, 1, 2):
                 if pid not in fmasks:
                     continue
+                vis = mu.decode(fmasks[pid]["rle"]).astype(np.uint8)
+                if vis.ndim == 3:
+                    vis = vis[:, :, 0]
+                visible_per_pid[pid] = vis
+                m0 = M_0_per_pid.get(pid)
+                if m0 is None:
+                    continue
+                m0_bool = (m0 > 0).astype(bool)
+                occluder_total |= m0_bool & (vis == 0)
+
+            # Layer 1: tint each visible portrait in its pid color.
+            for pid in (0, 1, 2):
+                vis = visible_per_pid.get(pid)
+                if vis is None:
+                    continue
                 payload = fmasks[pid]
-                mask = mu.decode(payload["rle"]).astype(np.uint8)
-                if mask.ndim == 3:
-                    mask = mask[:, :, 0]
                 col = COLORS[pid]
                 tinted = np.full_like(overlay, col)
-                blended = cv2.addWeighted(tinted, 0.35, overlay, 0.65, 0)
-                overlay = np.where(mask[:, :, None] > 0, blended, overlay)
-                contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+                blended = cv2.addWeighted(tinted, 0.30, overlay, 0.70, 0)
+                overlay = np.where(vis[:, :, None] > 0, blended, overlay)
+                contours, _ = cv2.findContours(vis, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
                 cv2.drawContours(overlay, contours, -1, col, 2)
-                # label at mask centroid
-                ys, xs = np.where(mask > 0)
+                ys, xs = np.where(vis > 0)
                 if len(ys) > 0:
                     cx, cy = int(xs.mean()), int(ys.mean())
                     label = f"pid{pid} {celeb_by_pid.get(pid,'?')} s={payload['score']:.1f}"
@@ -102,6 +123,17 @@ def render_one(ep_dir: Path, *, fps: int = 30) -> dict:
                                 cv2.FONT_HERSHEY_SIMPLEX, 0.45, (0, 0, 0), 3)
                     cv2.putText(overlay, label, (cx - 70, cy + 8),
                                 cv2.FONT_HERSHEY_SIMPLEX, 0.45, col, 1)
+
+            # Layer 2: paint the occluder region yellow on top — this is the
+            # gripper / can / hand crossing a portrait. Drawn LAST so it sits
+            # above the portrait-tint and is always visible.
+            if occluder_total.any():
+                occ_u8 = occluder_total.astype(np.uint8)
+                tinted = np.full_like(overlay, OCCLUDER_COLOR)
+                blended = cv2.addWeighted(tinted, 0.55, overlay, 0.45, 0)
+                overlay = np.where(occ_u8[:, :, None] > 0, blended, overlay)
+                contours, _ = cv2.findContours(occ_u8, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+                cv2.drawContours(overlay, contours, -1, OCCLUDER_COLOR, 2)
             cv2.putText(overlay, f"frame {fi}", (10, 25),
                         cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 0), 4)
             cv2.putText(overlay, f"frame {fi}", (10, 25),
