@@ -181,7 +181,7 @@ per-frame masks from the portrait mask so the gripper / can / hand pass
 through cleanly without being inpainted over.
 
 <div align="center">
-<img src="../../media/gifs/eval3_aug_segmentation.gif" width="720" alt="GIF: per-frame portrait + occluder mask overlay across a full episode. Three portrait masks in green/blue/red; the gripper + can are drawn in yellow wherever they cross a portrait."/>
+<video src="../../media/demos/eval3_aug_segmentation.mp4" autoplay loop muted playsinline width="720"></video>
 </div>
 
 Full-episode mask overlay from [`dbg/segmentation_video.py`](dbg/segmentation_video.py).
@@ -329,7 +329,7 @@ flowchart TB
 #### Visual gate: original vs augmented, side by side
 
 <div align="center">
-<img src="../../media/gifs/eval3_aug_compare.gif" width="720" alt="GIF: side-by-side original overhead-cam frames vs inpainted variant. Same hand+can trajectory; only the three printed portraits differ."/>
+<video src="../../media/demos/eval3_aug_compare.mp4" autoplay loop muted playsinline width="720"></video>
 </div>
 
 Left half is the raw teleop clip; right half is the augmented variant

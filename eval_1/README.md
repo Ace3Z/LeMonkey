@@ -9,9 +9,9 @@ named by the prompt.
 <div align="center">
 <table>
   <tr>
-    <td align="center"><img src="../media/gifs/eval1_blue.gif" width="250"/></td>
-    <td align="center"><img src="../media/gifs/eval1_red.gif" width="250"/></td>
-    <td align="center"><img src="../media/gifs/eval1_green.gif" width="250"/></td>
+    <td align="center"><video src="../media/demos/eval1_blue.mp4" autoplay loop muted playsinline width="250"></video></td>
+    <td align="center"><video src="../media/demos/eval1_red.mp4" autoplay loop muted playsinline width="250"></video></td>
+    <td align="center"><video src="../media/demos/eval1_green.mp4" autoplay loop muted playsinline width="250"></video></td>
   </tr>
   <tr>
     <td align="center">"blue bowl"</td>
