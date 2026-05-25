@@ -38,9 +38,9 @@
 <div align="center">
 <table>
   <tr>
-    <td align="center"><video src="media/demos/eval1_blue.mp4" autoplay loop muted playsinline width="270"></video></td>
-    <td align="center"><video src="media/demos/eval2_02.mp4" autoplay loop muted playsinline width="270"></video></td>
-    <td align="center"><video src="media/demos/eval3_obama.mp4" autoplay loop muted playsinline width="270"></video></td>
+    <td align="center"><img src="media/gifs/eval1_blue.gif" width="270"/></td>
+    <td align="center"><img src="media/gifs/eval2_02.gif" width="270"/></td>
+    <td align="center"><img src="media/gifs/eval3_obama.gif" width="270"/></td>
   </tr>
   <tr>
     <td align="center"><b>Eval 1:</b> direct color bowl</td>
@@ -84,7 +84,7 @@ Each eval has its own runtime folder, README, deployed model, and dataset. This 
 
 ### Eval 1: direct color-conditioned pick and place
 
-<video src="media/demos/eval1_red.mp4" autoplay loop muted playsinline align="right" width="300"></video>
+<img src="media/gifs/eval1_red.gif" align="right" width="300"/>
 
 A banana sits in a fixed position. Three colored bowls (blue, red, green) sit in fixed positions. The policy places the banana in the bowl named by the prompt.
 
@@ -92,7 +92,7 @@ A banana sits in a fixed position. Three colored bowls (blue, red, green) sit in
 
 ### Eval 2: compositional instruction following
 
-<video src="media/demos/eval2_01.mp4" autoplay loop muted playsinline align="right" width="300"></video>
+<img src="media/gifs/eval2_01.gif" align="right" width="300"/>
 
 The banana stays put, but the bowls are reshuffled across positions and the prompt no longer names a color directly. The policy has to work out which bowl is meant.
 
@@ -101,7 +101,7 @@ The banana stays put, but the bowls are reshuffled across positions and the prom
 
 ### Eval 3: coke can onto a celebrity portrait
 
-<video src="media/demos/eval3_obama.mp4" autoplay loop muted playsinline align="right" width="300"></video>
+<img src="media/gifs/eval3_obama.gif" align="right" width="300"/>
 
 Three printed celebrity portraits are laid out on the workspace. The policy places a Coke can on the portrait of the person named in the prompt, including, in the hardest tier, celebrities never seen in training.
 

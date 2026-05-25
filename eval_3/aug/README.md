@@ -181,7 +181,7 @@ per-frame masks from the portrait mask so the gripper / can / hand pass
 through cleanly without being inpainted over.
 
 <div align="center">
-<video src="../../media/demos/eval3_aug_segmentation.mp4" autoplay loop muted playsinline width="720"></video>
+<img src="../../media/gifs/eval3_aug_segmentation.gif" width="720"/>
 </div>
 
 Full-episode mask overlay from [`dbg/segmentation_video.py`](dbg/segmentation_video.py).
@@ -329,7 +329,7 @@ flowchart TB
 #### Visual gate: original vs augmented, side by side
 
 <div align="center">
-<video src="../../media/demos/eval3_aug_compare.mp4" autoplay loop muted playsinline width="720"></video>
+<img src="../../media/gifs/eval3_aug_compare.gif" width="720"/>
 </div>
 
 Left half is the raw teleop clip; right half is the augmented variant

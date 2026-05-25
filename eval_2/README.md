@@ -13,8 +13,8 @@ position.
 <div align="center">
 <table>
   <tr>
-    <td align="center"><video src="../media/demos/eval2_01.mp4" autoplay loop muted playsinline width="320"></video></td>
-    <td align="center"><video src="../media/demos/eval2_02.mp4" autoplay loop muted playsinline width="320"></video></td>
+    <td align="center"><img src="../media/gifs/eval2_01.gif" width="320"/></td>
+    <td align="center"><img src="../media/gifs/eval2_02.gif" width="320"/></td>
   </tr>
 </table>
 </div>
